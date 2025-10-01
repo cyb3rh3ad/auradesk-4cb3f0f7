@@ -1,83 +1,111 @@
-import { Calendar, TrendingUp, Users, MessageSquare } from "lucide-react";
+import { Calendar, TrendingUp, Users, MessageSquare, Zap, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Index = () => {
+  const stats = [
+    { 
+      title: "Active Teams", 
+      value: "12", 
+      change: "+2 from last week", 
+      icon: Users,
+      gradient: "from-blue-500 to-cyan-500"
+    },
+    { 
+      title: "Messages", 
+      value: "2,847", 
+      change: "+573 this week", 
+      icon: MessageSquare,
+      gradient: "from-purple-500 to-pink-500"
+    },
+    { 
+      title: "Meetings", 
+      value: "8", 
+      change: "3 upcoming today", 
+      icon: Calendar,
+      gradient: "from-orange-500 to-red-500"
+    },
+    { 
+      title: "Productivity", 
+      value: "+23%", 
+      change: "vs last month", 
+      icon: TrendingUp,
+      gradient: "from-green-500 to-emerald-500"
+    },
+  ];
+
   return (
-    <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold mb-2">Welcome to AuraDesk</h1>
-        <p className="text-muted-foreground">Your intelligent collaboration workspace</p>
+    <div className="p-8 space-y-8 animate-fade-in">
+      <div className="relative">
+        <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
+        
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-6 h-6 text-primary" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">
+              Welcome to AuraDesk
+            </h1>
+          </div>
+          <p className="text-lg text-muted-foreground">Your intelligent collaboration workspace</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Teams</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 from last week</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Messages</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <p className="text-xs text-muted-foreground">+573 this week</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Meetings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">3 upcoming today</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Productivity</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+23%</div>
-            <p className="text-xs text-muted-foreground">vs last month</p>
-          </CardContent>
-        </Card>
+        {stats.map((stat, i) => (
+          <Card 
+            key={i} 
+            className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group"
+            style={{ animationDelay: `${i * 100}ms` }}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-5 rounded-full blur-2xl`} />
+            
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
+                <stat.icon className="h-4 w-4 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">{stat.value}</div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <ArrowUpRight className="w-3 h-3" />
+                {stat.change}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
+        <CardHeader className="border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl">Recent Activity</CardTitle>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pt-6">
+          <div className="space-y-1">
             {[
-              { name: "Sarah Chen", action: "shared a file", time: "2 minutes ago" },
-              { name: "Mike Johnson", action: "scheduled a meeting", time: "15 minutes ago" },
-              { name: "AI Assistant", action: "summarized your last meeting", time: "1 hour ago" },
-              { name: "Emily Davis", action: "mentioned you in chat", time: "2 hours ago" },
+              { name: "Sarah Chen", action: "shared a file", time: "2 minutes ago", color: "from-blue-500 to-cyan-500" },
+              { name: "Mike Johnson", action: "scheduled a meeting", time: "15 minutes ago", color: "from-purple-500 to-pink-500" },
+              { name: "AI Assistant", action: "summarized your last meeting", time: "1 hour ago", color: "from-orange-500 to-red-500" },
+              { name: "Emily Davis", action: "mentioned you in chat", time: "2 hours ago", color: "from-green-500 to-emerald-500" },
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b last:border-0">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-4 rounded-xl hover:bg-accent/5 transition-all duration-200 group border border-transparent hover:border-border/50"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white font-semibold shadow-lg group-hover:scale-110 transition-transform duration-200`}>
                     {item.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-sm font-semibold">{item.name}</p>
                     <p className="text-xs text-muted-foreground">{item.action}</p>
                   </div>
                 </div>
-                <span className="text-xs text-muted-foreground">{item.time}</span>
+                <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">{item.time}</span>
               </div>
             ))}
           </div>
