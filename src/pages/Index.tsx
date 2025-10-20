@@ -42,7 +42,7 @@ const Index = () => {
         <div className="relative">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-6 h-6 text-primary" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">
+            <h1 className="text-4xl font-bold text-foreground">
               Welcome to AuraDesk
             </h1>
           </div>
