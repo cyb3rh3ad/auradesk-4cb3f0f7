@@ -1,8 +1,24 @@
-import { Search, Bell, User, Command } from "lucide-react";
+import { Search, Bell, User, Command, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const Header = () => {
+  const { user, signOut } = useAuth();
+  
+  const getInitials = (email: string) => {
+    return email.substring(0, 2).toUpperCase();
+  };
+
   return (
     <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-6 relative">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
@@ -28,13 +44,36 @@ export const Header = () => {
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-gradient-to-br from-red-500 to-pink-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></span>
         </Button>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
-        >
-          <User className="w-5 h-5" />
-        </Button>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
+            >
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                  {user?.email ? getInitials(user.email) : 'AD'}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'User'}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
