@@ -7,7 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Chrome } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import googleLogo from '@/assets/google-g-logo.png';
 
 const Auth = () => {
   const { signUp, signIn, signInWithGoogle } = useAuth();
@@ -23,6 +24,7 @@ const Auth = () => {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +45,19 @@ const Auth = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!signupUsername.match(/^[a-zA-Z0-9_]{3,20}$/)) {
+      toast({
+        title: 'Invalid username',
+        description: 'Username must be 3-20 characters and contain only letters, numbers, and underscores.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLoading(true);
     
-    const { error } = await signUp(signupEmail, signupPassword, signupName);
+    const { error } = await signUp(signupEmail, signupPassword, signupName, signupUsername);
     
     if (error) {
       toast({
@@ -164,6 +176,24 @@ const Auth = () => {
                 </div>
                 
                 <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input
+                    id="signup-username"
+                    type="text"
+                    placeholder="johndoe123"
+                    value={signupUsername}
+                    onChange={(e) => setSignupUsername(e.target.value)}
+                    required
+                    disabled={loading}
+                    pattern="[a-zA-Z0-9_]{3,20}"
+                    title="3-20 characters: letters, numbers, and underscores only"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    3-20 characters: letters, numbers, and underscores only
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
                     id="signup-email"
@@ -207,12 +237,12 @@ const Auth = () => {
           
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full gap-2"
             onClick={handleGoogleSignIn}
             disabled={loading}
           >
-            <Chrome className="mr-2 h-4 w-4" />
-            Google
+            <img src={googleLogo} alt="Google" className="w-5 h-5" />
+            Sign in with Google
           </Button>
         </CardContent>
       </Card>

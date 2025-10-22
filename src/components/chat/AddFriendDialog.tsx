@@ -29,7 +29,7 @@ export const AddFriendDialog = () => {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('*')
-      .or(`email.ilike.%${email}%,full_name.ilike.%${email}%`)
+      .or(`username.ilike.%${email}%,email.ilike.%${email}%`)
       .neq('id', user?.id)
       .limit(5);
 
@@ -92,13 +92,13 @@ export const AddFriendDialog = () => {
         <DialogHeader>
           <DialogTitle>Add Friend</DialogTitle>
           <DialogDescription>
-            Search for users by email or name to send a friend request.
+            Search for users by username or email to send a friend request.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Enter email or name..."
+              placeholder="Enter username or email..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -114,8 +114,8 @@ export const AddFriendDialog = () => {
                 className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/50"
               >
                 <div>
-                  <p className="font-medium">{profile.full_name || profile.email}</p>
-                  <p className="text-sm text-muted-foreground">{profile.email}</p>
+                  <p className="font-medium">@{profile.username || profile.email}</p>
+                  <p className="text-sm text-muted-foreground">{profile.full_name || profile.email}</p>
                 </div>
                 <Button
                   size="sm"
