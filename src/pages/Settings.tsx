@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Lock, Mic, Camera, Volume2, User, Users } from 'lucide-react';
+import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -23,8 +24,11 @@ const Settings = () => {
   const [customStatus, setCustomStatus] = useState('');
 
   // Appearance settings
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('dark');
   const [backgroundImage, setBackgroundImage] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Audio/Video settings
   const [selectedMic, setSelectedMic] = useState('default');
@@ -54,8 +58,9 @@ const Settings = () => {
       setFullName(data.full_name || '');
       setUsername(data.username || '');
       setCustomStatus(data.custom_status || '');
-      setTheme(data.theme || 'system');
+      setTheme(data.theme || 'dark');
       setBackgroundImage(data.background_image || '');
+      setAvatarUrl(data.avatar_url || '');
     }
   };
 
@@ -122,11 +127,7 @@ const Settings = () => {
       });
       
       // Apply theme
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else if (theme === 'light') {
-        document.documentElement.classList.remove('dark');
-      }
+      applyTheme(theme);
     }
 
     setLoading(false);
@@ -225,6 +226,77 @@ const Settings = () => {
     }
   };
 
+  const applyTheme = (themeName: string) => {
+    // Remove all theme classes
+    document.documentElement.classList.remove(
+      'dark',
+      'theme-discord-dark',
+      'theme-midnight',
+      'theme-forest',
+      'theme-sunset',
+      'theme-purple'
+    );
+
+    // Apply selected theme
+    if (themeName !== 'light') {
+      document.documentElement.classList.add(themeName);
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploading(true);
+
+      if (!event.target.files || event.target.files.length === 0) {
+        return;
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user?.id}/${Math.random()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user?.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      toast({
+        title: 'Avatar updated',
+        description: 'Your profile picture has been updated.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (theme) {
+      applyTheme(theme);
+    }
+  }, [theme]);
+
   return (
     <div className="container max-w-4xl mx-auto p-6 space-y-6">
       <div>
@@ -263,6 +335,39 @@ const Settings = () => {
               <CardDescription>Manage your personal information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <Label>Profile Picture</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback className="text-2xl">
+                      {username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploading ? 'Uploading...' : 'Upload Avatar'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Max 5MB • PNG, JPG, WEBP, GIF
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <Separator />
               <div className="space-y-2">
                 <Label htmlFor="fullname">Full Name</Label>
                 <Input
@@ -316,17 +421,24 @@ const Settings = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="theme">Theme</Label>
+                <Label htmlFor="theme">Color Theme</Label>
                 <Select value={theme} onValueChange={setTheme}>
                   <SelectTrigger id="theme">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="system">System</SelectItem>
                     <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="dark">Dark (Default)</SelectItem>
+                    <SelectItem value="theme-discord-dark">Discord Dark</SelectItem>
+                    <SelectItem value="theme-midnight">Midnight Blue</SelectItem>
+                    <SelectItem value="theme-forest">Forest</SelectItem>
+                    <SelectItem value="theme-sunset">Sunset</SelectItem>
+                    <SelectItem value="theme-purple">Purple Dream</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Choose your preferred color scheme
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="background">Background Image URL</Label>
