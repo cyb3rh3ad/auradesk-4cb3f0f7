@@ -94,6 +94,56 @@ export type Database = {
         }
         Relationships: []
       }
+      help_requests: {
+        Row: {
+          connection_code: string | null
+          created_at: string
+          description: string
+          helper_id: string | null
+          id: string
+          requester_id: string
+          resolved_at: string | null
+          status: string
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          connection_code?: string | null
+          created_at?: string
+          description: string
+          helper_id?: string | null
+          id?: string
+          requester_id: string
+          resolved_at?: string | null
+          status?: string
+          team_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          connection_code?: string | null
+          created_at?: string
+          description?: string
+          helper_id?: string | null
+          id?: string
+          requester_id?: string
+          resolved_at?: string | null
+          status?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_requests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_participants: {
         Row: {
           id: string

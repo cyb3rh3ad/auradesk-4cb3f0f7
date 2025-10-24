@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { HelpNotification } from "@/components/HelpNotification";
 import Index from "./pages/Index";
 import Chat from "./pages/Chat";
 import Teams from "./pages/Teams";
@@ -26,6 +27,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <HelpNotification />
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route

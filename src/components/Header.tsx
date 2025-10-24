@@ -1,4 +1,5 @@
-import { Search, Bell, User, Command, LogOut } from "lucide-react";
+import { useState } from 'react';
+import { Search, Bell, User, Command, LogOut, HeadphonesIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HelpRequestDialog } from "./HelpRequestDialog";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -36,6 +39,16 @@ export const Header = () => {
       </div>
       
       <div className="flex items-center space-x-1 relative z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setHelpDialogOpen(true)}
+          className="gap-2 hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105"
+        >
+          <HeadphonesIcon className="h-4 w-4" />
+          Request Help
+        </Button>
+        
         <Button 
           variant="ghost" 
           size="icon" 
@@ -75,6 +88,8 @@ export const Header = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      
+      <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
     </header>
   );
 };

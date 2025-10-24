@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useTeams } from '@/hooks/useTeams';
-import { useLocalAI } from '@/hooks/useLocalAI';
+import { useAIChat } from '@/hooks/useAIChat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 const Meetings = () => {
   const { meetings, loading, createMeeting, saveSummary } = useMeetings();
   const { teams } = useTeams();
-  const { summarize, isLoading: aiLoading } = useLocalAI();
+  const { summarize, isLoading: isGeneratingSummary } = useAIChat();
   const [createOpen, setCreateOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string>('');
@@ -47,11 +47,13 @@ const Meetings = () => {
   };
 
   const handleGenerateSummary = async () => {
-    if (!transcriptText.trim()) return;
+    if (!transcriptText.trim() || isGeneratingSummary) return;
     
     try {
       const generatedSummary = await summarize(transcriptText);
-      setSummary(generatedSummary);
+      if (generatedSummary) {
+        setSummary(generatedSummary);
+      }
     } catch (error) {
       console.error('Failed to generate summary:', error);
     }
@@ -284,7 +286,7 @@ const Meetings = () => {
           <DialogHeader>
             <DialogTitle>Generate Meeting Summary</DialogTitle>
             <DialogDescription>
-              Paste meeting transcript to generate AI summary (runs locally)
+              Paste meeting transcript to generate AI summary
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -314,8 +316,8 @@ const Meetings = () => {
               Cancel
             </Button>
             {!summary ? (
-              <Button onClick={handleGenerateSummary} disabled={aiLoading || !transcriptText.trim()}>
-                {aiLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button onClick={handleGenerateSummary} disabled={isGeneratingSummary || !transcriptText.trim()}>
+                {isGeneratingSummary && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Sparkles className="w-4 h-4 mr-2" />
                 Generate
               </Button>
