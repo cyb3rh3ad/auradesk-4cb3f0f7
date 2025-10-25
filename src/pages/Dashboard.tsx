@@ -1,35 +1,42 @@
 import { Calendar, TrendingUp, Users, MessageSquare, Zap, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   const stats = [
     { 
       title: "Active Teams", 
       value: "12", 
       change: "+2 from last week", 
       icon: Users,
-      gradient: "from-blue-500 to-cyan-500"
+      gradient: "from-blue-500 to-cyan-500",
+      path: "/teams"
     },
     { 
       title: "Messages", 
       value: "2,847", 
       change: "+573 this week", 
       icon: MessageSquare,
-      gradient: "from-purple-500 to-pink-500"
+      gradient: "from-purple-500 to-pink-500",
+      path: "/chat"
     },
     { 
       title: "Meetings", 
       value: "8", 
       change: "3 upcoming today", 
       icon: Calendar,
-      gradient: "from-orange-500 to-red-500"
+      gradient: "from-orange-500 to-red-500",
+      path: "/meetings"
     },
     { 
       title: "Productivity", 
       value: "+23%", 
       change: "vs last month", 
       icon: TrendingUp,
-      gradient: "from-green-500 to-emerald-500"
+      gradient: "from-green-500 to-emerald-500",
+      path: null
     },
   ];
 
@@ -54,7 +61,8 @@ const Dashboard = () => {
         {stats.map((stat, i) => (
           <Card 
             key={i} 
-            className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group"
+            onClick={() => stat.path && navigate(stat.path)}
+            className={`relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group ${stat.path ? 'cursor-pointer' : ''}`}
             style={{ animationDelay: `${i * 100}ms` }}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
@@ -62,7 +70,7 @@ const Dashboard = () => {
             
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
+              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                 <stat.icon className="h-4 w-4 text-white" />
               </div>
             </CardHeader>
