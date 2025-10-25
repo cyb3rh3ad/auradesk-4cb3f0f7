@@ -8,7 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { HelpNotification } from "@/components/HelpNotification";
-import Index from "./pages/Index";
+import Landing from "./pages/Landing";
+import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Teams from "./pages/Teams";
 import Meetings from "./pages/Meetings";
@@ -29,6 +30,7 @@ const App = () => (
         <AuthProvider>
           <HelpNotification />
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/*"
@@ -40,7 +42,7 @@ const App = () => (
                       <Header />
                       <main className="flex-1 overflow-auto">
                         <Routes>
-                          <Route path="/" element={<Index />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
                           <Route path="/chat" element={<Chat />} />
                           <Route path="/teams" element={<Teams />} />
                           <Route path="/meetings" element={<Meetings />} />

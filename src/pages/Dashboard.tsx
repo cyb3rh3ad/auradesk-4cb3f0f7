@@ -1,7 +1,7 @@
 import { Calendar, TrendingUp, Users, MessageSquare, Zap, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const Index = () => {
+const Dashboard = () => {
   const stats = [
     { 
       title: "Active Teams", 
@@ -115,4 +115,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Dashboard;
