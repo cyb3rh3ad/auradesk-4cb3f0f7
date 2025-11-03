@@ -72,7 +72,7 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <span className="text-3xl font-bold gradient-primary bg-clip-text text-transparent">AuraDesk</span>
+            <span className="text-3xl font-bold text-primary">AuraDesk</span>
             <Button variant="outline" onClick={() => navigate('/auth')}>
               Sign In
             </Button>
@@ -101,7 +101,7 @@ const Landing = () => {
             
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
               Work Smarter with{" "}
-              <span className="gradient-primary bg-clip-text text-transparent">AuraDesk</span>
+              <span className="text-primary">AuraDesk</span>
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
@@ -247,7 +247,7 @@ const Landing = () => {
       <footer className="py-12 px-6 border-t border-border/50">
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-xl font-bold gradient-primary bg-clip-text text-transparent">AuraDesk</span>
+            <span className="text-xl font-bold text-primary">AuraDesk</span>
             <p className="text-sm text-muted-foreground">
               © 2025 AuraDesk. All rights reserved.
             </p>
