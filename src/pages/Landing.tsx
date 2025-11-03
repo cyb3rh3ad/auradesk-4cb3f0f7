@@ -176,12 +176,9 @@ const Landing = () => {
               >
                 <Card className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-2 group h-full">
                   <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-2xl`} />
                   
                   <CardContent className="pt-6 relative">
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                      <feature.icon className="w-7 h-7 text-white" />
-                    </div>
+                    <feature.icon className="w-12 h-12 text-primary mb-4 group-hover:scale-110 transition-transform duration-300" />
                     <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
                     <p className="text-muted-foreground">{feature.description}</p>
                   </CardContent>
@@ -205,9 +202,7 @@ const Landing = () => {
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <benefit.icon className="w-8 h-8 text-primary" />
-                </div>
+                <benefit.icon className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
                 <p className="text-muted-foreground">{benefit.description}</p>
               </motion.div>
