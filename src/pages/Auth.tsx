@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import googleLogo from '@/assets/google-g-logo.png';
 const Auth = () => {
   const { signUp, signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   
   // Login state
@@ -38,6 +40,8 @@ const Auth = () => {
         description: error.message,
         variant: "destructive",
       });
+    } else {
+      navigate('/dashboard');
     }
     
     setLoading(false);
@@ -68,8 +72,9 @@ const Auth = () => {
     } else {
       toast({
         title: "Account created!",
-        description: "You can now sign in with your credentials.",
+        description: "Redirecting to your dashboard...",
       });
+      navigate('/dashboard');
     }
     
     setLoading(false);

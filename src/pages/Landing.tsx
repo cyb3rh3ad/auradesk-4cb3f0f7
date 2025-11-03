@@ -4,10 +4,12 @@ import { Download, Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shi
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Landing = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const features = [
     {
@@ -133,7 +135,7 @@ const Landing = () => {
                 size="lg" 
                 variant="outline"
                 className="text-lg px-8 py-6 border-2 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105"
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
                 <Globe className="w-5 h-5 mr-2" />
                 Use in Browser
@@ -234,7 +236,7 @@ const Landing = () => {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 gradient-primary hover:opacity-90 transition-all hover:scale-105 shadow-lg"
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
                 Get Started Free
               </Button>
