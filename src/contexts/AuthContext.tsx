@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     localStorage.removeItem('aura_remember_me');
     await supabase.auth.signOut();
-    navigate('/auth');
+    navigate('/');
   };
 
   return (
