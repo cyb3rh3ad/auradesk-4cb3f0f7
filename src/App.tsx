@@ -16,6 +16,7 @@ import Meetings from "./pages/Meetings";
 import Files from "./pages/Files";
 import AI from "./pages/AI";
 import Settings from "./pages/Settings";
+import AISettings from "./pages/AISettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -48,6 +49,7 @@ const App = () => (
                           <Route path="/meetings" element={<Meetings />} />
                           <Route path="/files" element={<Files />} />
                           <Route path="/ai" element={<AI />} />
+                          <Route path="/ai-settings" element={<AISettings />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>

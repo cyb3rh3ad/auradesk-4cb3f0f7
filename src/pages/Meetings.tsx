@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useTeams } from '@/hooks/useTeams';
-import { useAIChat } from '@/hooks/useAIChat';
+import { useTranscription } from '@/hooks/useTranscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,24 +10,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, Plus, Video, Loader2, Sparkles, Clock, ExternalLink } from 'lucide-react';
+import { Calendar, Plus, Video, Loader2, Clock, ExternalLink, Mic, MicOff, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { TranscriptViewer } from '@/components/meetings/TranscriptViewer';
+import { AIAssistant } from '@/components/meetings/AIAssistant';
 
 const Meetings = () => {
-  const { meetings, loading, createMeeting, saveSummary } = useMeetings();
+  const { meetings, loading, createMeeting } = useMeetings();
   const { teams } = useTeams();
-  const { summarize, isLoading: isGeneratingSummary } = useAIChat();
+  const { isRecording, startRecording, stopRecording } = useTranscription();
   const [createOpen, setCreateOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [viewTranscriptOpen, setViewTranscriptOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string>('');
+  const [recordingMeetingId, setRecordingMeetingId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [teamId, setTeamId] = useState<string>('');
-  const [transcriptText, setTranscriptText] = useState('');
-  const [summary, setSummary] = useState('');
   const [creating, setCreating] = useState(false);
 
   const handleCreateMeeting = async () => {
@@ -46,26 +47,21 @@ const Meetings = () => {
     setTeamId('');
   };
 
-  const handleGenerateSummary = async () => {
-    if (!transcriptText.trim() || isGeneratingSummary) return;
-    
-    try {
-      const generatedSummary = await summarize(transcriptText);
-      if (generatedSummary) {
-        setSummary(generatedSummary);
-      }
-    } catch (error) {
-      console.error('Failed to generate summary:', error);
+  const handleStartRecording = async (meetingId: string) => {
+    setRecordingMeetingId(meetingId);
+    await startRecording(meetingId);
+  };
+
+  const handleStopRecording = async () => {
+    if (recordingMeetingId) {
+      await stopRecording(recordingMeetingId);
+      setRecordingMeetingId('');
     }
   };
 
-  const handleSaveSummary = async () => {
-    if (!summary.trim() || !selectedMeetingId) return;
-    
-    await saveSummary(selectedMeetingId, summary);
-    setSummaryOpen(false);
-    setSummary('');
-    setTranscriptText('');
+  const handleViewTranscript = (meetingId: string) => {
+    setSelectedMeetingId(meetingId);
+    setViewTranscriptOpen(true);
   };
 
   const upcomingMeetings = meetings.filter(
@@ -88,13 +84,9 @@ const Meetings = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-3xl font-bold">Meetings</h2>
-          <p className="text-muted-foreground">Schedule and manage video meetings</p>
+          <p className="text-muted-foreground">Schedule and manage video meetings with AI transcription</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setSummaryOpen(true)}>
-            <Sparkles className="w-4 h-4 mr-2" />
-            AI Summary
-          </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -210,15 +202,28 @@ const Meetings = () => {
                           <CardTitle className="text-lg">{meeting.title}</CardTitle>
                           <CardDescription>{meeting.description}</CardDescription>
                         </div>
-                        {meeting.meeting_link && (
-                          <Button size="sm" asChild>
-                            <a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer">
-                              <Video className="w-4 h-4 mr-2" />
-                              Join
-                              <ExternalLink className="w-3 h-3 ml-1" />
-                            </a>
-                          </Button>
-                        )}
+                        <div className="flex gap-2">
+                          {isRecording && recordingMeetingId === meeting.id ? (
+                            <Button size="sm" variant="destructive" onClick={handleStopRecording}>
+                              <MicOff className="w-4 h-4 mr-2" />
+                              Stop Recording
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => handleStartRecording(meeting.id)}>
+                              <Mic className="w-4 h-4 mr-2" />
+                              Record
+                            </Button>
+                          )}
+                          {meeting.meeting_link && (
+                            <Button size="sm" asChild>
+                              <a href={meeting.meeting_link} target="_blank" rel="noopener noreferrer">
+                                <Video className="w-4 h-4 mr-2" />
+                                Join
+                                <ExternalLink className="w-3 h-3 ml-1" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -256,10 +261,18 @@ const Meetings = () => {
             ) : (
               <div className="space-y-3">
                 {pastMeetings.map((meeting) => (
-                  <Card key={meeting.id} className="opacity-75">
+                  <Card key={meeting.id} className="opacity-75 hover:opacity-100 transition-opacity">
                     <CardHeader>
-                      <CardTitle className="text-lg">{meeting.title}</CardTitle>
-                      <CardDescription>{meeting.description}</CardDescription>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{meeting.title}</CardTitle>
+                          <CardDescription>{meeting.description}</CardDescription>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => handleViewTranscript(meeting.id)}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          View Transcript
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -281,52 +294,20 @@ const Meetings = () => {
         </div>
       </ScrollArea>
 
-      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={viewTranscriptOpen} onOpenChange={setViewTranscriptOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Generate Meeting Summary</DialogTitle>
+            <DialogTitle>Meeting Transcript & AI Assistant</DialogTitle>
             <DialogDescription>
-              Paste meeting transcript to generate AI summary
+              View transcript, generate summaries, or ask the AI assistant about this meeting
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="transcript">Meeting Transcript</Label>
-              <Textarea
-                id="transcript"
-                value={transcriptText}
-                onChange={(e) => setTranscriptText(e.target.value)}
-                placeholder="Paste meeting transcript here..."
-                rows={8}
-              />
+          <ScrollArea className="h-[60vh] pr-4">
+            <div className="space-y-6">
+              <TranscriptViewer meetingId={selectedMeetingId} />
+              <AIAssistant transcriptContext="" />
             </div>
-            {summary && (
-              <div className="space-y-2">
-                <Label>Generated Summary</Label>
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm whitespace-pre-wrap">{summary}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSummaryOpen(false)}>
-              Cancel
-            </Button>
-            {!summary ? (
-              <Button onClick={handleGenerateSummary} disabled={isGeneratingSummary || !transcriptText.trim()}>
-                {isGeneratingSummary && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate
-              </Button>
-            ) : (
-              <Button onClick={handleSaveSummary}>
-                Save Summary
-              </Button>
-            )}
-          </DialogFooter>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
