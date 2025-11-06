@@ -41,23 +41,23 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
       <div className="relative">
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
         
         <div className="relative">
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-6 h-6 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">
+            <Zap className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">
               Welcome to AuraDesk
             </h1>
           </div>
-          <p className="text-lg text-muted-foreground">Your intelligent collaboration workspace</p>
+          <p className="text-sm md:text-lg text-muted-foreground">Your intelligent collaboration workspace</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat, i) => (
           <Card 
             key={i} 

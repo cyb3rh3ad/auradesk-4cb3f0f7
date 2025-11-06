@@ -1,6 +1,9 @@
-import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles } from "lucide-react";
+import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { icon: Home, label: "Dashboard", path: "/dashboard" },
@@ -13,6 +16,74 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (isMobile) {
+    return (
+      <>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsOpen(!isOpen)}
+          className="fixed top-4 left-4 z-50 md:hidden bg-background/80 backdrop-blur-sm hover:bg-accent"
+        >
+          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </Button>
+
+        {isOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-40 transition-transform duration-300 md:hidden",
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex flex-col h-full py-6 px-4 space-y-8">
+            <div className="flex items-center gap-3 px-2">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-primary shadow-lg">
+                <span className="text-lg font-bold text-primary-foreground">AD</span>
+              </div>
+              <span className="text-lg font-bold">AuraDesk</span>
+            </div>
+
+            <nav className="flex-1 flex flex-col space-y-2">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
+                      "hover:bg-sidebar-accent",
+                      isActive && "bg-sidebar-accent text-sidebar-primary"
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className={cn(
+                        "w-5 h-5",
+                        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+                      )} />
+                      <span className="font-medium">{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </aside>
+      </>
+    );
+  }
+
   return (
     <aside className="w-20 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-6 space-y-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />

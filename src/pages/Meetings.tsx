@@ -80,11 +80,11 @@ const Meetings = () => {
   }
 
   return (
-    <div className="flex flex-col h-full p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col h-full p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-3xl font-bold">Meetings</h2>
-          <p className="text-muted-foreground">Schedule and manage video meetings with AI transcription</p>
+          <h2 className="text-2xl md:text-3xl font-bold">Meetings</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Schedule and manage video meetings with AI transcription</p>
         </div>
         <div className="flex gap-2">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>

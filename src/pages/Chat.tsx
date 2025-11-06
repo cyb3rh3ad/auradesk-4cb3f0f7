@@ -26,7 +26,7 @@ const Chat = () => {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-80 border-r border-border/50 flex flex-col bg-card/30 backdrop-blur-sm">
+      <div className="w-full md:w-80 border-r border-border/50 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden">
         <div className="h-16 border-b border-border/50 px-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Messages</h2>
           <div className="flex gap-2">

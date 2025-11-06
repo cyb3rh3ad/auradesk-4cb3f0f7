@@ -49,11 +49,11 @@ const Teams = () => {
   }
 
   return (
-    <div className="flex flex-col h-full p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col h-full p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-3xl font-bold">Teams</h2>
-          <p className="text-muted-foreground">Manage your teams and collaborate</p>
+          <h2 className="text-2xl md:text-3xl font-bold">Teams</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your teams and collaborate</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
