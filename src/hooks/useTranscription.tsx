@@ -16,13 +16,16 @@ export const useTranscription = () => {
 
   const startRecording = useCallback(async (meetingId: string) => {
     try {
+      // Check if window is defined (for SSR)
+      if (typeof window === 'undefined') return;
+      
       // Check for browser support
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
         toast({
           title: 'Not Supported',
-          description: 'Speech recognition is not supported in your browser. Try Chrome or Edge.',
+          description: 'Speech recognition is not supported on this device. Try using Chrome on desktop.',
           variant: 'destructive',
         });
         return;

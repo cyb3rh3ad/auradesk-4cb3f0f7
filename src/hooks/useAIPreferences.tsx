@@ -18,8 +18,10 @@ export const useAIPreferences = () => {
   useEffect(() => {
     if (user) {
       fetchPreferences();
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchPreferences = async () => {
     try {

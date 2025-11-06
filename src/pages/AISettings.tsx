@@ -10,7 +10,7 @@ import { Loader2, Settings } from 'lucide-react';
 const AISettings = () => {
   const { preferences, loading, updatePreferences } = useAIPreferences();
 
-  if (loading) {
+  if (loading || !preferences) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -40,7 +40,7 @@ const AISettings = () => {
             <div className="space-y-2">
               <Label htmlFor="processing-type">Processing Type</Label>
               <Select
-                value={preferences?.default_processing_type}
+                value={preferences.default_processing_type}
                 onValueChange={(value: any) => updatePreferences({ default_processing_type: value })}
               >
                 <SelectTrigger id="processing-type">
@@ -55,12 +55,12 @@ const AISettings = () => {
               </Select>
             </div>
 
-            {preferences?.default_processing_type === 'custom' && (
+            {preferences.default_processing_type === 'custom' && (
               <div className="space-y-2">
                 <Label htmlFor="custom-instructions">Custom Instructions</Label>
                 <Textarea
                   id="custom-instructions"
-                  value={preferences?.custom_instructions || ''}
+                  value={preferences.custom_instructions || ''}
                   onChange={(e) => updatePreferences({ custom_instructions: e.target.value })}
                   placeholder="Describe how you want the AI to process your transcripts..."
                   rows={4}
@@ -90,7 +90,7 @@ const AISettings = () => {
               </div>
               <Switch
                 id="assistant-toggle"
-                checked={preferences?.enable_background_assistant}
+                checked={preferences.enable_background_assistant}
                 onCheckedChange={(checked) => updatePreferences({ enable_background_assistant: checked })}
               />
             </div>
