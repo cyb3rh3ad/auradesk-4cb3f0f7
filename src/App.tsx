@@ -27,17 +27,16 @@ const ThemeInit = () => {
   useEffect(() => {
     const apply = (themeName: string) => {
       const root = document.documentElement;
-      root.classList.remove(
-        'dark',
-        'theme-discord-dark',
-        'theme-midnight',
-        'theme-forest',
-        'theme-sunset',
-        'theme-purple'
-      );
-      if (themeName && themeName !== 'light') {
-        root.classList.add(themeName);
-      }
+      const themes = ['dark', 'theme-discord-dark', 'theme-midnight', 'theme-forest', 'theme-sunset', 'theme-purple'];
+      // Only remove and add if different from current to prevent flash
+      const currentHasTheme = themes.some(t => root.classList.contains(t));
+      const targetTheme = themeName && themeName !== 'light' ? themeName : null;
+      
+      if (!targetTheme && !currentHasTheme) return; // Already in light mode
+      if (targetTheme && root.classList.contains(targetTheme)) return; // Already has the right theme
+      
+      themes.forEach(t => root.classList.remove(t));
+      if (targetTheme) root.classList.add(targetTheme);
     };
     const load = async () => {
       if (!user) {

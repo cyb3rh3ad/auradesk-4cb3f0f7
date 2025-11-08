@@ -4,6 +4,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import auradeskLogo from "@/assets/auradesk-logo.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,11 @@ export const Header = () => {
   return (
     <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4 md:px-6 relative">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      
+      <div className="flex items-center gap-3 relative z-10">
+        <img src={auradeskLogo} alt="Auradesk" className="h-8 w-8 object-contain" />
+        {!isMobile && <span className="font-semibold text-lg">Auradesk</span>}
+      </div>
       
       {!isMobile && (
         <div className="flex items-center flex-1 max-w-2xl relative z-10">

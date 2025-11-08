@@ -26,7 +26,7 @@ const Chat = () => {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-full md:w-80 border-r border-border/50 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden">
+      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden">
         <div className="h-16 border-b border-border/50 px-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Messages</h2>
           <div className="flex gap-2">
@@ -56,22 +56,24 @@ const Chat = () => {
         )}
       </div>
 
-      {/* Main Chat Area */}
-      {selectedConversationId ? (
-        <MessageArea
-          messages={messages}
-          onSendMessage={sendMessage}
-          conversationName={getConversationName()}
-        />
-      ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground/30" />
-            <h3 className="text-xl font-semibold">Select a conversation</h3>
-            <p className="text-muted-foreground">Choose a conversation to start messaging</p>
+      {/* Main Chat Area with border */}
+      <div className="flex-1 flex flex-col border-l border-border/50">
+        {selectedConversationId ? (
+          <MessageArea
+            messages={messages}
+            onSendMessage={sendMessage}
+            conversationName={getConversationName()}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground/30" />
+              <h3 className="text-xl font-semibold">Select a conversation</h3>
+              <p className="text-muted-foreground">Choose a conversation to start messaging</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
