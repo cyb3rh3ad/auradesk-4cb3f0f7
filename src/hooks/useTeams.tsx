@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-let TEAMS_ERROR_TOASTED = false;
+const TEAMS_ERROR_TOAST_KEY = 'teams_error_toasted';
+let TEAMS_ERROR_TOASTED = typeof window !== 'undefined' && sessionStorage.getItem(TEAMS_ERROR_TOAST_KEY) === '1';
 export interface Team {
   id: string;
   name: string;
@@ -64,6 +65,9 @@ export const useTeams = () => {
       console.error('Error fetching teams:', error);
       if (!TEAMS_ERROR_TOASTED) {
         TEAMS_ERROR_TOASTED = true;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(TEAMS_ERROR_TOAST_KEY, '1');
+        }
         toast({
           title: 'Could not load teams',
           description: 'Please try again later.',
