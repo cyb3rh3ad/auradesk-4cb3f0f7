@@ -12,11 +12,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const isMobile = useIsMobile();
 
   // Profile settings
   const [fullName, setFullName] = useState('');
@@ -24,7 +27,7 @@ const Settings = () => {
   const [customStatus, setCustomStatus] = useState('');
 
   // Appearance settings
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light');
   const [backgroundImage, setBackgroundImage] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -58,7 +61,7 @@ const Settings = () => {
       setFullName(data.full_name || '');
       setUsername(data.username || '');
       setCustomStatus(data.custom_status || '');
-      setTheme(data.theme || 'dark');
+      setTheme(data.theme || 'light');
       setBackgroundImage(data.background_image || '');
       setAvatarUrl(data.avatar_url || '');
     }
@@ -305,26 +308,26 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="profile" className="gap-2">
+        <TabsList className={cn("w-full gap-2", isMobile ? "flex overflow-x-auto justify-start" : "grid grid-cols-5")}>
+          <TabsTrigger value="profile" className={cn("gap-2", isMobile && "shrink-0")}>
             <User className="w-4 h-4" />
-            Profile
+            <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="gap-2">
+          <TabsTrigger value="appearance" className={cn("gap-2", isMobile && "shrink-0")}>
             <Palette className="w-4 h-4" />
-            Appearance
+            <span className="hidden sm:inline">Appearance</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="gap-2">
+          <TabsTrigger value="security" className={cn("gap-2", isMobile && "shrink-0")}>
             <Lock className="w-4 h-4" />
-            Security
+            <span className="hidden sm:inline">Security</span>
           </TabsTrigger>
-          <TabsTrigger value="audio-video" className="gap-2">
+          <TabsTrigger value="audio-video" className={cn("gap-2", isMobile && "shrink-0")}>
             <Mic className="w-4 h-4" />
-            Voice & Video
+            <span className="hidden sm:inline">Voice & Video</span>
           </TabsTrigger>
-          <TabsTrigger value="nicknames" className="gap-2">
+          <TabsTrigger value="nicknames" className={cn("gap-2", isMobile && "shrink-0")}>
             <Users className="w-4 h-4" />
-            Nicknames
+            <span className="hidden sm:inline">Nicknames</span>
           </TabsTrigger>
         </TabsList>
 

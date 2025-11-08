@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+let TEAMS_ERROR_TOASTED = false;
 export interface Team {
   id: string;
   name: string;
@@ -61,11 +62,14 @@ export const useTeams = () => {
       setTeams(teamsWithCounts);
     } catch (error: any) {
       console.error('Error fetching teams:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load teams',
-        variant: 'destructive',
-      });
+      if (!TEAMS_ERROR_TOASTED) {
+        TEAMS_ERROR_TOASTED = true;
+        toast({
+          title: 'Could not load teams',
+          description: 'Please try again later.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }

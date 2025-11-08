@@ -3,11 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { useEffect } from "react";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { HelpNotification } from "@/components/HelpNotification";
+import { supabase } from "@/integrations/supabase/client";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -20,6 +22,40 @@ import AISettings from "./pages/AISettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
+const ThemeInit = () => {
+  const { user } = useAuth();
+  useEffect(() => {
+    const apply = (themeName: string) => {
+      const root = document.documentElement;
+      root.classList.remove(
+        'dark',
+        'theme-discord-dark',
+        'theme-midnight',
+        'theme-forest',
+        'theme-sunset',
+        'theme-purple'
+      );
+      if (themeName && themeName !== 'light') {
+        root.classList.add(themeName);
+      }
+    };
+    const load = async () => {
+      if (!user) {
+        apply('light');
+        return;
+      }
+      const { data } = await supabase
+        .from('profiles')
+        .select('theme')
+        .eq('id', user.id)
+        .single();
+      apply(data?.theme || 'light');
+    };
+    load();
+  }, [user?.id]);
+  return null;
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -29,6 +65,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <ThemeInit />
           <HelpNotification />
           <Routes>
             <Route path="/" element={<Landing />} />

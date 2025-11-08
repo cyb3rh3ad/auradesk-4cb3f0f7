@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+let FILES_ERROR_TOASTED = false;
 export interface FileItem {
   name: string;
   id: string;
@@ -33,11 +34,14 @@ export const useFiles = (bucket: string = 'meeting-summaries') => {
       setFiles(data || []);
     } catch (error: any) {
       console.error('Error fetching files:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load files',
-        variant: 'destructive',
-      });
+      if (!FILES_ERROR_TOASTED) {
+        FILES_ERROR_TOASTED = true;
+        toast({
+          title: 'Could not load files',
+          description: 'Please try again later.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+let MEETINGS_ERROR_TOASTED = false;
 export interface Meeting {
   id: string;
   title: string;
@@ -46,11 +47,14 @@ export const useMeetings = () => {
       setMeetings(meetingsData);
     } catch (error: any) {
       console.error('Error fetching meetings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load meetings',
-        variant: 'destructive',
-      });
+      if (!MEETINGS_ERROR_TOASTED) {
+        MEETINGS_ERROR_TOASTED = true;
+        toast({
+          title: 'Could not load meetings',
+          description: 'Please try again later.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
