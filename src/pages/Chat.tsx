@@ -56,8 +56,8 @@ const Chat = () => {
         )}
       </div>
 
-      {/* Main Chat Area with border */}
-      <div className="flex-1 flex flex-col border-l border-border/50">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
         {selectedConversationId ? (
           <MessageArea
             messages={messages}
