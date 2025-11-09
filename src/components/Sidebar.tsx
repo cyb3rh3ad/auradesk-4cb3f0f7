@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import auradeskLogo from "@/assets/auradesk-logo.png";
 
 const navItems = [
   { icon: Home, label: "Dashboard", path: "/dashboard" },
@@ -47,7 +48,7 @@ export const Sidebar = () => {
           <div className="flex flex-col h-full py-6 px-4 space-y-8">
             <div className="flex items-center gap-3 px-2">
               <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-primary shadow-lg">
-                <span className="text-lg font-bold text-primary-foreground">AD</span>
+                <img src={auradeskLogo} alt="AuraDesk" className="w-8 h-8 object-contain" />
               </div>
               <span className="text-lg font-bold">AuraDesk</span>
             </div>
@@ -89,7 +90,7 @@ export const Sidebar = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
       
       <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 group hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
-        <span className="text-xl font-bold text-primary-foreground">AD</span>
+        <img src={auradeskLogo} alt="AuraDesk" className="w-10 h-10 object-contain" />
         <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
       
