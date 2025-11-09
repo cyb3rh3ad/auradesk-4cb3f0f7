@@ -47,7 +47,7 @@ export const Sidebar = () => {
         >
           <div className="flex flex-col h-full py-6 px-4 space-y-8">
             <div className="flex items-center gap-3 px-2">
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-primary shadow-lg p-0.5">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-primary shadow-lg">
                 <img src={auradeskLogo} alt="AuraDesk" className="w-full h-full object-contain rounded-lg" />
               </div>
               <span className="text-lg font-bold">AuraDesk</span>
@@ -89,7 +89,7 @@ export const Sidebar = () => {
     <aside className="w-20 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-6 space-y-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
       
-      <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 group hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 p-1">
+      <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 group hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
         <img src={auradeskLogo} alt="AuraDesk" className="w-full h-full object-contain rounded-xl" />
         <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
