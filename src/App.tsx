@@ -2,8 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
@@ -57,6 +58,24 @@ const ThemeInit = () => {
 
 const queryClient = new QueryClient();
 
+const PageTransition = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -78,17 +97,19 @@ const App = () => (
                     <div className="flex-1 flex flex-col overflow-hidden">
                       <Header />
                       <main className="flex-1 overflow-auto">
-                        <Routes>
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/chat" element={<Chat />} />
-                          <Route path="/teams" element={<Teams />} />
-                          <Route path="/meetings" element={<Meetings />} />
-                          <Route path="/files" element={<Files />} />
-                          <Route path="/ai" element={<AI />} />
-                          <Route path="/ai-settings" element={<AISettings />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
+                        <PageTransition>
+                          <Routes>
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/chat" element={<Chat />} />
+                            <Route path="/teams" element={<Teams />} />
+                            <Route path="/meetings" element={<Meetings />} />
+                            <Route path="/files" element={<Files />} />
+                            <Route path="/ai" element={<AI />} />
+                            <Route path="/ai-settings" element={<AISettings />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </PageTransition>
                       </main>
                     </div>
                   </div>
