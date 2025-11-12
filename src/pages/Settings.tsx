@@ -294,11 +294,6 @@ const Settings = () => {
     }
   };
 
-  useEffect(() => {
-    if (theme) {
-      applyTheme(theme);
-    }
-  }, [theme]);
 
   return (
     <div className="container max-w-4xl mx-auto p-6 space-y-6">
