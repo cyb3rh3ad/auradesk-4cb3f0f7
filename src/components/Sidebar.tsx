@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X } from "lucide-react";
+import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X, Crown } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -13,6 +13,7 @@ const navItems = [
   { icon: Video, label: "Meetings", path: "/meetings" },
   { icon: FileText, label: "Files", path: "/files" },
   { icon: Bot, label: "AI Assistant", path: "/ai" },
+  { icon: Crown, label: "Subscription", path: "/subscription" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 

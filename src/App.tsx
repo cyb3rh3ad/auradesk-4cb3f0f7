@@ -19,6 +19,7 @@ import Meetings from "./pages/Meetings";
 import Files from "./pages/Files";
 import AI from "./pages/AI";
 import Settings from "./pages/Settings";
+import Subscription from "./pages/Subscription";
 import AISettings from "./pages/AISettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -105,6 +106,7 @@ const App = () => (
                             <Route path="/ai" element={<AI />} />
                             <Route path="/ai-settings" element={<AISettings />} />
                             <Route path="/settings" element={<Settings />} />
+                            <Route path="/subscription" element={<Subscription />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </PageTransition>
