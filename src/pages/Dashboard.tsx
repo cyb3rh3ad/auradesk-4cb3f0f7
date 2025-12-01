@@ -1,9 +1,17 @@
-import { Calendar, TrendingUp, Users, MessageSquare, Zap, ArrowUpRight } from "lucide-react";
+import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { useMeetings } from "@/hooks/useMeetings";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { meetings } = useMeetings();
+
+  // Get the next upcoming meeting
+  const upcomingMeeting = meetings
+    ?.filter(m => new Date(m.scheduled_at) > new Date())
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0];
   
   const stats = [
     { 
@@ -29,14 +37,6 @@ const Dashboard = () => {
       icon: Calendar,
       gradient: "from-orange-500 to-red-500",
       path: "/meetings"
-    },
-    { 
-      title: "Productivity", 
-      value: "+23%", 
-      change: "vs last month", 
-      icon: TrendingUp,
-      gradient: "from-green-500 to-emerald-500",
-      path: null
     },
   ];
 
@@ -83,6 +83,46 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         ))}
+
+        {/* Upcoming Meeting Card */}
+        <Card 
+          onClick={() => navigate('/meetings')}
+          className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group cursor-pointer"
+          style={{ animationDelay: '300ms' }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-emerald-500 opacity-5 rounded-full blur-2xl" />
+          
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Next Meeting</CardTitle>
+            <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Video className="h-4 w-4 text-white" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {upcomingMeeting ? (
+              <>
+                <div className="text-lg font-bold mb-1 line-clamp-1">{upcomingMeeting.title}</div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                  <Clock className="w-3 h-3" />
+                  {format(new Date(upcomingMeeting.scheduled_at), 'MMM d, h:mm a')}
+                </p>
+                {upcomingMeeting.duration_minutes && (
+                  <p className="text-xs text-muted-foreground">
+                    Duration: {upcomingMeeting.duration_minutes} min
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold mb-1">No meetings</div>
+                <p className="text-xs text-muted-foreground">
+                  Schedule your next meeting
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
