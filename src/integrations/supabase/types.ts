@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_token_usage: {
+        Row: {
+          created_at: string
+          id: string
+          tokens_used: number
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tokens_used?: number
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tokens_used?: number
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       conversation_members: {
         Row: {
           conversation_id: string
@@ -67,6 +94,30 @@ export type Database = {
           is_group?: boolean
           name?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      file_storage_usage: {
+        Row: {
+          created_at: string
+          id: string
+          total_bytes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          total_bytes?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          total_bytes?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -383,6 +434,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          stripe_customer_id: string | null
+          stripe_product_id: string | null
+          stripe_subscription_id: string | null
+          subscription_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -406,7 +493,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan: "free" | "advanced" | "professional"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -533,6 +620,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan: ["free", "advanced", "professional"],
+    },
   },
 } as const
