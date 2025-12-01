@@ -22,17 +22,17 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   free: {
     meetingDuration: 45,
     weeklyTokens: 15,
-    fileStorageGB: 2,
+    fileStorageGB: 100,
   },
   advanced: {
     meetingDuration: 90,
     weeklyTokens: 20,
-    fileStorageGB: 10,
+    fileStorageGB: 1024, // 1TB
   },
   professional: {
     meetingDuration: 0, // unlimited
     weeklyTokens: 0, // unlimited
-    fileStorageGB: 0, // unlimited
+    fileStorageGB: 10240, // 10TB
   },
 };
 

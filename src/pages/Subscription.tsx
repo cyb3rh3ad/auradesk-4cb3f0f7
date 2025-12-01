@@ -26,7 +26,7 @@ const Subscription = () => {
       features: [
         "45-minute meetings",
         "15 AI tokens per week",
-        "2GB file storage",
+        "100GB file storage",
         "Basic support"
       ],
       icon: Sparkles,
@@ -41,7 +41,7 @@ const Subscription = () => {
       features: [
         "90-minute meetings",
         "20 AI tokens per week",
-        "10GB file storage",
+        "1TB file storage",
         "Priority support",
         "Advanced analytics"
       ],
@@ -58,7 +58,7 @@ const Subscription = () => {
       features: [
         "Unlimited meetings",
         "Unlimited AI tokens",
-        "Unlimited file storage",
+        "10TB file storage",
         "24/7 premium support",
         "Advanced analytics",
         "API access"
@@ -110,11 +110,11 @@ const Subscription = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium">Your current limits:</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Meetings: {limits.meetingDuration === 0 ? 'Unlimited' : `${limits.meetingDuration} minutes`}</li>
-                  <li>• AI Tokens: {limits.weeklyTokens === 0 ? 'Unlimited' : `${limits.weeklyTokens} per week`}</li>
-                  <li>• Storage: {limits.fileStorageGB === 0 ? 'Unlimited' : `${limits.fileStorageGB}GB`}</li>
-                </ul>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Meetings: {limits.meetingDuration === 0 ? 'Unlimited' : `${limits.meetingDuration} minutes`}</li>
+                    <li>• AI Tokens: {limits.weeklyTokens === 0 ? 'Unlimited' : `${limits.weeklyTokens} per week`}</li>
+                    <li>• Storage: {limits.fileStorageGB === 0 ? 'Unlimited' : limits.fileStorageGB >= 1024 ? `${limits.fileStorageGB / 1024}TB` : `${limits.fileStorageGB}GB`}</li>
+                  </ul>
               </div>
             </CardContent>
           </Card>

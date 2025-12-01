@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
 import { useFiles } from '@/hooks/useFiles';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload, Download, Trash2, File, Loader2, FileText } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,8 +19,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const Files = () => {
-  const { files, loading, uploadFile, downloadFile, deleteFile } = useFiles();
-  const [deleteFileName, setDeleteFileName] = useState<string | null>(null);
+  const { files, loading, storageUsage, uploadFile, downloadFile, deleteFile } = useFiles();
+  const [deleteFileData, setDeleteFileData] = useState<{ name: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,9 +37,9 @@ const Files = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteFileName) return;
-    await deleteFile(deleteFileName);
-    setDeleteFileName(null);
+    if (!deleteFileData) return;
+    await deleteFile(deleteFileData.name, deleteFileData.size);
+    setDeleteFileData(null);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -54,12 +56,14 @@ const Files = () => {
     );
   }
 
+  const storagePercentage = (storageUsage.usedGB / storageUsage.limitGB) * 100;
+
   return (
-    <div className="flex flex-col h-full p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col h-full p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Files</h2>
-          <p className="text-muted-foreground">Manage your documents and meeting summaries</p>
+          <h2 className="text-3xl font-bold">Cloud Storage</h2>
+          <p className="text-muted-foreground">Store and manage your files securely</p>
         </div>
         <div>
           <input
@@ -84,6 +88,36 @@ const Files = () => {
           </Button>
         </div>
       </div>
+
+      {/* Storage Usage Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-5 h-5 text-primary" />
+            <CardTitle>Storage Usage</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Used Storage</span>
+              <span className="font-medium">
+                {storageUsage.usedGB.toFixed(2)} GB / {storageUsage.limitGB} GB
+              </span>
+            </div>
+            <Progress value={storagePercentage} className="h-2" />
+          </div>
+          <p className={cn(
+            "text-xs",
+            storagePercentage > 90 ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {storagePercentage > 90 
+              ? "You're running out of storage space. Consider upgrading your plan."
+              : `${(storageUsage.limitGB - storageUsage.usedGB).toFixed(2)} GB available`
+            }
+          </p>
+        </CardContent>
+      </Card>
 
       <ScrollArea className="flex-1">
         {files.length === 0 ? (
@@ -125,7 +159,7 @@ const Files = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setDeleteFileName(file.name)}
+                        onClick={() => setDeleteFileData({ name: file.name, size: file.metadata?.size || 0 })}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -138,7 +172,7 @@ const Files = () => {
         )}
       </ScrollArea>
 
-      <AlertDialog open={!!deleteFileName} onOpenChange={() => setDeleteFileName(null)}>
+      <AlertDialog open={!!deleteFileData} onOpenChange={() => setDeleteFileData(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete File</AlertDialogTitle>
