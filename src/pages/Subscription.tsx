@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Check, Crown, Sparkles, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Subscription = () => {
   const { 
@@ -125,7 +126,10 @@ const Subscription = () => {
             return (
               <Card 
                 key={planOption.name} 
-                className={planOption.current ? "border-primary shadow-lg" : ""}
+                className={cn(
+                  "flex flex-col",
+                  planOption.current ? "border-primary shadow-lg" : ""
+                )}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -141,8 +145,8 @@ const Subscription = () => {
                     <span className="text-muted-foreground">{planOption.period}</span>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
+                <CardContent className="flex-1 flex flex-col">
+                  <ul className="space-y-2 flex-1 mb-4">
                     {planOption.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
@@ -150,23 +154,25 @@ const Subscription = () => {
                       </li>
                     ))}
                   </ul>
-                  {!planOption.current && planOption.plan !== 'free' && (
-                    <Button 
-                      className="w-full" 
-                      onClick={() => handleUpgrade(planOption.plan as 'advanced' | 'professional')}
-                    >
-                      Upgrade to {planOption.name}
-                    </Button>
-                  )}
-                  {planOption.plan === 'free' && plan !== 'free' && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      onClick={openCustomerPortal}
-                    >
-                      Downgrade
-                    </Button>
-                  )}
+                  <div>
+                    {!planOption.current && planOption.plan !== 'free' && (
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleUpgrade(planOption.plan as 'advanced' | 'professional')}
+                      >
+                        Upgrade to {planOption.name}
+                      </Button>
+                    )}
+                    {planOption.plan === 'free' && plan !== 'free' && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        onClick={openCustomerPortal}
+                      >
+                        Downgrade
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
