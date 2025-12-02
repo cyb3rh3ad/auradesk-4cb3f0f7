@@ -29,12 +29,20 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  // Form state
+  // Simplified form state with smart defaults
   const [code, setCode] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(50);
-  const [durationMonths, setDurationMonths] = useState(12);
-  const [maxUses, setMaxUses] = useState<number | ''>('');
-  const [expiresAt, setExpiresAt] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(20);
+  const [maxUsesPerCode, setMaxUsesPerCode] = useState<number | ''>(100);
+  
+  // Always 1 year duration
+  const durationMonths = 12;
+  
+  // Auto-calculate expiry date (1 year from now)
+  const getDefaultExpiryDate = () => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() + 1);
+    return date.toISOString().split('T')[0];
+  };
 
   useEffect(() => {
     if (isOwner) {
@@ -72,24 +80,24 @@ const Admin = () => {
 
     setCreating(true);
     try {
+      const expiryDate = getDefaultExpiryDate();
+      
       const { error } = await supabase
         .from('promo_codes')
         .insert({
           code: code.toUpperCase().trim(),
           discount_percent: discountPercent,
-          duration_months: durationMonths,
-          max_uses: maxUses === '' ? null : maxUses,
-          expires_at: expiresAt || null,
+          duration_months: 12, // Always 1 year
+          max_uses: maxUsesPerCode === '' ? null : maxUsesPerCode,
+          expires_at: expiryDate,
         });
 
       if (error) throw error;
 
-      toast.success('Promo code created successfully');
+      toast.success(`Promo code created! ${discountPercent}% off for 1 year`);
       setCode('');
-      setDiscountPercent(50);
-      setDurationMonths(12);
-      setMaxUses('');
-      setExpiresAt('');
+      setDiscountPercent(20);
+      setMaxUsesPerCode(100);
       fetchPromoCodes();
     } catch (error: any) {
       console.error('Error creating promo code:', error);
@@ -165,68 +173,77 @@ const Admin = () => {
         </div>
 
         {/* Create Promo Code */}
-        <Card>
+        <Card className="border-primary/50">
           <CardHeader>
-            <CardTitle>Create Promo Code</CardTitle>
-            <CardDescription>Generate promotional discount codes for users</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Quick Promo Code Creator
+            </CardTitle>
+            <CardDescription>
+              Create discount codes with smart defaults - 1 year duration, auto-expiry
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="code">Code</Label>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="code">
+                  Code Name <span className="text-muted-foreground text-xs">(e.g., WELCOME20, SUMMER50)</span>
+                </Label>
                 <Input
                   id="code"
-                  placeholder="SUMMER50"
+                  placeholder="WELCOME20"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  className="font-mono"
+                  className="font-mono text-lg"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="discount">Discount (%)</Label>
-                <Input
-                  id="discount"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={discountPercent}
-                  onChange={(e) => setDiscountPercent(parseInt(e.target.value) || 0)}
-                />
+                <Label htmlFor="discount">
+                  Discount Percentage
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="discount"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(parseInt(e.target.value) || 0)}
+                    className="text-lg"
+                  />
+                  <span className="text-2xl font-bold text-primary">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Applied to monthly subscription</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration (months)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  value={durationMonths}
-                  onChange={(e) => setDurationMonths(parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxUses">Max Uses (optional)</Label>
+                <Label htmlFor="maxUses">
+                  Max Total Uses
+                </Label>
                 <Input
                   id="maxUses"
                   type="number"
                   min="1"
-                  placeholder="Unlimited"
-                  value={maxUses}
-                  onChange={(e) => setMaxUses(e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder="100"
+                  value={maxUsesPerCode}
+                  onChange={(e) => setMaxUsesPerCode(e.target.value ? parseInt(e.target.value) : '')}
+                  className="text-lg"
                 />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="expires">Expires At (optional)</Label>
-                <Input
-                  id="expires"
-                  type="datetime-local"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                />
+                <p className="text-xs text-muted-foreground">How many people can use this code</p>
               </div>
             </div>
-            <Button onClick={createPromoCode} disabled={creating} className="w-full">
+            
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <h4 className="font-semibold text-sm">Auto-configured settings:</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>✓ Duration: 12 months (1 year)</li>
+                <li>✓ Expires: {new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}</li>
+                <li>✓ Applies to: Advanced & Professional plans</li>
+              </ul>
+            </div>
+
+            <Button onClick={createPromoCode} disabled={creating} className="w-full" size="lg">
               <Plus className="h-4 w-4 mr-2" />
-              Create Promo Code
+              {creating ? 'Creating...' : 'Create Promo Code'}
             </Button>
           </CardContent>
         </Card>
