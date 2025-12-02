@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { HelpNotification } from "@/components/HelpNotification";
+import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { supabase } from "@/integrations/supabase/client";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
@@ -84,6 +85,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <ThemeInit />
+          <OwnerInitializer />
           <HelpNotification />
           <Routes>
             <Route path="/" element={<Landing />} />
