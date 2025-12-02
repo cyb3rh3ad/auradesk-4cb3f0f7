@@ -1,25 +1,28 @@
-import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X, Crown } from "lucide-react";
+import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X, Crown, Shield } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import auradeskLogo from "@/assets/auradesk-logo.png";
 
-const navItems = [
-  { icon: Home, label: "Dashboard", path: "/dashboard" },
-  { icon: MessageSquare, label: "Chat", path: "/chat" },
-  { icon: Users, label: "Teams", path: "/teams" },
-  { icon: Video, label: "Meetings", path: "/meetings" },
-  { icon: FileText, label: "Files", path: "/files" },
-  { icon: Bot, label: "AI Assistant", path: "/ai" },
-  { icon: Crown, label: "Subscription", path: "/subscription" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
-
 export const Sidebar = () => {
   const isMobile = useIsMobile();
+  const { isOwner } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
+
+  const navItems = [
+    { icon: Home, label: "Dashboard", path: "/dashboard" },
+    { icon: MessageSquare, label: "Chat", path: "/chat" },
+    { icon: Users, label: "Teams", path: "/teams" },
+    { icon: Video, label: "Meetings", path: "/meetings" },
+    { icon: FileText, label: "Files", path: "/files" },
+    { icon: Bot, label: "AI Assistant", path: "/ai" },
+    { icon: Crown, label: "Subscription", path: "/subscription" },
+    ...(isOwner ? [{ icon: Shield, label: "Admin", path: "/admin" }] : []),
+    { icon: Settings, label: "Settings", path: "/settings" },
+  ];
 
   if (isMobile) {
     return (

@@ -43,11 +43,46 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check if user is owner
+    const { data: roleData } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'owner')
+      .single();
+    
+    const isOwner = !!roleData;
+    logStep("Owner check", { isOwner });
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
       logStep("No customer found, checking database for existing subscription");
+      
+      // Owners always get professional plan
+      if (isOwner) {
+        await supabaseClient
+          .from('user_subscriptions')
+          .upsert({
+            user_id: user.id,
+            plan: 'professional',
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            stripe_product_id: null,
+            subscription_end: null
+          });
+        
+        return new Response(JSON.stringify({ 
+          subscribed: true, 
+          plan: 'professional',
+          product_id: null,
+          subscription_end: null
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
       
       // Check if user has a subscription record in our database
       const { data: dbSub } = await supabaseClient
@@ -108,6 +143,31 @@ serve(async (req) => {
         });
     } else {
       logStep("No active subscription found");
+      
+      // Owners always get professional plan
+      if (isOwner) {
+        await supabaseClient
+          .from('user_subscriptions')
+          .upsert({
+            user_id: user.id,
+            plan: 'professional',
+            stripe_customer_id: customerId,
+            stripe_subscription_id: null,
+            stripe_product_id: null,
+            subscription_end: null
+          });
+        
+        return new Response(JSON.stringify({
+          subscribed: true,
+          plan: 'professional',
+          product_id: null,
+          subscription_end: null
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+      
       // Update database to free plan
       await supabaseClient
         .from('user_subscriptions')

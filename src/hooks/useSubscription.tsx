@@ -100,24 +100,6 @@ export const useSubscription = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const createCheckoutSession = async (plan: 'advanced' | 'professional') => {
-    try {
-      const priceId = SUBSCRIPTION_TIERS[plan].priceId;
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId },
-      });
-      
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      toast.error('Failed to create checkout session');
-    }
-  };
 
   const openCustomerPortal = async () => {
     try {
@@ -223,7 +205,6 @@ export const useSubscription = () => {
     ...status,
     limits: getPlanLimits(),
     checkSubscription,
-    createCheckoutSession,
     openCustomerPortal,
     canCreateMeeting,
     canUploadFile,

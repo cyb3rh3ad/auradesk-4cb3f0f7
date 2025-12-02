@@ -372,6 +372,77 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_code_usage: {
+        Row: {
+          id: string
+          promo_code_id: string
+          stripe_coupon_id: string | null
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          promo_code_id: string
+          stripe_coupon_id?: string | null
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          promo_code_id?: string
+          stripe_coupon_id?: string | null
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_usage_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          created_by: string | null
+          current_uses: number | null
+          discount_percent: number
+          duration_months: number
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          discount_percent: number
+          duration_months?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          current_uses?: number | null
+          discount_percent?: number
+          duration_months?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           id: string
@@ -434,6 +505,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string
@@ -479,6 +571,13 @@ export type Database = {
         Args: { _required_roles: string[]; _team_id: string; _user_id: string }
         Returns: boolean
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_conversation_member: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
@@ -493,6 +592,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "owner" | "admin" | "user"
       subscription_plan: "free" | "advanced" | "professional"
     }
     CompositeTypes: {
@@ -621,6 +721,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["owner", "admin", "user"],
       subscription_plan: ["free", "advanced", "professional"],
     },
   },

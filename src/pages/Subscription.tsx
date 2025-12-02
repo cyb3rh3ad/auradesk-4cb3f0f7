@@ -1,8 +1,14 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Check, Crown, Sparkles, Zap } from "lucide-react";
+import { usePromoCode } from "@/hooks/usePromoCode";
+import { Check, Crown, Sparkles, Zap, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Subscription = () => {
@@ -12,10 +18,12 @@ const Subscription = () => {
     subscriptionEnd, 
     loading, 
     limits,
-    createCheckoutSession,
     openCustomerPortal,
     tiers
   } = useSubscription();
+
+  const { validating, validPromoCode, validatePromoCode, clearPromoCode } = usePromoCode();
+  const [promoCodeInput, setPromoCodeInput] = useState('');
 
   const plans = [
     {
@@ -70,8 +78,29 @@ const Subscription = () => {
     },
   ];
 
-  const handleUpgrade = (planType: 'advanced' | 'professional') => {
-    createCheckoutSession(planType);
+  const handleUpgrade = async (planType: 'advanced' | 'professional') => {
+    const priceId = tiers[planType].priceId;
+    
+    const { data, error } = await supabase.functions.invoke('create-checkout', {
+      body: { 
+        priceId,
+        promoCodeId: validPromoCode?.id,
+        stripeCouponId: validPromoCode?.stripeCouponId
+      },
+    });
+    
+    if (error) {
+      toast.error('Failed to create checkout session');
+      return;
+    }
+    
+    if (data?.url) {
+      window.open(data.url, '_blank');
+    }
+  };
+
+  const handleValidatePromo = async () => {
+    await validatePromoCode(promoCodeInput);
   };
 
   if (loading) {
@@ -116,6 +145,52 @@ const Subscription = () => {
                     <li>• Storage: {limits.fileStorageGB === 0 ? 'Unlimited' : limits.fileStorageGB >= 1024 ? `${limits.fileStorageGB / 1024}TB` : `${limits.fileStorageGB}GB`}</li>
                   </ul>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Promo Code Section */}
+        {!subscribed && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Have a Promo Code?
+              </CardTitle>
+              <CardDescription>
+                Enter your promotional code to get a discount on your subscription
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {validPromoCode ? (
+                <div className="p-4 bg-primary/10 border border-primary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-semibold text-foreground">Promo code applied!</p>
+                    <Button variant="ghost" size="sm" onClick={clearPromoCode}>
+                      Remove
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>{validPromoCode.discount_percent}% off</strong> for {validPromoCode.duration_months} months
+                  </p>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="promoCode" className="sr-only">Promo Code</Label>
+                    <Input
+                      id="promoCode"
+                      placeholder="Enter promo code"
+                      value={promoCodeInput}
+                      onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                      className="font-mono"
+                    />
+                  </div>
+                  <Button onClick={handleValidatePromo} disabled={validating}>
+                    {validating ? 'Validating...' : 'Apply'}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
