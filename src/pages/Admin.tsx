@@ -29,18 +29,25 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  // Simplified form state with smart defaults
+  // Form state
   const [code, setCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(20);
-  const [maxUsesPerCode, setMaxUsesPerCode] = useState<number | ''>(100);
-  
-  // Always 1 year duration
-  const durationMonths = 12;
-  
-  // Auto-calculate expiry date (1 year from now)
-  const getDefaultExpiryDate = () => {
+  const [maxUsers, setMaxUsers] = useState<number | ''>(100);
+  const [durationMonths, setDurationMonths] = useState<number | null>(12);
+  const [applicablePlans, setApplicablePlans] = useState<string[]>(['advanced', 'professional']);
+
+  const durationOptions = [
+    { label: 'Permanent', value: null },
+    { label: '2 Years', value: 24 },
+    { label: '1 Year', value: 12 },
+    { label: '6 Months', value: 6 },
+  ];
+
+  // Calculate expiry date based on duration
+  const getExpiryDate = () => {
+    if (durationMonths === null) return null;
     const date = new Date();
-    date.setFullYear(date.getFullYear() + 1);
+    date.setMonth(date.getMonth() + durationMonths);
     return date.toISOString().split('T')[0];
   };
 
@@ -80,24 +87,28 @@ const Admin = () => {
 
     setCreating(true);
     try {
-      const expiryDate = getDefaultExpiryDate();
+      const expiryDate = getExpiryDate();
       
       const { error } = await supabase
         .from('promo_codes')
         .insert({
           code: code.toUpperCase().trim(),
           discount_percent: discountPercent,
-          duration_months: 12, // Always 1 year
-          max_uses: maxUsesPerCode === '' ? null : maxUsesPerCode,
+          duration_months: durationMonths || 0,
+          max_uses: maxUsers === '' ? null : maxUsers,
           expires_at: expiryDate,
+          applicable_plans: applicablePlans,
         });
 
       if (error) throw error;
 
-      toast.success(`Promo code created! ${discountPercent}% off for 1 year`);
+      const durationLabel = durationMonths === null ? 'permanently' : `for ${durationMonths} months`;
+      toast.success(`Promo code created! ${discountPercent}% off ${durationLabel}`);
       setCode('');
       setDiscountPercent(20);
-      setMaxUsesPerCode(100);
+      setMaxUsers(100);
+      setDurationMonths(12);
+      setApplicablePlans(['advanced', 'professional']);
       fetchPromoCodes();
     } catch (error: any) {
       console.error('Error creating promo code:', error);
@@ -216,28 +227,81 @@ const Admin = () => {
                 <p className="text-xs text-muted-foreground">Applied to monthly subscription</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="maxUses">
-                  Max Total Uses
+                <Label htmlFor="maxUsers">
+                  Max Users
                 </Label>
                 <Input
-                  id="maxUses"
+                  id="maxUsers"
                   type="number"
                   min="1"
                   placeholder="100"
-                  value={maxUsesPerCode}
-                  onChange={(e) => setMaxUsesPerCode(e.target.value ? parseInt(e.target.value) : '')}
+                  value={maxUsers}
+                  onChange={(e) => setMaxUsers(e.target.value ? parseInt(e.target.value) : '')}
                   className="text-lg"
                 />
-                <p className="text-xs text-muted-foreground">How many people can use this code</p>
+                <p className="text-xs text-muted-foreground">How many users can redeem this code</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <select
+                  value={durationMonths === null ? 'null' : durationMonths.toString()}
+                  onChange={(e) => setDurationMonths(e.target.value === 'null' ? null : parseInt(e.target.value))}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
+                >
+                  {durationOptions.map((opt) => (
+                    <option key={opt.label} value={opt.value === null ? 'null' : opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">How long the discount lasts</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Applicable Plans</Label>
+                <div className="flex flex-col gap-2 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={applicablePlans.includes('advanced')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setApplicablePlans([...applicablePlans, 'advanced']);
+                        } else {
+                          setApplicablePlans(applicablePlans.filter(p => p !== 'advanced'));
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">Advanced (€5/mo)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={applicablePlans.includes('professional')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setApplicablePlans([...applicablePlans, 'professional']);
+                        } else {
+                          setApplicablePlans(applicablePlans.filter(p => p !== 'professional'));
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">Professional (€12/mo)</span>
+                  </label>
+                </div>
               </div>
             </div>
             
             <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-              <h4 className="font-semibold text-sm">Auto-configured settings:</h4>
+              <h4 className="font-semibold text-sm">Summary:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>✓ Duration: 12 months (1 year)</li>
-                <li>✓ Expires: {new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}</li>
-                <li>✓ Applies to: Advanced & Professional plans</li>
+                <li>✓ Duration: {durationMonths === null ? 'Permanent' : `${durationMonths} months`}</li>
+                <li>✓ Expires: {durationMonths === null ? 'Never' : new Date(Date.now() + (durationMonths * 30 * 24 * 60 * 60 * 1000)).toLocaleDateString()}</li>
+                <li>✓ Applies to: {applicablePlans.length === 0 ? 'None selected' : applicablePlans.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' & ')} plan{applicablePlans.length > 1 ? 's' : ''}</li>
               </ul>
             </div>
 
