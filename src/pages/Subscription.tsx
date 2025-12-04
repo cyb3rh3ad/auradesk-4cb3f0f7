@@ -19,11 +19,24 @@ const Subscription = () => {
     loading, 
     limits,
     openCustomerPortal,
-    tiers
+    tiers,
+    checkSubscription
   } = useSubscription();
 
   const { validating, validPromoCode, validatePromoCode, clearPromoCode } = usePromoCode();
   const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [activating, setActivating] = useState(false);
+
+  // Calculate discounted price
+  const getDiscountedPrice = (originalPrice: string): string => {
+    if (!validPromoCode) return originalPrice;
+    
+    const numericPrice = parseFloat(originalPrice.replace('€', ''));
+    const discountedPrice = numericPrice * (1 - validPromoCode.discount_percent / 100);
+    
+    if (discountedPrice === 0) return 'FREE';
+    return `€${discountedPrice.toFixed(0)}`;
+  };
 
   const plans = [
     {
@@ -43,7 +56,8 @@ const Subscription = () => {
     },
     {
       name: "Advanced",
-      price: tiers.advanced.price,
+      originalPrice: tiers.advanced.price,
+      price: getDiscountedPrice(tiers.advanced.price),
       period: "/month",
       description: "For growing teams",
       features: [
@@ -60,7 +74,8 @@ const Subscription = () => {
     },
     {
       name: "Professional",
-      price: tiers.professional.price,
+      originalPrice: tiers.professional.price,
+      price: getDiscountedPrice(tiers.professional.price),
       period: "/month",
       description: "For power users",
       features: [
@@ -79,6 +94,33 @@ const Subscription = () => {
   ];
 
   const handleUpgrade = async (planType: 'advanced' | 'professional') => {
+    // If 100% off promo code, activate directly without Stripe
+    if (validPromoCode?.discount_percent === 100) {
+      setActivating(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('activate-free-subscription', {
+          body: { 
+            planType,
+            promoCodeId: validPromoCode.id
+          },
+        });
+        
+        if (error) throw error;
+        
+        if (data?.success) {
+          toast.success(data.message || `${planType} plan activated!`);
+          clearPromoCode();
+          await checkSubscription();
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to activate subscription');
+      } finally {
+        setActivating(false);
+      }
+      return;
+    }
+
+    // Normal Stripe checkout flow
     const priceId = tiers[planType].priceId;
     
     const { data, error } = await supabase.functions.invoke('create-checkout', {
@@ -171,7 +213,13 @@ const Subscription = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    <strong>{validPromoCode.discount_percent}% off</strong> for {validPromoCode.duration_months} months
+                    {validPromoCode.discount_percent === 100 ? (
+                      <strong>100% off - FREE lifetime subscription!</strong>
+                    ) : (
+                      <>
+                        <strong>{validPromoCode.discount_percent}% off</strong> for {validPromoCode.duration_months} months
+                      </>
+                    )}
                   </p>
                 </div>
               ) : (
@@ -198,6 +246,8 @@ const Subscription = () => {
         <div className="grid md:grid-cols-3 gap-6">
           {plans.map((planOption) => {
             const Icon = planOption.icon;
+            const hasDiscount = validPromoCode && planOption.plan !== 'free' && planOption.originalPrice !== planOption.price;
+            
             return (
               <Card 
                 key={planOption.name} 
@@ -212,12 +262,27 @@ const Subscription = () => {
                     {planOption.current && (
                       <Badge variant="default">Current Plan</Badge>
                     )}
+                    {hasDiscount && !planOption.current && (
+                      <Badge variant="secondary" className="bg-green-500/20 text-green-500">
+                        {validPromoCode?.discount_percent}% OFF
+                      </Badge>
+                    )}
                   </div>
                   <CardTitle className="text-2xl">{planOption.name}</CardTitle>
                   <CardDescription>{planOption.description}</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">{planOption.price}</span>
-                    <span className="text-muted-foreground">{planOption.period}</span>
+                    {hasDiscount ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-bold text-foreground">{planOption.price}</span>
+                        <span className="text-lg line-through text-muted-foreground">{planOption.originalPrice}</span>
+                        <span className="text-muted-foreground">{planOption.price === 'FREE' ? '' : planOption.period}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold text-foreground">{planOption.price}</span>
+                        <span className="text-muted-foreground">{planOption.period}</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">
@@ -234,8 +299,9 @@ const Subscription = () => {
                       <Button 
                         className="w-full" 
                         onClick={() => handleUpgrade(planOption.plan as 'advanced' | 'professional')}
+                        disabled={activating}
                       >
-                        Upgrade to {planOption.name}
+                        {activating ? 'Activating...' : `Upgrade to ${planOption.name}`}
                       </Button>
                     )}
                     {planOption.plan === 'free' && plan !== 'free' && (
