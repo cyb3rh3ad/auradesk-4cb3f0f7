@@ -86,12 +86,17 @@ serve(async (req) => {
       stripeCoupon = await stripe.coupons.retrieve(couponId);
     } catch {
       // Create coupon if it doesn't exist
+      // For 100% off, use 'forever' duration as it's essentially free
+      const isFullDiscount = promoCode.discount_percent === 100;
+      
       stripeCoupon = await stripe.coupons.create({
         id: couponId,
         percent_off: promoCode.discount_percent,
-        duration: 'repeating',
-        duration_in_months: promoCode.duration_months,
-        name: `${promoCode.discount_percent}% off for ${promoCode.duration_months} months`,
+        duration: isFullDiscount ? 'forever' : 'repeating',
+        ...(isFullDiscount ? {} : { duration_in_months: promoCode.duration_months }),
+        name: isFullDiscount 
+          ? '100% off - Free subscription' 
+          : `${promoCode.discount_percent}% off for ${promoCode.duration_months} months`,
       });
     }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Bell, User, Command, LogOut, HeadphonesIcon } from "lucide-react";
+import { Search, Command, LogOut, HeadphonesIcon } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -56,14 +57,7 @@ export const Header = () => {
           </Button>
         )}
         
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="relative hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-gradient-to-br from-red-500 to-pink-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></span>
-        </Button>
+        <NotificationsDropdown />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
