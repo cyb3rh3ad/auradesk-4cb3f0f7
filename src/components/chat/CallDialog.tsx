@@ -89,6 +89,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
     let mounted = true;
     let stream: MediaStream | null = null;
     let offerRetryInterval: NodeJS.Timeout | null = null;
+    let signalRetryInterval: NodeJS.Timeout | null = null;
 
     const initializeCall = async () => {
       try {
@@ -324,23 +325,45 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
         console.log('Channel subscribed, isCaller:', isCaller);
 
+        // Both sides need to retry their signals until connection is established
+        let hasReceivedSignal = false;
+
+        const stopRetrying = () => {
+          if (signalRetryInterval) {
+            clearInterval(signalRetryInterval);
+            signalRetryInterval = null;
+          }
+          if (offerRetryInterval) {
+            clearInterval(offerRetryInterval);
+            offerRetryInterval = null;
+          }
+        };
+
+        // Update handlers to stop retrying when we receive the expected signal
+        const originalOnTrack = pc.ontrack;
+        pc.ontrack = (event) => {
+          hasReceivedSignal = true;
+          stopRetrying();
+          if (originalOnTrack) originalOnTrack.call(pc, event);
+        };
+
         if (isCaller) {
-          // Caller: send offer immediately and retry every 2 seconds until we get an answer
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Caller: send offer immediately and retry every 2 seconds
+          await new Promise(resolve => setTimeout(resolve, 300));
           await createAndSendOffer();
           
-          // Retry sending offer every 2 seconds for 30 seconds
           let retryCount = 0;
           offerRetryInterval = setInterval(async () => {
             retryCount++;
-            if (retryCount > 15 || !mounted) {
-              if (offerRetryInterval) clearInterval(offerRetryInterval);
+            if (retryCount > 20 || !mounted || hasReceivedSignal) {
+              stopRetrying();
               return;
             }
-            if (pcRef.current && pcRef.current.connectionState !== 'connected' && pcRef.current.signalingState === 'have-local-offer') {
-              console.log(`Retrying offer (attempt ${retryCount})...`);
-              // Re-send the same offer
-              if (pcRef.current.localDescription) {
+            if (pcRef.current && pcRef.current.connectionState !== 'connected') {
+              console.log(`Caller: Retrying offer (attempt ${retryCount})...`);
+              if (pcRef.current.signalingState === 'stable') {
+                await createAndSendOffer();
+              } else if (pcRef.current.localDescription) {
                 channel.send({
                   type: 'broadcast',
                   event: 'offer',
@@ -348,15 +371,35 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
                 });
               }
             }
-          }, 2000);
+          }, 1500);
         } else {
-          // Callee: signal ready to receive offer
-          console.log('Sending ready signal');
+          // Callee: signal ready repeatedly until we receive an offer
+          console.log('Sending initial ready signal');
           channel.send({
             type: 'broadcast',
             event: 'ready',
             payload: { from: user.id },
           });
+          
+          let retryCount = 0;
+          signalRetryInterval = setInterval(() => {
+            retryCount++;
+            if (retryCount > 20 || !mounted || hasReceivedSignal) {
+              stopRetrying();
+              return;
+            }
+            // Keep sending ready until we have a remote description (received offer)
+            if (pcRef.current && !pcRef.current.remoteDescription) {
+              console.log(`Callee: Retrying ready signal (attempt ${retryCount})...`);
+              channel.send({
+                type: 'broadcast',
+                event: 'ready',
+                payload: { from: user.id },
+              });
+            } else {
+              stopRetrying();
+            }
+          }, 1500);
         }
 
       } catch (error) {
@@ -371,6 +414,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
       mounted = false;
       console.log('Cleaning up call');
       if (offerRetryInterval) clearInterval(offerRetryInterval);
+      if (signalRetryInterval) clearInterval(signalRetryInterval);
       stream?.getTracks().forEach(track => track.stop());
       pcRef.current?.close();
       if (channelRef.current) {
