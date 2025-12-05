@@ -47,7 +47,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
         f.user_id === user.id ? f.friend_id : f.user_id
       );
 
-// Get profiles for friends
+      // Get profiles for friends
       if (!profiles) {
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
@@ -130,10 +130,14 @@ setLoading(false);
         () => fetchFriends()
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  const handleFriendClick = async (friend: Friend) => { 
+    // ... the rest of your handleFriendClick function starts here
 
   const handleFriendClick = async (friend: Friend) => {
     if (friend.conversation_id) {
