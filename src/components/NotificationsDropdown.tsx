@@ -46,10 +46,10 @@ export const NotificationsDropdown = () => {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const { dismissRequest, filterDismissed } = useDismissedHelpRequests(user?.id);
+  const { dismissRequest, filterDismissed, isLoaded } = useDismissedHelpRequests(user?.id);
 
-  // Filter help requests to exclude dismissed ones
-  const visibleHelpRequests = filterDismissed(helpRequests);
+  // Filter help requests to exclude dismissed ones (only after loaded)
+  const visibleHelpRequests = isLoaded ? filterDismissed(helpRequests) : [];
   const totalNotifications = friendRequests.length + visibleHelpRequests.length;
 
   useEffect(() => {

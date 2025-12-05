@@ -25,10 +25,10 @@ export const HelpNotification = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<HelpRequest[]>([]);
-  const { dismissRequest, isDismissed, filterDismissed } = useDismissedHelpRequests(user?.id);
+  const { dismissRequest, isDismissed, filterDismissed, isLoaded } = useDismissedHelpRequests(user?.id);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isLoaded) return;
 
     // Fetch pending help requests (without join, fetch profiles separately)
     const fetchRequests = async () => {
@@ -117,7 +117,7 @@ export const HelpNotification = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, isDismissed]);
+  }, [user, isDismissed, isLoaded]);
 
   const handleAccept = async (requestId: string) => {
     if (!user) return;
@@ -158,8 +158,8 @@ export const HelpNotification = () => {
     setRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
-  // Filter out dismissed requests before rendering
-  const visibleRequests = filterDismissed(requests);
+  // Filter out dismissed requests before rendering (only after loaded)
+  const visibleRequests = isLoaded ? filterDismissed(requests) : [];
 
   return (
     <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
