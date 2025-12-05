@@ -3,7 +3,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
-import { CreateGroupDialog } from '@/components/chat/CreateGroupDialog';
+
 import { FriendsList } from '@/components/chat/FriendsList';
 import { MessageSquare, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,10 +35,7 @@ const Chat = () => {
             <MessageSquare className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold">Messages</h2>
           </div>
-          <div className="flex items-center gap-1">
-            <AddFriendDialog />
-            <CreateGroupDialog onGroupCreated={refetch} />
-          </div>
+          <AddFriendDialog />
         </div>
         
         {/* Friends List */}
@@ -73,10 +70,7 @@ const Chat = () => {
                   Select a conversation from the sidebar to start chatting, or add a new friend to begin a conversation.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <AddFriendDialog />
-                <CreateGroupDialog onGroupCreated={refetch} />
-              </div>
+              <AddFriendDialog />
             </div>
           </div>
         )}
