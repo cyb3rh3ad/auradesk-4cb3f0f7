@@ -32,27 +32,47 @@ export const IncomingCallDialog = ({
   // Play ringtone when dialog opens
   useEffect(() => {
     if (open) {
-      // Create oscillator-based ringtone
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      let oscillator: OscillatorNode | null = null;
-      let gainNode: GainNode | null = null;
+      let audioContext: AudioContext | null = null;
       let intervalId: NodeJS.Timeout | null = null;
+      let isPlaying = false;
 
-      const playRingTone = () => {
-        oscillator = audioContext.createOscillator();
-        gainNode = audioContext.createGain();
+      const playRingTone = async () => {
+        if (isPlaying) return;
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 440; // A4 note
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
+        try {
+          // Create audio context on first ring (may need user gesture)
+          if (!audioContext) {
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          }
+
+          // Resume if suspended (browser policy)
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
+
+          isPlaying = true;
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.value = 440; // A4 note
+          oscillator.type = 'sine';
+          
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.5);
+          
+          oscillator.onended = () => {
+            isPlaying = false;
+          };
+        } catch (e) {
+          console.log('Ringtone error (may be blocked):', e);
+          isPlaying = false;
+        }
       };
 
       // Play immediately and then every 2 seconds
@@ -61,10 +81,9 @@ export const IncomingCallDialog = ({
 
       return () => {
         if (intervalId) clearInterval(intervalId);
-        if (oscillator) {
-          try { oscillator.stop(); } catch (e) {}
+        if (audioContext) {
+          audioContext.close().catch(() => {});
         }
-        audioContext.close();
       };
     }
   }, [open]);
