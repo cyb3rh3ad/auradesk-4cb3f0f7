@@ -44,7 +44,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           title: `Call with ${conversationName}`,
           created_by: user.id,
           scheduled_at: new Date().toISOString(),
-          status: 'in_progress',
+          status: 'scheduled',
           meeting_link: crypto.randomUUID(),
         })
         .select()
