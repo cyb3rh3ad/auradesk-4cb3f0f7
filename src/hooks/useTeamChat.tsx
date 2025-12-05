@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { playMessageNotification } from '@/utils/notificationSound';
 
 export interface TeamMessage {
   id: string;
@@ -147,6 +148,11 @@ export const useTeamChat = (teamId: string | null) => {
         },
         async (payload) => {
           const newMessage = payload.new as TeamMessage;
+          
+          // Play notification sound if message is from someone else
+          if (newMessage.sender_id !== user?.id) {
+            playMessageNotification();
+          }
           
           const { data: profile } = await supabase
             .from('profiles')

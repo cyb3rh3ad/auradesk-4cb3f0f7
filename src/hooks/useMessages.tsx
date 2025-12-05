@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { playMessageNotification } from '@/utils/notificationSound';
 
 export interface Message {
   id: string;
@@ -95,6 +96,11 @@ export const useMessages = (conversationId: string | null) => {
         },
         async (payload) => {
           const newMessage = payload.new as Message;
+          
+          // Play notification sound if message is from someone else
+          if (newMessage.sender_id !== user?.id) {
+            playMessageNotification();
+          }
           
           // Fetch sender profile for the new message
           const { data: profile } = await supabase
