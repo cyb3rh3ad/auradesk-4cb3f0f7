@@ -29,6 +29,7 @@ const Meetings = () => {
   const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string>('');
   const [selectedMeetingTitle, setSelectedMeetingTitle] = useState<string>('');
+  const [initialVideo, setInitialVideo] = useState(true);
   const [recordingMeetingId, setRecordingMeetingId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -41,11 +42,13 @@ const Meetings = () => {
   // Handle room query parameter for direct call links
   useEffect(() => {
     const roomId = searchParams.get('room');
+    const videoParam = searchParams.get('video');
     if (roomId && !loading) {
       const meeting = meetings.find(m => m.id === roomId);
       if (meeting) {
         setSelectedMeetingId(meeting.id);
         setSelectedMeetingTitle(meeting.title);
+        setInitialVideo(videoParam !== 'false');
         setMeetingRoomOpen(true);
         // Clear the query params
         setSearchParams({});
@@ -92,6 +95,7 @@ const Meetings = () => {
   const handleJoinMeeting = (meetingId: string, meetingTitle: string) => {
     setSelectedMeetingId(meetingId);
     setSelectedMeetingTitle(meetingTitle);
+    setInitialVideo(true);
     setMeetingRoomOpen(true);
   };
 
@@ -435,6 +439,7 @@ const Meetings = () => {
             meetingId={selectedMeetingId}
             meetingTitle={selectedMeetingTitle}
             onClose={() => setMeetingRoomOpen(false)}
+            initialVideo={initialVideo}
           />
         </DialogContent>
       </Dialog>
