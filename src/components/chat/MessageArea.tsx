@@ -9,9 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { CallDialog } from './CallDialog';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -23,51 +21,19 @@ interface MessageAreaProps {
 
 export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId }: MessageAreaProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [input, setInput] = useState('');
-  const [isStartingCall, setIsStartingCall] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callWithVideo, setCallWithVideo] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
 
   // Get current user's display name for typing events
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
-  const startCall = async (withVideo: boolean) => {
-    if (!user || !conversationId) return;
-    
-    setIsStartingCall(true);
-    try {
-      // Create a meeting for this call
-      const { data: meeting, error } = await supabase
-        .from('meetings')
-        .insert({
-          title: `Call with ${conversationName}`,
-          created_by: user.id,
-          scheduled_at: new Date().toISOString(),
-          status: 'scheduled',
-          meeting_link: crypto.randomUUID(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Add current user as participant
-      await supabase.from('meeting_participants').insert({
-        meeting_id: meeting.id,
-        user_id: user.id,
-        status: 'joined',
-      });
-
-      toast.success(withVideo ? 'Starting video call...' : 'Starting voice call...');
-      const searchParams = new URLSearchParams({ room: meeting.id, video: String(withVideo) });
-      navigate('/meetings?' + searchParams.toString());
-    } catch (error) {
-      console.error('Error starting call:', error);
-      toast.error('Failed to start call');
-    } finally {
-      setIsStartingCall(false);
-    }
+  const startCall = (withVideo: boolean) => {
+    if (!conversationId) return;
+    setCallWithVideo(withVideo);
+    setCallOpen(true);
   };
 
   useEffect(() => {
@@ -154,7 +120,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             size="icon" 
             className="text-muted-foreground hover:text-foreground"
             onClick={() => startCall(false)}
-            disabled={isStartingCall}
           >
             <Phone className="w-4 h-4" />
           </Button>
@@ -163,7 +128,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             size="icon" 
             className="text-muted-foreground hover:text-foreground"
             onClick={() => startCall(true)}
-            disabled={isStartingCall}
           >
             <Video className="w-4 h-4" />
           </Button>
@@ -269,6 +233,17 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </Button>
         </form>
       </div>
+
+      {/* Call Dialog */}
+      {conversationId && (
+        <CallDialog
+          open={callOpen}
+          onClose={() => setCallOpen(false)}
+          conversationName={conversationName}
+          conversationId={conversationId}
+          initialVideo={callWithVideo}
+        />
+      )}
     </div>
   );
 };
