@@ -177,26 +177,11 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
     }, 3000);
   }, [user, stopResending]);
 
-  // Accept call
+  // Accept call - only stops ringing locally for this user
   const acceptTeamCall = useCallback(() => {
-    if (incomingTeamCall) {
-      // Notify everyone that call was accepted (stops ringing)
-      const channelName = `team-call-invite:${incomingTeamCall.teamId}`;
-      const channel = channelsRef.current.get(channelName);
-      if (channel) {
-        channel.send({
-          type: 'broadcast',
-          event: 'team-call-accepted',
-          payload: { 
-            acceptedBy: user?.id,
-            teamId: incomingTeamCall.teamId 
-          },
-        });
-      }
-    }
     setTeamCallAccepted(true);
     setIncomingTeamCall(null);
-  }, [incomingTeamCall, user]);
+  }, []);
 
   // Decline call
   const declineTeamCall = useCallback(() => {
