@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { MessageCircle } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { Conversation } from '@/hooks/useConversations';
 
 interface Friend {
   id: string;
@@ -13,17 +14,28 @@ interface Friend {
   email: string;
   avatar_url: string | null;
   conversation_id?: string;
+  hasUnread?: boolean;
+  lastMessage?: string;
 }
 
 interface FriendsListProps {
   onSelectConversation: (conversationId: string) => void;
   selectedConversationId: string | null;
+  conversations: Conversation[];
 }
 
-export const FriendsList = ({ onSelectConversation, selectedConversationId }: FriendsListProps) => {
+export const FriendsList = ({ onSelectConversation, selectedConversationId, conversations }: FriendsListProps) => {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [readConversations, setReadConversations] = useState<Set<string>>(new Set());
+
+  // Mark conversation as read when selected
+  useEffect(() => {
+    if (selectedConversationId) {
+      setReadConversations(prev => new Set([...prev, selectedConversationId]));
+    }
+  }, [selectedConversationId]);
 
   useEffect(() => {
     if (!user) return;
@@ -195,15 +207,32 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
     return friend.email.slice(0, 2).toUpperCase();
   };
 
+  // Check if friend has unread messages
+  const hasUnreadMessages = (friend: Friend) => {
+    if (!friend.conversation_id) return false;
+    // If conversation hasn't been opened in this session, check if there are any messages
+    if (!readConversations.has(friend.conversation_id)) {
+      const convo = conversations.find(c => c.id === friend.conversation_id);
+      // Has messages and not yet read in this session
+      return !!convo;
+    }
+    return false;
+  };
+
+  // Get group conversations
+  const groupConversations = conversations.filter(c => c.is_group);
+
   if (loading) {
     return (
       <div className="p-3">
-        <div className="text-xs font-semibold text-muted-foreground mb-2">Friends</div>
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center gap-3 animate-pulse">
-              <div className="w-9 h-9 rounded-full bg-muted" />
-              <div className="h-4 w-24 bg-muted rounded" />
+            <div key={i} className="flex items-center gap-3 animate-pulse px-2 py-2">
+              <div className="w-10 h-10 rounded-full bg-muted" />
+              <div className="flex-1">
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-3 w-16 bg-muted rounded mt-1" />
+              </div>
             </div>
           ))}
         </div>
@@ -211,52 +240,111 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
     );
   }
 
-  if (friends.length === 0) {
-    return (
-      <div className="p-3">
-        <div className="text-xs font-semibold text-muted-foreground mb-2">Friends</div>
-        <p className="text-xs text-muted-foreground/70">No friends yet. Add some friends to start chatting!</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-3">
-      <div className="text-xs font-semibold text-muted-foreground mb-2">Friends ({friends.length})</div>
-      <ScrollArea className="max-h-48">
-        <div className="space-y-1">
-          {friends.map((friend) => {
-            const isSelected = friend.conversation_id === selectedConversationId;
-            return (
-              <button
-                key={friend.id}
-                onClick={() => handleFriendClick(friend)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-200',
-                  'hover:bg-accent/10 group',
-                  isSelected && 'bg-accent/20'
-                )}
-              >
-                <Avatar className="w-9 h-9">
-                  <AvatarImage src={friend.avatar_url || undefined} />
-                  <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-accent/20">
-                    {getInitials(friend)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {friend.full_name || friend.username || friend.email}
-                  </p>
-                  {friend.username && friend.full_name && (
-                    <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+    <ScrollArea className="flex-1">
+      <div className="py-2">
+        {/* Friends Section */}
+        {friends.length > 0 && (
+          <div className="space-y-0.5">
+            {friends.map((friend) => {
+              const isSelected = friend.conversation_id === selectedConversationId;
+              const unread = hasUnreadMessages(friend);
+              
+              return (
+                <button
+                  key={friend.id}
+                  onClick={() => handleFriendClick(friend)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md transition-all duration-150',
+                    'hover:bg-accent/50',
+                    isSelected && 'bg-accent'
                   )}
-                </div>
-                <MessageCircle className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
+                  style={{ width: 'calc(100% - 16px)' }}
+                >
+                  <div className="relative">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={friend.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+                        {getInitials(friend)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {unread && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-background" />
+                    )}
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className={cn(
+                      'text-sm truncate',
+                      unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'
+                    )}>
+                      {friend.full_name || friend.username || friend.email}
+                    </p>
+                    {friend.username && friend.full_name && (
+                      <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Groups Section */}
+        {groupConversations.length > 0 && (
+          <>
+            <div className="px-4 pt-4 pb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Groups</span>
+            </div>
+            <div className="space-y-0.5">
+              {groupConversations.map((group) => {
+                const isSelected = group.id === selectedConversationId;
+                const unread = !readConversations.has(group.id);
+                
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => onSelectConversation(group.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md transition-all duration-150',
+                      'hover:bg-accent/50',
+                      isSelected && 'bg-accent'
+                    )}
+                    style={{ width: 'calc(100% - 16px)' }}
+                  >
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-primary" />
+                      </div>
+                      {unread && (
+                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-background" />
+                      )}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className={cn(
+                        'text-sm truncate',
+                        unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'
+                      )}>
+                        {group.name || 'Unnamed Group'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {group.members?.length || 0} members
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Empty State */}
+        {friends.length === 0 && groupConversations.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-muted-foreground">No friends yet</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Add friends to start chatting!</p>
+          </div>
+        )}
+      </div>
+    </ScrollArea>
   );
 };
