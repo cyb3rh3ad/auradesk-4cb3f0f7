@@ -77,6 +77,7 @@ export type Database = {
           id: string
           is_group: boolean
           name: string | null
+          team_id: string | null
           updated_at: string
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           id?: string
           is_group?: boolean
           name?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -93,9 +95,18 @@ export type Database = {
           id?: string
           is_group?: boolean
           name?: string | null
+          team_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       file_storage_usage: {
         Row: {

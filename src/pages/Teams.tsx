@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTeams } from '@/hooks/useTeams';
+import { useTeams, Team } from '@/hooks/useTeams';
 import { useFriends, Friend } from '@/hooks/useFriends';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Plus, UserPlus, Loader2, Check } from 'lucide-react';
+import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { TeamChat } from '@/components/teams/TeamChat';
 
 const Teams = () => {
   const { teams, loading, createTeam, addMember } = useTeams();
@@ -18,6 +19,7 @@ const Teams = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [teamName, setTeamName] = useState('');
   const [teamDescription, setTeamDescription] = useState('');
   const [memberUsername, setMemberUsername] = useState('');
@@ -83,6 +85,52 @@ const Teams = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show team chat view when a team is selected
+  if (selectedTeam) {
+    return (
+      <div className="flex h-full">
+        {/* Sidebar - hidden on mobile when in chat */}
+        <div className="hidden md:flex md:w-80 lg:w-96 border-r flex-col">
+          <div className="p-4 border-b">
+            <h2 className="text-xl font-bold">Teams</h2>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-2 space-y-1">
+              {teams.map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => setSelectedTeam(team)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all',
+                    'hover:bg-muted/50',
+                    selectedTeam?.id === team.id && 'bg-primary/10'
+                  )}
+                >
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                      {team.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="font-medium truncate">{team.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Chat area */}
+        <div className="flex-1 flex flex-col">
+          <TeamChat team={selectedTeam} onBack={() => setSelectedTeam(null)} />
+        </div>
       </div>
     );
   }
@@ -221,20 +269,27 @@ const Teams = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teams.map((team) => (
-              <Card key={team.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={team.id} 
+                className="hover:shadow-lg transition-shadow cursor-pointer group"
+                onClick={() => setSelectedTeam(team)}
+              >
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <Avatar className="w-12 h-12">
-                      <AvatarFallback className="bg-primary/10">
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                         {team.name.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{team.name}</CardTitle>
+                      <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                        {team.name}
+                      </CardTitle>
                       <CardDescription className="text-xs">
                         {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
                       </CardDescription>
                     </div>
+                    <MessageCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -249,7 +304,8 @@ const Teams = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedTeamId(team.id);
                           setAddMemberOpen(true);
                         }}
