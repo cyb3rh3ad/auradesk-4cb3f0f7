@@ -47,7 +47,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
         f.user_id === user.id ? f.friend_id : f.user_id
       );
 
-      // Get profiles for friends
+// Get profiles for friends
       if (!profiles) {
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
@@ -130,27 +130,16 @@ setLoading(false);
         () => fetchFriends()
       )
       .subscribe();
-
-    return () => {
+return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user]); // <-- End of useEffect
 
-  const handleFriendClick = async (friend: Friend) => {
+  const handleFriendClick = async (friend: Friend) => { // <-- Start of function
     if (friend.conversation_id) {
       onSelectConversation(friend.conversation_id);
       return;
     }
-
-    // Create a new conversation if one doesn't exist
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return;
-
-    const { data: conversation, error } = await supabase
-      .from('conversations')
-      .insert({ is_group: false, created_by: authUser.id })
-      .select()
-      .single();
 
     if (error || !conversation) return;
 
