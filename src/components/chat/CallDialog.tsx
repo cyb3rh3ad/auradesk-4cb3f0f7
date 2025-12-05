@@ -219,17 +219,23 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
         channel
           .on('broadcast', { event: 'ready' }, async ({ payload }) => {
-            // Callee signals they're ready - caller sends offer
+            // Callee signals they're ready - caller RE-SENDS existing offer or creates new one
             console.log('Received ready signal from:', payload.from);
             if (payload.from === user.id) return;
             
             if (isCaller && pcRef.current) {
-              // Stop retry interval if running
-              if (offerRetryInterval) {
-                clearInterval(offerRetryInterval);
-                offerRetryInterval = null;
+              // If we already have a local offer, just re-send it
+              if (pcRef.current.localDescription && pcRef.current.signalingState === 'have-local-offer') {
+                console.log('Re-sending existing offer to callee');
+                channel.send({
+                  type: 'broadcast',
+                  event: 'offer',
+                  payload: { offer: pcRef.current.localDescription, from: user.id },
+                });
+              } else if (pcRef.current.signalingState === 'stable') {
+                // Only create new offer if in stable state
+                await createAndSendOffer();
               }
-              await createAndSendOffer();
             }
           })
           .on('broadcast', { event: 'offer' }, async ({ payload }) => {
