@@ -48,61 +48,14 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
       );
 
       // Get profiles for friends
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, email, avatar_url')
-        .in('id', friendIds);
-
       if (!profiles) {
         setFriends([]);
         setLoading(false);
         return;
       }
 
-      // Get conversations to find existing chats with friends
-      const { data: conversations } = await supabase
-        .from('conversation_members')
-        .select(`
-          conversation_id,
-          conversations!inner (id, is_group)
-        `)
-        .eq('user_id', user.id);
-
-      // For each friend, find if there's a private conversation
-      const friendsWithConvos = await Promise.all(
-        profiles.map(async (profile) => {
-          // Find private conversation with this friend
-          let conversationId: string | undefined;
-          
-          if (conversations) {
-            for (const cm of conversations) {
-              const convo = cm.conversations as any;
-              if (convo && !convo.is_group) {
-                // Check if friend is in this conversation
-                const { data: members } = await supabase
-                  .from('conversation_members')
-                  .select('user_id')
-                  .eq('conversation_id', cm.conversation_id);
-
-                if (members && members.length === 2) {
-                  const hasUser = members.some(m => m.user_id === user.id);
-                  const hasFriend = members.some(m => m.user_id === profile.id);
-                  if (hasUser && hasFriend) {
-                    conversationId = cm.conversation_id;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          return {
-            ...profile,
-            conversation_id: conversationId,
-          };
-        })
-      );
-
+    Lines to Insert,New Optimized Code,Purpose
+Lines 57 - 100,"```typescript // 3. Get all private conversations between you and ALL your friends in one query. const { data: allConvoMembers, error: convoError } = await supabase .from('conversation_members') .select(conversation_id, user_id, conversations!inner(is_group)) .in('user_id', [...friendIds, user.id]) // Get all records involving you or a friend .eq('conversations.is_group', false); // Only private chats if (convoError",
       setFriends(friendsWithConvos);
       setLoading(false);
     };
