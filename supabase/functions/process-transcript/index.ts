@@ -38,8 +38,37 @@ serve(async (req) => {
 
     const { text, processingType, customInstructions } = await req.json();
     
+    // Input validation
+    const MAX_TEXT_LENGTH = 100000;
+    const MAX_INSTRUCTIONS_LENGTH = 2000;
+    const VALID_PROCESSING_TYPES = ['summary', 'bullet_points', 'custom'];
+    
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: 'Invalid input: text is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (text.trim().length === 0) {
+      return new Response(JSON.stringify({ error: 'Invalid input: text cannot be empty' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (text.length > MAX_TEXT_LENGTH) {
+      return new Response(JSON.stringify({ error: `Text too long: maximum ${MAX_TEXT_LENGTH} characters allowed` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (processingType && !VALID_PROCESSING_TYPES.includes(processingType)) {
+      return new Response(JSON.stringify({ error: 'Invalid processingType' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (customInstructions && (typeof customInstructions !== 'string' || customInstructions.length > MAX_INSTRUCTIONS_LENGTH)) {
+      return new Response(JSON.stringify({ error: `Custom instructions too long: maximum ${MAX_INSTRUCTIONS_LENGTH} characters` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -37,8 +37,22 @@ serve(async (req) => {
 
     const { text } = await req.json();
     
+    // Input validation
+    const MAX_TEXT_LENGTH = 100000;
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "Invalid input: text is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (text.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "Invalid input: text cannot be empty" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (text.length > MAX_TEXT_LENGTH) {
+      return new Response(JSON.stringify({ error: `Text too long: maximum ${MAX_TEXT_LENGTH} characters allowed` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
