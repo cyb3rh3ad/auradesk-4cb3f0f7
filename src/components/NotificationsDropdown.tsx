@@ -53,40 +53,67 @@ export const NotificationsDropdown = () => {
 
     const fetchNotifications = async () => {
       // Fetch pending friend requests where user is the receiver
-      const { data: friendData } = await supabase
+      const { data: friendData, error: friendError } = await supabase
         .from('friendships')
-        .select(`
-          id,
-          user_id,
-          created_at,
-          profiles:user_id (full_name, username, email)
-        `)
+        .select('id, user_id, created_at')
         .eq('friend_id', user.id)
         .eq('status', 'pending');
 
-      if (friendData) {
-        setFriendRequests(friendData as any);
+      if (friendError) {
+        console.error('Error fetching friend requests:', friendError);
+      }
+
+      if (friendData && friendData.length > 0) {
+        // Fetch profile data for the senders
+        const senderIds = friendData.map(f => f.user_id);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, email')
+          .in('id', senderIds);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+        
+        const enrichedRequests = friendData.map(req => ({
+          ...req,
+          profiles: profilesMap.get(req.user_id) || null
+        }));
+        
+        setFriendRequests(enrichedRequests as any);
+      } else {
+        setFriendRequests([]);
       }
 
       // Fetch pending help requests
-      const { data: helpData } = await supabase
+      const { data: helpData, error: helpError } = await supabase
         .from('help_requests')
-        .select(`
-          id,
-          requester_id,
-          title,
-          description,
-          status,
-          created_at,
-          profiles:requester_id (full_name, username)
-        `)
+        .select('id, requester_id, title, description, status, created_at')
         .eq('status', 'pending')
         .neq('requester_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (helpData) {
-        setHelpRequests(helpData as any);
+      if (helpError) {
+        console.error('Error fetching help requests:', helpError);
+      }
+
+      if (helpData && helpData.length > 0) {
+        // Fetch profile data for requesters
+        const requesterIds = helpData.map(h => h.requester_id);
+        const { data: requesterProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', requesterIds);
+
+        const requesterMap = new Map(requesterProfiles?.map(p => [p.id, p]) || []);
+        
+        const enrichedHelp = helpData.map(req => ({
+          ...req,
+          profiles: requesterMap.get(req.requester_id) || null
+        }));
+        
+        setHelpRequests(enrichedHelp as any);
+      } else {
+        setHelpRequests([]);
       }
     };
 
