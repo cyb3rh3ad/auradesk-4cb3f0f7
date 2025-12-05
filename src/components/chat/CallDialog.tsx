@@ -503,12 +503,14 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
   const hasRemoteVideo = remoteStream && remoteStream.getVideoTracks().some(t => t.enabled);
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && endCall()}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className={cn(
           "p-0 gap-0 border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden",
           isFullscreen ? "max-w-full w-full h-full" : "max-w-2xl w-full"
         )}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <VisuallyHidden.Root>
           <DialogTitle>Call with {displayName}</DialogTitle>
