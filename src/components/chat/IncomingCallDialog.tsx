@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video } from 'lucide-react';
@@ -71,6 +72,10 @@ export const IncomingCallDialog = ({
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
       <DialogContent className="max-w-sm p-0 gap-0 border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden">
+        <VisuallyHidden.Root>
+          <DialogTitle>Incoming call from {callerName}</DialogTitle>
+          <DialogDescription>Accept or decline the {isVideo ? 'video' : 'voice'} call</DialogDescription>
+        </VisuallyHidden.Root>
         <div className="p-8 flex flex-col items-center text-center space-y-6">
           {/* Caller Avatar with pulsing ring animation */}
           <div className="relative">

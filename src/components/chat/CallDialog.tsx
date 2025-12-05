@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2 } from 'lucide-react';
@@ -87,6 +88,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
     let mounted = true;
     let stream: MediaStream | null = null;
+    let offerRetryInterval: NodeJS.Timeout | null = null;
 
     const initializeCall = async () => {
       try {
@@ -103,7 +105,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           return;
         }
 
-        console.log('Got local media stream');
+        console.log('Got local media stream with tracks:', stream.getTracks().map(t => t.kind));
         setLocalStream(stream);
         
         if (localVideoRef.current) {
@@ -129,8 +131,9 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
         // Handle incoming tracks
         pc.ontrack = (event) => {
-          console.log('Received remote track:', event.track.kind);
+          console.log('Received remote track:', event.track.kind, 'enabled:', event.track.enabled);
           if (event.streams[0] && mounted) {
+            console.log('Setting remote stream with tracks:', event.streams[0].getTracks().map(t => `${t.kind}:${t.enabled}`));
             setRemoteStream(event.streams[0]);
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = event.streams[0];
@@ -168,6 +171,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
         // Process queued ICE candidates
         const processQueuedCandidates = async () => {
+          console.log('Processing queued ICE candidates:', iceCandidatesQueue.current.length);
           while (iceCandidatesQueue.current.length > 0) {
             const candidate = iceCandidatesQueue.current.shift();
             if (candidate && pc.remoteDescription) {
@@ -181,10 +185,50 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           }
         };
 
+        // Create and send offer (caller only)
+        const createAndSendOffer = async () => {
+          if (!pcRef.current || pcRef.current.signalingState !== 'stable') {
+            console.log('Skipping offer - not in stable state:', pcRef.current?.signalingState);
+            return;
+          }
+          
+          console.log('Creating offer...');
+          const offer = await pcRef.current.createOffer();
+          await pcRef.current.setLocalDescription(offer);
+          console.log('Set local description (offer)');
+          
+          channel.send({
+            type: 'broadcast',
+            event: 'offer',
+            payload: { offer, from: user.id },
+          });
+          console.log('Sent offer');
+        };
+
         channel
+          .on('broadcast', { event: 'ready' }, async ({ payload }) => {
+            // Callee signals they're ready - caller sends offer
+            console.log('Received ready signal from:', payload.from);
+            if (payload.from === user.id) return;
+            
+            if (isCaller && pcRef.current) {
+              // Stop retry interval if running
+              if (offerRetryInterval) {
+                clearInterval(offerRetryInterval);
+                offerRetryInterval = null;
+              }
+              await createAndSendOffer();
+            }
+          })
           .on('broadcast', { event: 'offer' }, async ({ payload }) => {
             console.log('Received offer from:', payload.from);
             if (payload.from === user.id || !pcRef.current) return;
+            
+            // Stop retry interval if we're receiving offers
+            if (offerRetryInterval) {
+              clearInterval(offerRetryInterval);
+              offerRetryInterval = null;
+            }
             
             try {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
@@ -209,6 +253,12 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           .on('broadcast', { event: 'answer' }, async ({ payload }) => {
             console.log('Received answer from:', payload.from);
             if (payload.from === user.id || !pcRef.current) return;
+            
+            // Stop retry interval - we got an answer
+            if (offerRetryInterval) {
+              clearInterval(offerRetryInterval);
+              offerRetryInterval = null;
+            }
             
             try {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
@@ -263,23 +313,39 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
         console.log('Channel subscribed, isCaller:', isCaller);
 
-        // Only the caller creates and sends the offer
-        // The callee waits for the offer
         if (isCaller) {
-          // Small delay to let the callee subscribe
+          // Caller: send offer immediately and retry every 2 seconds until we get an answer
           await new Promise(resolve => setTimeout(resolve, 500));
+          await createAndSendOffer();
           
-          console.log('Creating offer...');
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          console.log('Set local description (offer)');
-          
+          // Retry sending offer every 2 seconds for 30 seconds
+          let retryCount = 0;
+          offerRetryInterval = setInterval(async () => {
+            retryCount++;
+            if (retryCount > 15 || !mounted) {
+              if (offerRetryInterval) clearInterval(offerRetryInterval);
+              return;
+            }
+            if (pcRef.current && pcRef.current.connectionState !== 'connected' && pcRef.current.signalingState === 'have-local-offer') {
+              console.log(`Retrying offer (attempt ${retryCount})...`);
+              // Re-send the same offer
+              if (pcRef.current.localDescription) {
+                channel.send({
+                  type: 'broadcast',
+                  event: 'offer',
+                  payload: { offer: pcRef.current.localDescription, from: user.id },
+                });
+              }
+            }
+          }, 2000);
+        } else {
+          // Callee: signal ready to receive offer
+          console.log('Sending ready signal');
           channel.send({
             type: 'broadcast',
-            event: 'offer',
-            payload: { offer, from: user.id },
+            event: 'ready',
+            payload: { from: user.id },
           });
-          console.log('Sent offer');
         }
 
       } catch (error) {
@@ -293,6 +359,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
     return () => {
       mounted = false;
       console.log('Cleaning up call');
+      if (offerRetryInterval) clearInterval(offerRetryInterval);
       stream?.getTracks().forEach(track => track.stop());
       pcRef.current?.close();
       if (channelRef.current) {
@@ -382,6 +449,10 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           isFullscreen ? "max-w-full w-full h-full" : "max-w-2xl w-full"
         )}
       >
+        <VisuallyHidden.Root>
+          <DialogTitle>Call with {displayName}</DialogTitle>
+          <DialogDescription>Video and voice call interface</DialogDescription>
+        </VisuallyHidden.Root>
         {/* Call Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-card/50 border-b border-border/30">
           <div className="flex items-center gap-3">

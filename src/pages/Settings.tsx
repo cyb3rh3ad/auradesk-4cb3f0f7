@@ -37,6 +37,9 @@ const Settings = () => {
   const [selectedMic, setSelectedMic] = useState('default');
   const [selectedCamera, setSelectedCamera] = useState('default');
   const [selectedSpeaker, setSelectedSpeaker] = useState('default');
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
 
   // Nicknames
   const [nicknames, setNicknames] = useState<any[]>([]);
@@ -47,8 +50,34 @@ const Settings = () => {
     if (user) {
       loadUserProfile();
       loadNicknames();
+      loadMediaDevices();
     }
   }, [user]);
+
+  const loadMediaDevices = async () => {
+    try {
+      // Request permission to access media devices to get labels
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      stream.getTracks().forEach(track => track.stop());
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      setAudioInputDevices(devices.filter(d => d.kind === 'audioinput'));
+      setAudioOutputDevices(devices.filter(d => d.kind === 'audiooutput'));
+      setVideoInputDevices(devices.filter(d => d.kind === 'videoinput'));
+    } catch (error) {
+      console.error('Error loading media devices:', error);
+      // Try to enumerate without permission (labels will be empty)
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioInputDevices(devices.filter(d => d.kind === 'audioinput'));
+        setAudioOutputDevices(devices.filter(d => d.kind === 'audiooutput'));
+        setVideoInputDevices(devices.filter(d => d.kind === 'videoinput'));
+      } catch (e) {
+        console.error('Error enumerating devices:', e);
+      }
+    }
+  };
 
   const loadUserProfile = async () => {
     const { data } = await supabase
@@ -484,13 +513,22 @@ const Settings = () => {
                 </Label>
                 <Select value={selectedMic} onValueChange={setSelectedMic}>
                   <SelectTrigger id="microphone">
-                    <SelectValue />
+                    <SelectValue placeholder="Select microphone" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Microphone</SelectItem>
-                    <SelectItem value="external">External Microphone</SelectItem>
+                    {audioInputDevices.map(device => (
+                      <SelectItem key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {audioInputDevices.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Grant microphone permission to see available devices
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -500,13 +538,22 @@ const Settings = () => {
                 </Label>
                 <Select value={selectedCamera} onValueChange={setSelectedCamera}>
                   <SelectTrigger id="camera">
-                    <SelectValue />
+                    <SelectValue placeholder="Select camera" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Camera</SelectItem>
-                    <SelectItem value="external">External Camera</SelectItem>
+                    {videoInputDevices.map(device => (
+                      <SelectItem key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {videoInputDevices.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Grant camera permission to see available devices
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -516,13 +563,22 @@ const Settings = () => {
                 </Label>
                 <Select value={selectedSpeaker} onValueChange={setSelectedSpeaker}>
                   <SelectTrigger id="speaker">
-                    <SelectValue />
+                    <SelectValue placeholder="Select speaker" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Speaker</SelectItem>
-                    <SelectItem value="external">External Speaker</SelectItem>
+                    {audioOutputDevices.map(device => (
+                      <SelectItem key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Speaker ${device.deviceId.slice(0, 8)}`}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {audioOutputDevices.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Grant audio permission to see available devices
+                  </p>
+                )}
               </div>
 
               <Separator />
