@@ -47,12 +47,17 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
         f.user_id === user.id ? f.friend_id : f.user_id
       );
 
-      // Get profiles for friends
-      if (!profiles) {
-        setFriends([]);
-        setLoading(false);
-        return;
-      }
+// Get profiles for friends
+const { data: profiles } = await supabase
+  .from('profiles')
+  .select('id, full_name, username, email, avatar_url')
+  .in('id', friendIds);
+
+if (!profiles) {
+  setFriends([]);
+  setLoading(false);
+  return;
+}
 
 // 3. Get all private conversations between you and ALL your friends in one query.
 const { data: allConvoMembers, error: convoError } = await supabase
