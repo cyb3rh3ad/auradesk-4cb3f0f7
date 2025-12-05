@@ -228,6 +228,11 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
         channel
           .on('broadcast', { event: 'join' }, ({ payload }) => {
             if (payload.userId !== user.id && mounted) {
+              // Check if we already have a connection to this user
+              if (peerConnections.current.has(payload.userId)) {
+                console.log('Already connected to:', payload.userId);
+                return;
+              }
               console.log('User joined:', payload.userId);
               // Send offer to new user
               sendOffer(payload.userId, payload.userName);
@@ -266,12 +271,29 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED' && mounted) {
               console.log('Joined team call room');
-              // Announce presence
-              channel.send({
-                type: 'broadcast',
-                event: 'join',
-                payload: { userId: user.id, userName }
-              });
+              
+              // Announce presence immediately
+              const announceJoin = () => {
+                channel.send({
+                  type: 'broadcast',
+                  event: 'join',
+                  payload: { userId: user.id, userName }
+                });
+              };
+              
+              announceJoin();
+              
+              // Re-announce every 2 seconds for 10 seconds to ensure others receive it
+              let announceCount = 0;
+              const announceInterval = setInterval(() => {
+                announceCount++;
+                if (announceCount >= 5 || !mounted) {
+                  clearInterval(announceInterval);
+                  return;
+                }
+                announceJoin();
+              }, 2000);
+              
               setConnectionState('connected');
               callStartTime.current = Date.now();
             }
@@ -375,8 +397,12 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl h-[90vh] p-0 gap-0 flex flex-col">
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="max-w-5xl h-[90vh] p-0 gap-0 flex flex-col"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <VisuallyHidden.Root>
           <DialogTitle>Team Call - {team.name}</DialogTitle>
           <DialogDescription>Group call with team members</DialogDescription>
