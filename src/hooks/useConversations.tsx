@@ -42,18 +42,27 @@ export const useConversations = () => {
       // Fetch members for each conversation
       const convosWithMembers = await Promise.all(
         convos.map(async (convo: any) => {
-          const { data: members } = await supabase
+          // Get member user_ids first
+          const { data: memberData } = await supabase
             .from('conversation_members')
-            .select(`
-              user_id,
-              profiles (
-                id,
-                email,
-                full_name,
-                avatar_url
-              )
-            `)
+            .select('user_id')
             .eq('conversation_id', convo.id);
+
+          if (!memberData) return { ...convo, members: [] };
+
+          const userIds = memberData.map(m => m.user_id);
+          
+          // Fetch profiles separately
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url')
+            .in('id', userIds);
+
+          // Map profiles back to members format
+          const members = memberData.map(m => ({
+            user_id: m.user_id,
+            profiles: profiles?.find(p => p.id === m.user_id) || null
+          }));
 
           return { ...convo, members };
         })
