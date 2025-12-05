@@ -46,6 +46,7 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const callStartTime = useRef<number | null>(null);
   const iceCandidateQueues = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   const userName = profile?.full_name || profile?.email || 'Anonymous';
   const roomId = `team-call-${team.id}`;
@@ -65,7 +66,8 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
   }, [user]);
 
   const createPeerConnection = useCallback((remoteUserId: string, remoteName: string) => {
-    console.log('Creating peer connection for:', remoteUserId);
+    const stream = localStreamRef.current;
+    console.log('Creating peer connection for:', remoteUserId, 'stream:', !!stream);
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     
     pc.onicecandidate = (event) => {
@@ -106,16 +108,17 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
       }
     };
 
-    // Add local tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
+    // Add local tracks from ref
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        console.log('Adding track to peer connection:', track.kind);
+        pc.addTrack(track, stream);
       });
     }
 
     peerConnections.current.set(remoteUserId, pc);
     return pc;
-  }, [user?.id, localStream]);
+  }, [user?.id]);
 
   const sendOffer = useCallback(async (remoteUserId: string, remoteName: string) => {
     const pc = createPeerConnection(remoteUserId, remoteName);
@@ -210,6 +213,8 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
           return;
         }
         
+        // Set both state and ref
+        localStreamRef.current = stream;
         setLocalStream(stream);
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
@@ -310,6 +315,8 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
       }
       
       // Stop media
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
       localStream?.getTracks().forEach(t => t.stop());
       setLocalStream(null);
       
