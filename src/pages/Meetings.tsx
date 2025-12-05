@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useTeams } from '@/hooks/useTeams';
 import { useTranscription } from '@/hooks/useTranscription';
@@ -19,6 +20,7 @@ import { MeetingRoom } from '@/components/meetings/MeetingRoom';
 import { cn } from '@/lib/utils';
 
 const Meetings = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { meetings, loading, createMeeting } = useMeetings();
   const { teams } = useTeams();
   const { isRecording, startRecording, stopRecording } = useTranscription();
@@ -35,6 +37,24 @@ const Meetings = () => {
   const [duration, setDuration] = useState('60');
   const [teamId, setTeamId] = useState<string>('');
   const [creating, setCreating] = useState(false);
+
+  // Handle room query parameter for direct call links
+  useEffect(() => {
+    const roomId = searchParams.get('room');
+    if (roomId && !loading) {
+      const meeting = meetings.find(m => m.id === roomId);
+      if (meeting) {
+        setSelectedMeetingId(meeting.id);
+        setSelectedMeetingTitle(meeting.title);
+        setMeetingRoomOpen(true);
+        // Clear the query params
+        setSearchParams({});
+      } else {
+        // Meeting not found, clear params
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, meetings, loading, setSearchParams]);
 
   const handleCreateMeeting = async () => {
     if (!title.trim() || !scheduledDate || !scheduledTime) return;
