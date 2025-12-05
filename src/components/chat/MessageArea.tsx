@@ -39,10 +39,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName }: Messa
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="h-16 border-b border-border/50 px-6 flex items-center bg-card/30 backdrop-blur-sm">
-        <h2 className="text-lg font-semibold">{conversationName}</h2>
-      </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-6" ref={scrollRef}>
