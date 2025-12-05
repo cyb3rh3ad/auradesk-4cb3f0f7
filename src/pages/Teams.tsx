@@ -116,46 +116,69 @@ const Teams = () => {
   // Show team chat view when a team is selected
   if (selectedTeam) {
     return (
-      <div className="flex h-full">
-        {/* Sidebar - hidden on mobile when in chat */}
-        <div className="hidden md:flex md:w-80 lg:w-96 border-r flex-col">
-          <div className="p-4 border-b">
-            <h2 className="text-xl font-bold">Teams</h2>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  onClick={() => setSelectedTeam(team)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all',
-                    'hover:bg-muted/50',
-                    selectedTeam?.id === team.id && 'bg-primary/10'
-                  )}
-                >
-                  <Avatar className="w-10 h-10">
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                      {team.name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="font-medium truncate">{team.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
-                    </p>
-                  </div>
-                </button>
-              ))}
+      <>
+        <div className="flex h-full">
+          {/* Sidebar - hidden on mobile when in chat */}
+          <div className="hidden md:flex md:w-80 lg:w-96 border-r flex-col">
+            <div className="p-4 border-b">
+              <h2 className="text-xl font-bold">Teams</h2>
             </div>
-          </ScrollArea>
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-1">
+                {teams.map((team) => (
+                  <button
+                    key={team.id}
+                    onClick={() => setSelectedTeam(team)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all',
+                      'hover:bg-muted/50',
+                      selectedTeam?.id === team.id && 'bg-primary/10'
+                    )}
+                  >
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                        {team.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-medium truncate">{team.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col">
+            <TeamChat team={selectedTeam} onBack={() => setSelectedTeam(null)} />
+          </div>
         </div>
 
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col">
-          <TeamChat team={selectedTeam} onBack={() => setSelectedTeam(null)} />
-        </div>
-      </div>
+        {/* Incoming Team Call Dialog - must be outside the conditional */}
+        <IncomingTeamCallDialog
+          open={!!incomingTeamCall}
+          callerName={incomingTeamCall?.callerName || ''}
+          callerAvatar={incomingTeamCall?.callerAvatar}
+          teamName={incomingTeamCall?.teamName || ''}
+          isVideo={incomingTeamCall?.isVideo || false}
+          onAccept={handleAcceptTeamCall}
+          onDecline={declineTeamCall}
+        />
+
+        {/* Team Call Dialog for joining from invitation */}
+        {joiningCallTeam && (
+          <TeamCallDialog
+            team={joiningCallTeam}
+            isVideo={joiningCallIsVideo}
+            open={!!joiningCallTeam}
+            onClose={() => setJoiningCallTeam(null)}
+          />
+        )}
+      </>
     );
   }
 
