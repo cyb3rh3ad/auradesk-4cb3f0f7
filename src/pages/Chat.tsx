@@ -26,7 +26,7 @@ const Chat = () => {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden">
+      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden border-r border-border/50">
         <div className="h-14 border-b border-border/50 pl-3 pr-4 flex items-center gap-2">
           <h2 className="text-sm font-semibold text-muted-foreground shrink-0">Direct Messages</h2>
           <div className="flex gap-1 ml-auto">
@@ -36,7 +36,7 @@ const Chat = () => {
         </div>
         
         {/* Friends List - Now the main navigation */}
-        <div className="flex-1 border-r border-border/50">
+        <div className="flex-1">
           <FriendsList
             onSelectConversation={setSelectedConversationId}
             selectedConversationId={selectedConversationId}
