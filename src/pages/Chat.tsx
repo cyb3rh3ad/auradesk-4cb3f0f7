@@ -5,7 +5,9 @@ import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { CreateGroupDialog } from '@/components/chat/CreateGroupDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const Chat = () => {
   const { conversations, loading: convoLoading, refetch } = useConversations();
@@ -24,19 +26,23 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-hidden">
       {/* Sidebar */}
-      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden">
-        <div className="h-14 border-b border-border/50 px-3 flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground shrink-0">Direct Messages</h2>
-          <div className="flex gap-1 ml-auto">
+      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:flex hidden border-r border-border/40">
+        {/* Sidebar Header */}
+        <div className="h-14 px-4 flex items-center justify-between border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold">Messages</h2>
+          </div>
+          <div className="flex items-center gap-1">
             <AddFriendDialog />
             <CreateGroupDialog onGroupCreated={refetch} />
           </div>
         </div>
         
-        {/* Friends List - Now the main navigation */}
-        <div className="flex-1 border-r border-border/50">
+        {/* Friends List */}
+        <div className="flex-1 overflow-hidden">
           <FriendsList
             onSelectConversation={setSelectedConversationId}
             selectedConversationId={selectedConversationId}
@@ -46,22 +52,29 @@ const Chat = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {selectedConversationId ? (
           <MessageArea
             messages={messages}
             onSendMessage={sendMessage}
             conversationName={getConversationName()}
+            isGroup={selectedConversation?.is_group || false}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
-            <div className="text-center space-y-4">
-              <div className="w-20 h-20 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
-                <MessageSquare className="w-10 h-10 text-muted-foreground/50" />
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+            <div className="text-center space-y-6 max-w-md px-6">
+              <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shadow-lg">
+                <MessageSquare className="w-12 h-12 text-primary/70" />
               </div>
-              <div>
-                <h3 className="text-lg font-medium">No conversation selected</h3>
-                <p className="text-sm text-muted-foreground mt-1">Click on a friend to start chatting</p>
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold">Welcome to Messages</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Select a conversation from the sidebar to start chatting, or add a new friend to begin a conversation.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <AddFriendDialog />
+                <CreateGroupDialog onGroupCreated={refetch} />
               </div>
             </div>
           </div>
