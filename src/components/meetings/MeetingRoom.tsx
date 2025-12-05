@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranscription } from '@/hooks/useTranscription';
+import { useWebRTC } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Mic, MicOff, Video, VideoOff, Phone, Settings, 
-  MessageSquare, Users, Monitor, Hand, MoreVertical,
-  Sparkles, X
+  Mic, MicOff, Video, VideoOff, Phone, 
+  Monitor, Hand, MoreVertical,
+  Sparkles, X, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ interface MeetingRoomProps {
   meetingId: string;
   meetingTitle: string;
   onClose: () => void;
+  initialVideo?: boolean;
 }
 
 interface Profile {
@@ -26,17 +28,30 @@ interface Profile {
   avatar_url: string | null;
 }
 
-export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomProps) => {
+export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = true }: MeetingRoomProps) => {
   const { user } = useAuth();
   const { isRecording, transcript, startRecording, stopRecording } = useTranscription();
   const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [meetingTime, setMeetingTime] = useState(0);
+  const [hasJoined, setHasJoined] = useState(false);
+
+  const userName = profile?.full_name || profile?.email || 'Anonymous';
+  
+  const {
+    localStream,
+    participants,
+    isConnecting,
+    error,
+    joinRoom,
+    leaveRoom,
+    toggleAudio,
+    toggleVideo
+  } = useWebRTC(meetingId, userName);
 
   // Fetch user profile
   useEffect(() => {
@@ -52,6 +67,21 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
     fetchProfile();
   }, [user]);
 
+  // Join room once profile is loaded
+  useEffect(() => {
+    if (profile && !hasJoined) {
+      joinRoom(initialVideo, true);
+      setHasJoined(true);
+    }
+  }, [profile, hasJoined, joinRoom, initialVideo]);
+
+  // Attach local stream to video element
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
   // Timer for meeting duration
   useEffect(() => {
     const interval = setInterval(() => {
@@ -60,52 +90,16 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
     return () => clearInterval(interval);
   }, []);
 
-  // Start video stream
-  useEffect(() => {
-    const startVideo = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-      } catch (error) {
-        console.error('Error accessing media devices:', error);
-        toast({
-          title: 'Camera access denied',
-          description: 'Please allow camera and microphone access to join the meeting',
-          variant: 'destructive'
-        });
-      }
-    };
-    startVideo();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  const toggleMute = () => {
-    if (stream) {
-      stream.getAudioTracks().forEach(track => {
-        track.enabled = isMuted;
-      });
-      setIsMuted(!isMuted);
-    }
+  const handleToggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    toggleAudio(!newMuted);
   };
 
-  const toggleVideo = () => {
-    if (stream) {
-      stream.getVideoTracks().forEach(track => {
-        track.enabled = isVideoOff;
-      });
-      setIsVideoOff(!isVideoOff);
-    }
+  const handleToggleVideo = () => {
+    const newVideoOff = !isVideoOff;
+    setIsVideoOff(newVideoOff);
+    toggleVideo(!newVideoOff);
   };
 
   const toggleTranscription = async () => {
@@ -127,9 +121,7 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
   };
 
   const handleEndCall = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
+    leaveRoom();
     if (isTranscribing) {
       stopRecording(meetingId);
     }
@@ -150,8 +142,35 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Get the latest transcript text
   const latestTranscript = transcript.length > 0 ? transcript[transcript.length - 1].text : '';
+  const participantCount = participants.size + 1; // +1 for self
+  const participantArray = Array.from(participants.values());
+
+  // Grid layout based on participant count
+  const getGridClass = () => {
+    if (participantCount === 1) return 'grid-cols-1';
+    if (participantCount === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (participantCount <= 4) return 'grid-cols-2';
+    return 'grid-cols-2 md:grid-cols-3';
+  };
+
+  if (isConnecting) {
+    return (
+      <div className="flex flex-col h-full bg-background items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Connecting to meeting...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full bg-background items-center justify-center">
+        <p className="text-destructive mb-4">{error}</p>
+        <Button onClick={onClose}>Go Back</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -162,6 +181,9 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
           <Badge variant="outline" className="text-xs gap-1.5 font-mono">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             {formatTime(meetingTime)}
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            {participantCount} participant{participantCount !== 1 ? 's' : ''}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -184,57 +206,66 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
       </div>
 
       {/* Video Area */}
-      <div className="flex-1 p-4 md:p-6 flex items-center justify-center bg-gradient-to-br from-background to-card/50 relative overflow-hidden">
-        {/* Main Video */}
-        <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-card shadow-2xl">
-          {isVideoOff ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
-              <div className="text-center space-y-4">
-                <Avatar className="w-24 h-24 mx-auto ring-4 ring-border/50">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-2xl font-semibold">
-                    {getInitials(profile?.full_name || profile?.email || 'U')}
-                  </AvatarFallback>
-                </Avatar>
-                <p className="text-lg font-medium">{profile?.full_name || 'You'}</p>
-                <p className="text-sm text-muted-foreground">Camera is off</p>
+      <div className="flex-1 p-4 bg-gradient-to-br from-background to-card/50 relative overflow-hidden">
+        <div className={cn("grid gap-4 h-full", getGridClass())}>
+          {/* Local Video */}
+          <div className="relative rounded-2xl overflow-hidden bg-card shadow-xl min-h-[200px]">
+            {isVideoOff ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
+                <div className="text-center space-y-3">
+                  <Avatar className="w-20 h-20 mx-auto ring-4 ring-border/50">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xl font-semibold">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p className="text-sm font-medium">{profile?.full_name || 'You'}</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          )}
-          
-          {/* Self view label */}
-          <div className="absolute bottom-4 left-4 flex items-center gap-2">
-            <Badge className="bg-background/80 backdrop-blur-sm text-foreground">
-              {profile?.full_name || 'You'}
-              {isMuted && <MicOff className="w-3 h-3 ml-1 text-destructive" />}
-            </Badge>
-          </div>
-
-          {/* Transcription indicator */}
-          {isTranscribing && (
-            <div className="absolute top-4 right-4">
-              <Badge className="bg-primary/90 backdrop-blur-sm gap-1.5 animate-pulse">
-                <Sparkles className="w-3 h-3" />
-                AI Transcribing
+            ) : (
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            )}
+            
+            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+              <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
+                You
+                {isMuted && <MicOff className="w-3 h-3 ml-1 text-destructive" />}
               </Badge>
             </div>
-          )}
+          </div>
+
+          {/* Remote Participants */}
+          {participantArray.map((participant) => (
+            <RemoteVideo
+              key={participant.odakle}
+              stream={participant.stream}
+              name={participant.name}
+            />
+          ))}
         </div>
 
         {/* Live Transcript Panel */}
         {isTranscribing && latestTranscript && (
-          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 max-w-2xl w-full px-4">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-full px-4">
             <div className="bg-background/95 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-border/50">
               <p className="text-sm text-center leading-relaxed">{latestTranscript}</p>
             </div>
+          </div>
+        )}
+
+        {/* Waiting indicator when alone */}
+        {participantCount === 1 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2">
+            <Badge variant="secondary" className="gap-2 py-2 px-4">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Waiting for others to join...
+            </Badge>
           </div>
         )}
       </div>
@@ -246,7 +277,7 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
             variant={isMuted ? "destructive" : "secondary"}
             size="lg"
             className="w-14 h-14 rounded-full"
-            onClick={toggleMute}
+            onClick={handleToggleMute}
           >
             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
@@ -254,7 +285,7 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
             variant={isVideoOff ? "destructive" : "secondary"}
             size="lg"
             className="w-14 h-14 rounded-full"
-            onClick={toggleVideo}
+            onClick={handleToggleVideo}
           >
             {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           </Button>
@@ -276,32 +307,6 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
 
         <div className="w-px h-10 bg-border mx-2" />
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-14 h-14 rounded-full"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-14 h-14 rounded-full"
-          >
-            <Users className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-14 h-14 rounded-full"
-          >
-            <MoreVertical className="w-5 h-5" />
-          </Button>
-        </div>
-
-        <div className="w-px h-10 bg-border mx-2" />
-
         <Button
           variant="destructive"
           size="lg"
@@ -311,6 +316,51 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose }: MeetingRoomPro
           <Phone className="w-5 h-5 rotate-[135deg]" />
           End
         </Button>
+      </div>
+    </div>
+  );
+};
+
+// Component for remote participant video
+const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden bg-card shadow-xl min-h-[200px]">
+      {stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
+          <div className="text-center space-y-3">
+            <Avatar className="w-20 h-20 mx-auto ring-4 ring-border/50">
+              <AvatarFallback className="bg-gradient-to-br from-secondary to-muted text-secondary-foreground text-xl font-semibold">
+                {getInitials(name)}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-sm font-medium">{name}</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="absolute bottom-3 left-3">
+        <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
+          {name}
+        </Badge>
       </div>
     </div>
   );
