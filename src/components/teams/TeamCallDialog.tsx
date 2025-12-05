@@ -29,7 +29,55 @@ interface Participant {
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
 ];
+
+// Remote video component
+const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasVideo, setHasVideo] = useState(false);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      const videoTracks = stream.getVideoTracks();
+      setHasVideo(videoTracks.length > 0 && videoTracks[0].enabled);
+    }
+  }, [stream]);
+
+  const getInitials = (n: string) => {
+    return n.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden bg-card shadow-xl min-h-[200px]">
+      {!hasVideo ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
+          <div className="text-center space-y-3">
+            <Avatar className="w-20 h-20 mx-auto ring-4 ring-border/50">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xl font-semibold">
+                {getInitials(name)}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-sm font-medium">{name}</p>
+          </div>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      )}
+      <div className="absolute bottom-3 left-3">
+        <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
+          {name}
+        </Badge>
+      </div>
+    </div>
+  );
+};
 
 export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogProps) => {
   const { user } = useAuth();
@@ -39,19 +87,19 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'failed'>('connecting');
-  const [profile, setProfile] = useState<{ full_name: string | null; email: string; avatar_url: string | null } | null>(null);
+  const [userName, setUserName] = useState<string>('Anonymous');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const callStartTime = useRef<number | null>(null);
   const iceCandidateQueues = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
 
-  const userName = profile?.full_name || profile?.email || 'Anonymous';
-  const roomId = `team-call-${team.id}`;
+  const roomId = `team-call-room:${team.id}`;
 
-  // Fetch profile
+  // Fetch profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -60,24 +108,30 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
         .select('full_name, email, avatar_url')
         .eq('id', user.id)
         .single();
-      if (data) setProfile(data);
+      if (data) {
+        setUserName(data.full_name || data.email || 'Anonymous');
+        setUserAvatar(data.avatar_url);
+      }
     };
     fetchProfile();
   }, [user]);
 
+  // Create peer connection
   const createPeerConnection = useCallback((remoteUserId: string, remoteName: string) => {
-    const stream = localStreamRef.current;
-    console.log('Creating peer connection for:', remoteUserId, 'stream:', !!stream);
+    if (!user) return null;
+    
+    console.log('[WebRTC] Creating peer connection for:', remoteUserId);
+    
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     
     pc.onicecandidate = (event) => {
       if (event.candidate && channelRef.current) {
-        console.log('Sending ICE candidate to:', remoteUserId);
+        console.log('[WebRTC] Sending ICE candidate to:', remoteUserId);
         channelRef.current.send({
           type: 'broadcast',
           event: 'ice-candidate',
           payload: {
-            from: user?.id,
+            from: user.id,
             to: remoteUserId,
             candidate: event.candidate.toJSON()
           }
@@ -86,8 +140,8 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote track from:', remoteUserId);
-      if (event.streams[0]) {
+      console.log('[WebRTC] Received track from:', remoteUserId, event.streams);
+      if (event.streams[0] && mountedRef.current) {
         setParticipants(prev => {
           const updated = new Map(prev);
           updated.set(remoteUserId, {
@@ -101,260 +155,298 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('Connection state for', remoteUserId, ':', pc.connectionState);
-      if (pc.connectionState === 'connected') {
-        setConnectionState('connected');
-        if (!callStartTime.current) callStartTime.current = Date.now();
-      }
+      console.log('[WebRTC] Connection state for', remoteUserId, ':', pc.connectionState);
     };
 
-    // Add local tracks from ref
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE state for', remoteUserId, ':', pc.iceConnectionState);
+    };
+
+    // Add local tracks
+    const stream = localStreamRef.current;
     if (stream) {
       stream.getTracks().forEach(track => {
-        console.log('Adding track to peer connection:', track.kind);
+        console.log('[WebRTC] Adding local track:', track.kind);
         pc.addTrack(track, stream);
       });
     }
 
     peerConnections.current.set(remoteUserId, pc);
     return pc;
-  }, [user?.id]);
+  }, [user]);
 
-  const sendOffer = useCallback(async (remoteUserId: string, remoteName: string) => {
-    const pc = createPeerConnection(remoteUserId, remoteName);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'offer',
-      payload: {
-        from: user?.id,
-        fromName: userName,
-        to: remoteUserId,
-        offer: offer
-      }
-    });
-  }, [createPeerConnection, user?.id, userName]);
-
-  const handleOffer = useCallback(async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
-    console.log('Handling offer from:', from);
-    let pc = peerConnections.current.get(from);
-    if (!pc) {
-      pc = createPeerConnection(from, fromName);
-    }
-    
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    
-    // Process queued candidates
-    const queue = iceCandidateQueues.current.get(from) || [];
-    for (const candidate of queue) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-    iceCandidateQueues.current.delete(from);
-    
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'answer',
-      payload: {
-        from: user?.id,
-        fromName: userName,
-        to: from,
-        answer: answer
-      }
-    });
-  }, [createPeerConnection, user?.id, userName]);
-
-  const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit) => {
-    console.log('Handling answer from:', from);
-    const pc = peerConnections.current.get(from);
-    if (pc && pc.signalingState !== 'stable') {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      
-      // Process queued candidates
-      const queue = iceCandidateQueues.current.get(from) || [];
-      for (const candidate of queue) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      iceCandidateQueues.current.delete(from);
-    }
-  }, []);
-
-  const handleIceCandidate = useCallback(async (from: string, candidate: RTCIceCandidateInit) => {
-    const pc = peerConnections.current.get(from);
-    if (pc && pc.remoteDescription) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } else {
-      // Queue the candidate
-      const queue = iceCandidateQueues.current.get(from) || [];
-      queue.push(candidate);
-      iceCandidateQueues.current.set(from, queue);
-    }
-  }, []);
-
-  // Initialize media and join room
+  // Initialize call
   useEffect(() => {
-    if (!open || !user || !profile) return;
+    if (!open || !user) return;
 
-    let mounted = true;
+    mountedRef.current = true;
+    let announceInterval: NodeJS.Timeout | null = null;
 
     const initialize = async () => {
       try {
+        console.log('[Call] Initializing call for team:', team.id);
+        
+        // Get media stream
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: isVideo
         });
         
-        if (!mounted) {
+        if (!mountedRef.current) {
           stream.getTracks().forEach(t => t.stop());
           return;
         }
         
-        // Set both state and ref
+        console.log('[Call] Got local stream with tracks:', stream.getTracks().map(t => t.kind));
+        
         localStreamRef.current = stream;
         setLocalStream(stream);
+        
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // Join signaling channel
+        // Create signaling channel
         const channel = supabase.channel(roomId, {
           config: { broadcast: { self: false } }
         });
 
-        channel
-          .on('broadcast', { event: 'join' }, ({ payload }) => {
-            if (payload.userId !== user.id && mounted) {
-              // Check if we already have a connection to this user
-              if (peerConnections.current.has(payload.userId)) {
-                console.log('Already connected to:', payload.userId);
+        // Handle join events
+        channel.on('broadcast', { event: 'join' }, async ({ payload }) => {
+          if (!mountedRef.current || payload.userId === user.id) return;
+          
+          // Don't create duplicate connections
+          if (peerConnections.current.has(payload.userId)) {
+            console.log('[Call] Already have connection to:', payload.userId);
+            return;
+          }
+          
+          console.log('[Call] User joined:', payload.userId, payload.userName);
+          
+          // Create peer connection and send offer
+          const pc = createPeerConnection(payload.userId, payload.userName);
+          if (!pc) return;
+          
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            console.log('[Call] Sending offer to:', payload.userId);
+            channel.send({
+              type: 'broadcast',
+              event: 'offer',
+              payload: {
+                from: user.id,
+                fromName: userName,
+                to: payload.userId,
+                offer: { type: offer.type, sdp: offer.sdp }
+              }
+            });
+          } catch (err) {
+            console.error('[Call] Error creating offer:', err);
+          }
+        });
+
+        // Handle offer
+        channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
+          if (!mountedRef.current || payload.to !== user.id) return;
+          
+          console.log('[Call] Received offer from:', payload.from);
+          
+          let pc = peerConnections.current.get(payload.from);
+          if (!pc) {
+            pc = createPeerConnection(payload.from, payload.fromName);
+          }
+          if (!pc) return;
+          
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+            
+            // Process queued ICE candidates
+            const queue = iceCandidateQueues.current.get(payload.from) || [];
+            console.log('[Call] Processing', queue.length, 'queued ICE candidates');
+            for (const candidate of queue) {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+            iceCandidateQueues.current.delete(payload.from);
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            console.log('[Call] Sending answer to:', payload.from);
+            channel.send({
+              type: 'broadcast',
+              event: 'answer',
+              payload: {
+                from: user.id,
+                fromName: userName,
+                to: payload.from,
+                answer: { type: answer.type, sdp: answer.sdp }
+              }
+            });
+          } catch (err) {
+            console.error('[Call] Error handling offer:', err);
+          }
+        });
+
+        // Handle answer
+        channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
+          if (!mountedRef.current || payload.to !== user.id) return;
+          
+          console.log('[Call] Received answer from:', payload.from);
+          
+          const pc = peerConnections.current.get(payload.from);
+          if (!pc) return;
+          
+          try {
+            if (pc.signalingState !== 'stable') {
+              await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+              
+              // Process queued ICE candidates
+              const queue = iceCandidateQueues.current.get(payload.from) || [];
+              console.log('[Call] Processing', queue.length, 'queued ICE candidates');
+              for (const candidate of queue) {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              }
+              iceCandidateQueues.current.delete(payload.from);
+            }
+          } catch (err) {
+            console.error('[Call] Error handling answer:', err);
+          }
+        });
+
+        // Handle ICE candidates
+        channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+          if (!mountedRef.current || payload.to !== user.id) return;
+          
+          const pc = peerConnections.current.get(payload.from);
+          if (pc && pc.remoteDescription) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (err) {
+              console.error('[Call] Error adding ICE candidate:', err);
+            }
+          } else {
+            // Queue the candidate
+            const queue = iceCandidateQueues.current.get(payload.from) || [];
+            queue.push(payload.candidate);
+            iceCandidateQueues.current.set(payload.from, queue);
+          }
+        });
+
+        // Handle leave
+        channel.on('broadcast', { event: 'leave' }, ({ payload }) => {
+          if (!mountedRef.current) return;
+          
+          console.log('[Call] User left:', payload.userId);
+          
+          const pc = peerConnections.current.get(payload.userId);
+          if (pc) {
+            pc.close();
+            peerConnections.current.delete(payload.userId);
+          }
+          
+          setParticipants(prev => {
+            const updated = new Map(prev);
+            updated.delete(payload.userId);
+            return updated;
+          });
+        });
+
+        // Subscribe and announce presence
+        channel.subscribe((status) => {
+          console.log('[Call] Channel status:', status);
+          
+          if (status === 'SUBSCRIBED' && mountedRef.current) {
+            setConnectionState('connected');
+            
+            // Announce join
+            const announceJoin = () => {
+              if (!mountedRef.current) return;
+              console.log('[Call] Announcing join');
+              channel.send({
+                type: 'broadcast',
+                event: 'join',
+                payload: { userId: user.id, userName }
+              });
+            };
+            
+            // Announce immediately and then every 2 seconds for 10 seconds
+            announceJoin();
+            let count = 0;
+            announceInterval = setInterval(() => {
+              count++;
+              if (count >= 5 || !mountedRef.current) {
+                if (announceInterval) clearInterval(announceInterval);
                 return;
               }
-              console.log('User joined:', payload.userId);
-              // Send offer to new user
-              sendOffer(payload.userId, payload.userName);
-            }
-          })
-          .on('broadcast', { event: 'offer' }, ({ payload }) => {
-            if (payload.to === user.id && mounted) {
-              handleOffer(payload.from, payload.fromName, payload.offer);
-            }
-          })
-          .on('broadcast', { event: 'answer' }, ({ payload }) => {
-            if (payload.to === user.id && mounted) {
-              handleAnswer(payload.from, payload.answer);
-            }
-          })
-          .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => {
-            if (payload.to === user.id && mounted) {
-              handleIceCandidate(payload.from, payload.candidate);
-            }
-          })
-          .on('broadcast', { event: 'leave' }, ({ payload }) => {
-            if (mounted) {
-              console.log('User left:', payload.userId);
-              const pc = peerConnections.current.get(payload.userId);
-              if (pc) {
-                pc.close();
-                peerConnections.current.delete(payload.userId);
-              }
-              setParticipants(prev => {
-                const updated = new Map(prev);
-                updated.delete(payload.userId);
-                return updated;
-              });
-            }
-          })
-          .subscribe(async (status) => {
-            if (status === 'SUBSCRIBED' && mounted) {
-              console.log('Joined team call room');
-              
-              // Announce presence immediately
-              const announceJoin = () => {
-                channel.send({
-                  type: 'broadcast',
-                  event: 'join',
-                  payload: { userId: user.id, userName }
-                });
-              };
-              
               announceJoin();
-              
-              // Re-announce every 2 seconds for 10 seconds to ensure others receive it
-              let announceCount = 0;
-              const announceInterval = setInterval(() => {
-                announceCount++;
-                if (announceCount >= 5 || !mounted) {
-                  clearInterval(announceInterval);
-                  return;
-                }
-                announceJoin();
-              }, 2000);
-              
-              // Mark as connected immediately - we're in the call room now
-              // The "Waiting for team members" badge shows when alone
-              setConnectionState('connected');
-              if (!callStartTime.current) callStartTime.current = Date.now();
-            }
-          });
+            }, 2000);
+          }
+        });
 
         channelRef.current = channel;
+        
       } catch (err) {
-        console.error('Failed to initialize call:', err);
-        setConnectionState('failed');
+        console.error('[Call] Failed to initialize:', err);
+        if (mountedRef.current) {
+          setConnectionState('failed');
+        }
       }
     };
 
     initialize();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
+      if (announceInterval) clearInterval(announceInterval);
     };
-  }, [open, user, profile, isVideo, roomId, userName, sendOffer, handleOffer, handleAnswer, handleIceCandidate]);
+  }, [open, user, team.id, isVideo, roomId, userName, createPeerConnection]);
 
   // Timer
   useEffect(() => {
-    if (!open) return;
+    if (!open || connectionState !== 'connected') return;
+    
     const interval = setInterval(() => {
       setCallTime(prev => prev + 1);
     }, 1000);
+    
     return () => clearInterval(interval);
-  }, [open]);
+  }, [open, connectionState]);
 
   // Cleanup on close
   useEffect(() => {
-    if (!open) {
-      // Leave room
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'leave',
-          payload: { userId: user?.id }
-        });
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      
-      // Stop media
-      localStreamRef.current?.getTracks().forEach(t => t.stop());
-      localStreamRef.current = null;
-      localStream?.getTracks().forEach(t => t.stop());
-      setLocalStream(null);
-      
-      // Close peer connections
-      peerConnections.current.forEach(pc => pc.close());
-      peerConnections.current.clear();
-      
-      // Reset state
-      setParticipants(new Map());
-      setCallTime(0);
-      setConnectionState('connecting');
-      callStartTime.current = null;
+    if (open) return;
+    
+    console.log('[Call] Cleaning up');
+    
+    // Leave room
+    if (channelRef.current && user) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'leave',
+        payload: { userId: user.id }
+      });
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
-  }, [open, user?.id, localStream]);
+    
+    // Stop media
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+    localStream?.getTracks().forEach(t => t.stop());
+    setLocalStream(null);
+    
+    // Close peer connections
+    peerConnections.current.forEach(pc => pc.close());
+    peerConnections.current.clear();
+    iceCandidateQueues.current.clear();
+    
+    // Reset state
+    setParticipants(new Map());
+    setCallTime(0);
+    setConnectionState('connecting');
+  }, [open, user, localStream]);
 
   const handleToggleMute = () => {
     if (localStream) {
@@ -372,10 +464,6 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
       });
     }
     setIsVideoOff(!isVideoOff);
-  };
-
-  const handleEndCall = () => {
-    onClose();
   };
 
   const formatTime = (seconds: number) => {
@@ -448,12 +536,12 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
                     <div className="text-center space-y-3">
                       <Avatar className="w-20 h-20 mx-auto ring-4 ring-border/50">
-                        <AvatarImage src={profile?.avatar_url || undefined} />
+                        <AvatarImage src={userAvatar || undefined} />
                         <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xl font-semibold">
                           {getInitials(userName)}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="text-sm font-medium">{profile?.full_name || 'You'}</p>
+                      <p className="text-sm font-medium">{userName}</p>
                     </div>
                   </div>
                 ) : (
@@ -499,90 +587,34 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
         <div className="h-20 px-4 flex items-center justify-center gap-3 bg-card/50 border-t border-border/40 shrink-0">
           <Button
             variant={isMuted ? "destructive" : "secondary"}
-            size="lg"
-            className="w-14 h-14 rounded-full"
+            size="icon"
+            className="w-12 h-12 rounded-full"
             onClick={handleToggleMute}
           >
             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
+          
           {isVideo && (
             <Button
               variant={isVideoOff ? "destructive" : "secondary"}
-              size="lg"
-              className="w-14 h-14 rounded-full"
+              size="icon"
+              className="w-12 h-12 rounded-full"
               onClick={handleToggleVideo}
             >
               {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
             </Button>
           )}
-          <div className="w-px h-10 bg-border mx-2" />
+          
           <Button
             variant="destructive"
-            size="lg"
-            className="px-8 h-14 rounded-full gap-2"
-            onClick={handleEndCall}
+            size="icon"
+            className="w-14 h-14 rounded-full"
+            onClick={onClose}
           >
-            <Phone className="w-5 h-5 rotate-[135deg]" />
-            Leave
+            <Phone className="w-6 h-6 rotate-[135deg]" />
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
-
-// Remote video component
-const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: string }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    if (stream) {
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.log('Video play error:', e));
-      }
-      if (audioRef.current) {
-        audioRef.current.srcObject = stream;
-        audioRef.current.play().catch(e => console.log('Audio play error:', e));
-      }
-    }
-  }, [stream]);
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const hasVideo = stream?.getVideoTracks().some(t => t.enabled);
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden bg-card shadow-xl min-h-[200px]">
-      {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
-          <div className="text-center space-y-3">
-            <Avatar className="w-20 h-20 mx-auto ring-4 ring-border/50">
-              <AvatarFallback className="bg-gradient-to-br from-secondary to-muted text-secondary-foreground text-xl font-semibold">
-                {getInitials(name)}
-              </AvatarFallback>
-            </Avatar>
-            <p className="text-sm font-medium">{name}</p>
-          </div>
-        </div>
-      )}
-      {/* Hidden audio element for audio playback */}
-      <audio ref={audioRef} autoPlay playsInline className="hidden" />
-      <div className="absolute bottom-3 left-3">
-        <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
-          {name}
-        </Badge>
-      </div>
-    </div>
   );
 };
