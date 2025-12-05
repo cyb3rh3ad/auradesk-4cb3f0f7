@@ -28,7 +28,7 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
   const activeChannelsRef = useRef<Set<string>>(new Set());
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const acceptedCallsRef = useRef<Set<string>>(new Set()); // Track accepted team calls
+  const acceptedCallsRef = useRef<Set<string>>(new Set());
 
   // Get user profile
   const getUserProfile = async (userId: string) => {
@@ -53,6 +53,8 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
   useEffect(() => {
     if (!user) return;
 
+    let mounted = true;
+
     const setupTeamCallListeners = async () => {
       // Get all teams the user is part of
       const { data: memberships } = await supabase
@@ -60,13 +62,20 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
         .select('team_id, teams(name)')
         .eq('user_id', user.id);
 
-      if (!memberships) return;
+      if (!memberships || !mounted) return;
+
+      console.log('Setting up team call listeners for', memberships.length, 'teams');
 
       for (const membership of memberships) {
         const channelName = `team-call-invite:${membership.team_id}`;
         
         // Skip if already listening
-        if (activeChannelsRef.current.has(channelName)) continue;
+        if (activeChannelsRef.current.has(channelName)) {
+          console.log('Already listening to:', channelName);
+          continue;
+        }
+
+        console.log('Creating channel:', channelName);
 
         const channel = supabase
           .channel(channelName)
@@ -74,10 +83,16 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
             console.log('Received team call invitation:', payload);
             
             // Don't show invitation if it's from yourself
-            if (payload.callerId === user.id) return;
+            if (payload.callerId === user.id) {
+              console.log('Ignoring own invitation');
+              return;
+            }
             
             // Don't show if call is older than 60 seconds
-            if (Date.now() - payload.timestamp > 60000) return;
+            if (Date.now() - payload.timestamp > 60000) {
+              console.log('Ignoring old invitation');
+              return;
+            }
 
             // Don't show if already accepted this call
             if (acceptedCallsRef.current.has(payload.teamId)) {
@@ -85,6 +100,7 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
               return;
             }
 
+            console.log('Setting incoming team call');
             setIncomingTeamCall({
               callerId: payload.callerId,
               callerName: payload.callerName,
@@ -95,29 +111,36 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
               timestamp: payload.timestamp,
             });
           })
-          .on('broadcast', { event: 'team-call-accepted' }, ({ payload }) => {
-            console.log('Team call accepted by:', payload.acceptedBy);
-            // Stop resending if we were the caller
-            stopResending();
-            // Clear incoming call notification for everyone
-            setIncomingTeamCall(null);
-          })
           .on('broadcast', { event: 'team-call-ended' }, ({ payload }) => {
             console.log('Team call ended:', payload);
             stopResending();
-            setIncomingTeamCall(null);
+            // Only clear if it matches the current incoming call
+            setIncomingTeamCall(prev => 
+              prev?.teamId === payload.teamId ? null : prev
+            );
             setTeamCallAccepted(false);
-          })
-          .subscribe();
+          });
+
+        // Subscribe and wait for it to be ready
+        channel.subscribe((status) => {
+          console.log(`Channel ${channelName} subscription status:`, status);
+          if (status === 'SUBSCRIBED' && mounted) {
+            console.log('Successfully subscribed to', channelName);
+          }
+        });
 
         channelsRef.current.set(channelName, channel);
         activeChannelsRef.current.add(channelName);
       }
+      
+      console.log('Team call listener setup complete');
     };
 
     setupTeamCallListeners();
 
     return () => {
+      mounted = false;
+      console.log('Cleaning up team call invitation channels');
       stopResending();
       channelsRef.current.forEach(channel => supabase.removeChannel(channel));
       channelsRef.current.clear();
@@ -133,25 +156,35 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
   ) => {
     if (!user) return;
 
+    console.log('Preparing to send team call invitation for team:', teamId);
+
     const profile = await getUserProfile(user.id);
     const callerName = profile?.full_name || profile?.email || 'Unknown';
 
     const channelName = `team-call-invite:${teamId}`;
     let channel = channelsRef.current.get(channelName);
     
+    // If we don't have a channel yet, create and subscribe
     if (!channel) {
+      console.log('Creating new channel for sending:', channelName);
       channel = supabase.channel(channelName);
+      
       await new Promise<void>((resolve) => {
         channel!.subscribe((status) => {
+          console.log('Sender channel status:', status);
           if (status === 'SUBSCRIBED') resolve();
         });
       });
+      
       channelsRef.current.set(channelName, channel);
+      activeChannelsRef.current.add(channelName);
+      
+      // Wait a bit for other subscribers to be ready
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    const sendInvitation = () => {
-      console.log('Sending team call invitation');
-      channel!.send({
+    const sendInvitation = async () => {
+      const result = await channel!.send({
         type: 'broadcast',
         event: 'team-call-invitation',
         payload: {
@@ -164,28 +197,30 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
           timestamp: Date.now(),
         },
       });
+      console.log('Sent team call invitation, result:', result);
     };
 
     // Send immediately
-    sendInvitation();
+    await sendInvitation();
 
     // Clear any existing interval
     stopResending();
     
     // Resend every 3 seconds for 30 seconds to ensure delivery
     let resendCount = 0;
-    resendIntervalRef.current = setInterval(() => {
+    resendIntervalRef.current = setInterval(async () => {
       resendCount++;
       if (resendCount >= 10) {
         stopResending();
         return;
       }
-      sendInvitation();
+      await sendInvitation();
     }, 3000);
   }, [user, stopResending]);
 
   // Accept call - only stops ringing locally for this user
   const acceptTeamCall = useCallback(() => {
+    console.log('Accepting team call:', incomingTeamCall?.teamId);
     if (incomingTeamCall) {
       // Track that we accepted this call so we ignore future invitations
       acceptedCallsRef.current.add(incomingTeamCall.teamId);
@@ -201,12 +236,14 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
 
   // Decline call
   const declineTeamCall = useCallback(() => {
+    console.log('Declining team call');
     setIncomingTeamCall(null);
     setTeamCallAccepted(false);
   }, []);
 
   // End call (notify others)
   const endTeamCall = useCallback((teamId: string) => {
+    console.log('Ending team call:', teamId);
     stopResending();
     const channelName = `team-call-invite:${teamId}`;
     const channel = channelsRef.current.get(channelName);
@@ -217,6 +254,8 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
         payload: { teamId },
       });
     }
+    // Clear the accepted call tracking
+    acceptedCallsRef.current.delete(teamId);
     setIncomingTeamCall(null);
     setTeamCallAccepted(false);
   }, [stopResending]);
