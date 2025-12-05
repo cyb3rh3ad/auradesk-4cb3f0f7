@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,7 +25,8 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
   const { user } = useAuth();
   const [incomingCall, setIncomingCall] = useState<CallInvitation | null>(null);
   const [callAccepted, setCallAccepted] = useState(false);
-  const [activeChannels, setActiveChannels] = useState<string[]>([]);
+  const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
+  const inviteIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get user profile
   const getUserProfile = async (userId: string) => {
@@ -50,13 +51,13 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
 
       if (!memberships) return;
 
-      const channels: ReturnType<typeof supabase.channel>[] = [];
-
       for (const membership of memberships) {
         const channelName = `call-invite:${membership.conversation_id}`;
         
         // Skip if already listening
-        if (activeChannels.includes(channelName)) continue;
+        if (channelsRef.current.has(channelName)) continue;
+
+        console.log('Setting up call listener for:', channelName);
 
         const channel = supabase
           .channel(channelName)
@@ -66,8 +67,11 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
             // Don't show invitation if it's from yourself
             if (payload.callerId === user.id) return;
             
-            // Don't show if call is older than 30 seconds
-            if (Date.now() - payload.timestamp > 30000) return;
+            // Don't show if call is older than 35 seconds
+            if (Date.now() - payload.timestamp > 35000) return;
+
+            // Don't override existing incoming call
+            if (incomingCall && incomingCall.callerId !== payload.callerId) return;
 
             setIncomingCall({
               callerId: payload.callerId,
@@ -78,6 +82,14 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
               isVideo: payload.isVideo,
               timestamp: payload.timestamp,
             });
+          })
+          .on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
+            console.log('Call accepted by receiver:', payload);
+            // Stop sending invitations when call is accepted
+            if (inviteIntervalRef.current) {
+              clearInterval(inviteIntervalRef.current);
+              inviteIntervalRef.current = null;
+            }
           })
           .on('broadcast', { event: 'call-cancelled' }, ({ payload }) => {
             console.log('Call cancelled:', payload);
@@ -90,21 +102,32 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
             setIncomingCall(null);
             setCallAccepted(false);
           })
-          .subscribe();
+          .subscribe((status) => {
+            console.log(`Channel ${channelName} status:`, status);
+          });
 
-        channels.push(channel);
-        setActiveChannels(prev => [...prev, channelName]);
+        channelsRef.current.set(channelName, channel);
       }
-
-      return () => {
-        channels.forEach(channel => supabase.removeChannel(channel));
-      };
     };
 
     setupCallListeners();
+
+    return () => {
+      console.log('Cleaning up call invitation channels');
+      channelsRef.current.forEach((channel, name) => {
+        console.log('Removing channel:', name);
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current.clear();
+      
+      if (inviteIntervalRef.current) {
+        clearInterval(inviteIntervalRef.current);
+        inviteIntervalRef.current = null;
+      }
+    };
   }, [user]);
 
-  // Send call invitation
+  // Send call invitation with persistent re-sending
   const sendCallInvitation = useCallback(async (
     conversationId: string, 
     conversationName: string, 
@@ -114,32 +137,79 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
 
     const profile = await getUserProfile(user.id);
     const callerName = profile?.full_name || profile?.email || 'Unknown';
+    const timestamp = Date.now();
 
-    const channel = supabase.channel(`call-invite:${conversationId}`);
+    const channelName = `call-invite:${conversationId}`;
+    let channel = channelsRef.current.get(channelName);
     
-    await channel.subscribe();
-    
-    await channel.send({
-      type: 'broadcast',
-      event: 'call-invitation',
-      payload: {
-        callerId: user.id,
-        callerName,
-        callerAvatar: profile?.avatar_url,
-        conversationId,
-        conversationName,
-        isVideo,
-        timestamp: Date.now(),
-      },
-    });
+    if (!channel) {
+      channel = supabase.channel(channelName);
+      await new Promise<void>((resolve) => {
+        channel!.subscribe((status) => {
+          if (status === 'SUBSCRIBED') resolve();
+        });
+      });
+      channelsRef.current.set(channelName, channel);
+    }
 
-    console.log('Sent call invitation');
+    const sendInvite = () => {
+      console.log('Sending call invitation to:', conversationId);
+      channel!.send({
+        type: 'broadcast',
+        event: 'call-invitation',
+        payload: {
+          callerId: user.id,
+          callerName,
+          callerAvatar: profile?.avatar_url,
+          conversationId,
+          conversationName,
+          isVideo,
+          timestamp,
+        },
+      });
+    };
+
+    // Send immediately
+    sendInvite();
+
+    // Clear any existing interval
+    if (inviteIntervalRef.current) {
+      clearInterval(inviteIntervalRef.current);
+    }
+
+    // Re-send every 3 seconds for 30 seconds
+    let count = 0;
+    inviteIntervalRef.current = setInterval(() => {
+      count++;
+      if (count >= 10) {
+        if (inviteIntervalRef.current) {
+          clearInterval(inviteIntervalRef.current);
+          inviteIntervalRef.current = null;
+        }
+        return;
+      }
+      sendInvite();
+    }, 3000);
+
+    console.log('Started call invitation broadcasting');
   }, [user]);
 
   // Accept call
   const acceptCall = useCallback(() => {
+    if (incomingCall) {
+      // Notify caller that we accepted
+      const channelName = `call-invite:${incomingCall.conversationId}`;
+      const channel = channelsRef.current.get(channelName);
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'call-accepted',
+          payload: { acceptedBy: user?.id },
+        });
+      }
+    }
     setCallAccepted(true);
-  }, []);
+  }, [incomingCall, user]);
 
   // Decline call
   const declineCall = useCallback(() => {
@@ -149,12 +219,21 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
 
   // End call (notify others)
   const endCall = useCallback((conversationId: string) => {
-    const channel = supabase.channel(`call-invite:${conversationId}`);
-    channel.send({
-      type: 'broadcast',
-      event: 'call-ended',
-      payload: {},
-    });
+    // Stop invitation interval
+    if (inviteIntervalRef.current) {
+      clearInterval(inviteIntervalRef.current);
+      inviteIntervalRef.current = null;
+    }
+
+    const channelName = `call-invite:${conversationId}`;
+    const channel = channelsRef.current.get(channelName);
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'call-ended',
+        payload: {},
+      });
+    }
     setIncomingCall(null);
     setCallAccepted(false);
   }, []);
