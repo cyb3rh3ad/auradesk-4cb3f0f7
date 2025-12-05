@@ -5,7 +5,9 @@ import { ConversationsList } from '@/components/chat/ConversationsList';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { CreateGroupDialog } from '@/components/chat/CreateGroupDialog';
+import { FriendsList } from '@/components/chat/FriendsList';
 import { MessageSquare } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const Chat = () => {
   const { conversations, loading: convoLoading, refetch } = useConversations();
@@ -33,6 +35,19 @@ const Chat = () => {
             <AddFriendDialog />
             <CreateGroupDialog onGroupCreated={refetch} />
           </div>
+        </div>
+        
+        {/* Friends List */}
+        <FriendsList 
+          onSelectConversation={setSelectedConversationId}
+          selectedConversationId={selectedConversationId}
+        />
+        
+        <Separator className="mx-2" />
+        
+        {/* Conversations */}
+        <div className="px-3 pt-2">
+          <div className="text-xs font-semibold text-muted-foreground mb-2">Conversations</div>
         </div>
         
         {convoLoading ? (
