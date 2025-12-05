@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Plus, Video, Loader2, Clock, ExternalLink, Mic, MicOff, FileText, Users, Sparkles, Play } from 'lucide-react';
+import { Calendar, Plus, Video, Loader2, Clock, ExternalLink, Mic, MicOff, FileText, Users, Sparkles, Play, Zap } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 import { TranscriptViewer } from '@/components/meetings/TranscriptViewer';
 import { AIAssistant } from '@/components/meetings/AIAssistant';
@@ -75,6 +75,25 @@ const Meetings = () => {
     setTeamId('');
   };
 
+  const handleInstantMeeting = async () => {
+    setCreating(true);
+    const now = new Date();
+    const meeting = await createMeeting(
+      'Instant Meeting', 
+      '', 
+      now, 
+      60, 
+      undefined
+    );
+    setCreating(false);
+    if (meeting) {
+      setSelectedMeetingId(meeting.id);
+      setSelectedMeetingTitle(meeting.title);
+      setInitialVideo(true);
+      setMeetingRoomOpen(true);
+    }
+  };
+
   const handleStartRecording = async (meetingId: string) => {
     setRecordingMeetingId(meetingId);
     await startRecording(meetingId);
@@ -134,13 +153,23 @@ const Meetings = () => {
               Schedule meetings and get AI-powered transcriptions & summaries
             </p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25">
-                <Plus className="w-4 h-4" />
-                New Meeting
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleInstantMeeting}
+              disabled={creating}
+              variant="secondary"
+              className="gap-2"
+            >
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              Instant Meeting
+            </Button>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25">
+                  <Plus className="w-4 h-4" />
+                  Schedule
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Schedule New Meeting</DialogTitle>
@@ -238,6 +267,7 @@ const Meetings = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
