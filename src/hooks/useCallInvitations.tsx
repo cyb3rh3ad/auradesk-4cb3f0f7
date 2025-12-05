@@ -27,6 +27,7 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
   const [callAccepted, setCallAccepted] = useState(false);
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const inviteIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const acceptedCallsRef = useRef<Set<string>>(new Set());
 
   // Get user profile
   const getUserProfile = async (userId: string) => {
@@ -42,6 +43,8 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
   useEffect(() => {
     if (!user) return;
 
+    let mounted = true;
+
     const setupCallListeners = async () => {
       // Get all conversations the user is part of
       const { data: memberships } = await supabase
@@ -49,7 +52,9 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
         .select('conversation_id')
         .eq('user_id', user.id);
 
-      if (!memberships) return;
+      if (!memberships || !mounted) return;
+
+      console.log('Setting up call listeners for', memberships.length, 'conversations');
 
       for (const membership of memberships) {
         const channelName = `call-invite:${membership.conversation_id}`;
@@ -57,7 +62,7 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
         // Skip if already listening
         if (channelsRef.current.has(channelName)) continue;
 
-        console.log('Setting up call listener for:', channelName);
+        console.log('Creating channel:', channelName);
 
         const channel = supabase
           .channel(channelName)
@@ -70,17 +75,24 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
             // Don't show if call is older than 35 seconds
             if (Date.now() - payload.timestamp > 35000) return;
 
-            // Don't override existing incoming call
-            if (incomingCall && incomingCall.callerId !== payload.callerId) return;
+            // Don't show if already accepted this call
+            if (acceptedCallsRef.current.has(payload.conversationId)) {
+              console.log('Ignoring invitation - already accepted this call');
+              return;
+            }
 
-            setIncomingCall({
-              callerId: payload.callerId,
-              callerName: payload.callerName,
-              callerAvatar: payload.callerAvatar,
-              conversationId: payload.conversationId,
-              conversationName: payload.conversationName,
-              isVideo: payload.isVideo,
-              timestamp: payload.timestamp,
+            // Don't override existing incoming call from different caller
+            setIncomingCall(prev => {
+              if (prev && prev.callerId !== payload.callerId) return prev;
+              return {
+                callerId: payload.callerId,
+                callerName: payload.callerName,
+                callerAvatar: payload.callerAvatar,
+                conversationId: payload.conversationId,
+                conversationName: payload.conversationName,
+                isVideo: payload.isVideo,
+                timestamp: payload.timestamp,
+              };
             });
           })
           .on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
@@ -94,25 +106,40 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
           .on('broadcast', { event: 'call-cancelled' }, ({ payload }) => {
             console.log('Call cancelled:', payload);
             if (payload.callerId !== user.id) {
-              setIncomingCall(null);
+              setIncomingCall(prev => 
+                prev?.conversationId === payload.conversationId ? null : prev
+              );
             }
           })
-          .on('broadcast', { event: 'call-ended' }, () => {
-            console.log('Call ended');
-            setIncomingCall(null);
+          .on('broadcast', { event: 'call-ended' }, ({ payload }) => {
+            console.log('Call ended:', payload);
+            setIncomingCall(prev => 
+              prev?.conversationId === payload.conversationId ? null : prev
+            );
+            // Clear accepted tracking for this call
+            if (payload.conversationId) {
+              acceptedCallsRef.current.delete(payload.conversationId);
+            }
             setCallAccepted(false);
-          })
-          .subscribe((status) => {
-            console.log(`Channel ${channelName} status:`, status);
           });
+
+        channel.subscribe((status) => {
+          console.log(`Channel ${channelName} subscription status:`, status);
+          if (status === 'SUBSCRIBED' && mounted) {
+            console.log('Successfully subscribed to', channelName);
+          }
+        });
 
         channelsRef.current.set(channelName, channel);
       }
+      
+      console.log('Call listener setup complete');
     };
 
     setupCallListeners();
 
     return () => {
+      mounted = false;
       console.log('Cleaning up call invitation channels');
       channelsRef.current.forEach((channel, name) => {
         console.log('Removing channel:', name);
@@ -135,6 +162,8 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
   ) => {
     if (!user) return;
 
+    console.log('Preparing to send call invitation for conversation:', conversationId);
+
     const profile = await getUserProfile(user.id);
     const callerName = profile?.full_name || profile?.email || 'Unknown';
     const timestamp = Date.now();
@@ -143,18 +172,22 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
     let channel = channelsRef.current.get(channelName);
     
     if (!channel) {
+      console.log('Creating new channel for sending:', channelName);
       channel = supabase.channel(channelName);
       await new Promise<void>((resolve) => {
         channel!.subscribe((status) => {
+          console.log('Sender channel status:', status);
           if (status === 'SUBSCRIBED') resolve();
         });
       });
       channelsRef.current.set(channelName, channel);
+      
+      // Wait a bit for receiver to be subscribed
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    const sendInvite = () => {
-      console.log('Sending call invitation to:', conversationId);
-      channel!.send({
+    const sendInvite = async () => {
+      const result = await channel!.send({
         type: 'broadcast',
         event: 'call-invitation',
         payload: {
@@ -164,13 +197,14 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
           conversationId,
           conversationName,
           isVideo,
-          timestamp,
+          timestamp: Date.now(),
         },
       });
+      console.log('Sent call invitation, result:', result);
     };
 
     // Send immediately
-    sendInvite();
+    await sendInvite();
 
     // Clear any existing interval
     if (inviteIntervalRef.current) {
@@ -179,7 +213,7 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
 
     // Re-send every 3 seconds for 30 seconds
     let count = 0;
-    inviteIntervalRef.current = setInterval(() => {
+    inviteIntervalRef.current = setInterval(async () => {
       count++;
       if (count >= 10) {
         if (inviteIntervalRef.current) {
@@ -188,7 +222,7 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
         }
         return;
       }
-      sendInvite();
+      await sendInvite();
     }, 3000);
 
     console.log('Started call invitation broadcasting');
@@ -196,7 +230,16 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
 
   // Accept call
   const acceptCall = useCallback(() => {
+    console.log('Accepting call:', incomingCall?.conversationId);
     if (incomingCall) {
+      // Track that we accepted this call
+      acceptedCallsRef.current.add(incomingCall.conversationId);
+      
+      // Clear after 2 minutes
+      setTimeout(() => {
+        acceptedCallsRef.current.delete(incomingCall.conversationId);
+      }, 120000);
+      
       // Notify caller that we accepted
       const channelName = `call-invite:${incomingCall.conversationId}`;
       const channel = channelsRef.current.get(channelName);
@@ -209,16 +252,19 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
       }
     }
     setCallAccepted(true);
+    setIncomingCall(null);
   }, [incomingCall, user]);
 
   // Decline call
   const declineCall = useCallback(() => {
+    console.log('Declining call');
     setIncomingCall(null);
     setCallAccepted(false);
   }, []);
 
   // End call (notify others)
   const endCall = useCallback((conversationId: string) => {
+    console.log('Ending call:', conversationId);
     // Stop invitation interval
     if (inviteIntervalRef.current) {
       clearInterval(inviteIntervalRef.current);
@@ -231,9 +277,12 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
       channel.send({
         type: 'broadcast',
         event: 'call-ended',
-        payload: {},
+        payload: { conversationId },
       });
     }
+    
+    // Clear accepted tracking
+    acceptedCallsRef.current.delete(conversationId);
     setIncomingCall(null);
     setCallAccepted(false);
   }, []);
