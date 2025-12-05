@@ -18,6 +18,7 @@ interface ActiveCall {
   conversationId: string;
   conversationName: string;
   isVideo: boolean;
+  isCaller: boolean;
 }
 
 interface CallContextType {
@@ -184,8 +185,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const profile = await getUserProfile(user.id);
     const callerName = profile?.full_name || profile?.email || 'Unknown';
 
-    // Set active call first
-    setActiveCall({ conversationId, conversationName, isVideo });
+    // Set active call first (as caller)
+    setActiveCall({ conversationId, conversationName, isVideo, isCaller: true });
 
     // Get or create channel for this conversation
     const channelName = `call-invite:${conversationId}`;
@@ -303,6 +304,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         conversationId: incomingCall.conversationId,
         conversationName: incomingCall.conversationName,
         isVideo: incomingCall.isVideo,
+        isCaller: false, // This user is receiving the call, not initiating
       });
       setIncomingCall(null);
     }
@@ -335,6 +337,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
           conversationName={activeCall.conversationName}
           conversationId={activeCall.conversationId}
           initialVideo={activeCall.isVideo}
+          isCaller={activeCall.isCaller}
         />
       )}
     </CallContext.Provider>

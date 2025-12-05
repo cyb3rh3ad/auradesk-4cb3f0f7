@@ -13,6 +13,7 @@ interface CallDialogProps {
   conversationName: string;
   conversationId: string;
   initialVideo: boolean;
+  isCaller?: boolean; // true if this user initiated the call
 }
 
 interface Profile {
@@ -22,7 +23,7 @@ interface Profile {
   email: string;
 }
 
-export const CallDialog = ({ open, onClose, conversationName, conversationId, initialVideo }: CallDialogProps) => {
+export const CallDialog = ({ open, onClose, conversationName, conversationId, initialVideo, isCaller = true }: CallDialogProps) => {
   const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
@@ -30,15 +31,17 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
   const [callDuration, setCallDuration] = useState(0);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'failed'>('connecting');
   const [remoteProfile, setRemoteProfile] = useState<Profile | null>(null);
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(true);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const callStartTime = useRef<number | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
-  // Format call duration
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -84,10 +87,11 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
     let mounted = true;
     let stream: MediaStream | null = null;
-    let pc: RTCPeerConnection | null = null;
 
     const initializeCall = async () => {
       try {
+        console.log('Initializing call, isCaller:', isCaller);
+        
         // Get local media
         stream = await navigator.mediaDevices.getUserMedia({
           video: initialVideo,
@@ -99,78 +103,147 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           return;
         }
 
+        console.log('Got local media stream');
         setLocalStream(stream);
+        
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // Create peer connection with STUN servers
-        pc = new RTCPeerConnection({
+        // Create peer connection with STUN/TURN servers
+        const pc = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
           ],
         });
-        setPeerConnection(pc);
+        pcRef.current = pc;
 
         // Add local tracks to peer connection
         stream.getTracks().forEach(track => {
-          pc!.addTrack(track, stream!);
+          console.log('Adding track to peer connection:', track.kind);
+          pc.addTrack(track, stream!);
         });
 
         // Handle incoming tracks
         pc.ontrack = (event) => {
+          console.log('Received remote track:', event.track.kind);
           if (event.streams[0] && mounted) {
             setRemoteStream(event.streams[0]);
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = event.streams[0];
             }
             setConnectionState('connected');
+            callStartTime.current = Date.now();
           }
         };
 
         pc.oniceconnectionstatechange = () => {
+          console.log('ICE connection state:', pc.iceConnectionState);
           if (!mounted) return;
-          if (pc?.iceConnectionState === 'connected' || pc?.iceConnectionState === 'completed') {
+          if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
             setConnectionState('connected');
-          } else if (pc?.iceConnectionState === 'failed' || pc?.iceConnectionState === 'disconnected') {
+            if (!callStartTime.current) {
+              callStartTime.current = Date.now();
+            }
+          } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
             setConnectionState('failed');
           }
         };
 
+        pc.onconnectionstatechange = () => {
+          console.log('Connection state:', pc.connectionState);
+        };
+
         // Set up signaling channel
-        const channel = supabase
-          .channel(`call:${conversationId}`)
+        const channelName = `webrtc:${conversationId}`;
+        console.log('Creating signaling channel:', channelName);
+        
+        const channel = supabase.channel(channelName, {
+          config: { broadcast: { self: false } }
+        });
+        channelRef.current = channel;
+
+        // Process queued ICE candidates
+        const processQueuedCandidates = async () => {
+          while (iceCandidatesQueue.current.length > 0) {
+            const candidate = iceCandidatesQueue.current.shift();
+            if (candidate && pc.remoteDescription) {
+              try {
+                await pc.addIceCandidate(candidate);
+                console.log('Added queued ICE candidate');
+              } catch (e) {
+                console.error('Error adding queued ICE candidate:', e);
+              }
+            }
+          }
+        };
+
+        channel
           .on('broadcast', { event: 'offer' }, async ({ payload }) => {
-            if (payload.from === user.id || !pc) return;
+            console.log('Received offer from:', payload.from);
+            if (payload.from === user.id || !pcRef.current) return;
             
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            
-            channel.send({
-              type: 'broadcast',
-              event: 'answer',
-              payload: { answer, from: user.id },
-            });
+            try {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+              console.log('Set remote description (offer)');
+              
+              await processQueuedCandidates();
+              
+              const answer = await pcRef.current.createAnswer();
+              await pcRef.current.setLocalDescription(answer);
+              console.log('Created and set local description (answer)');
+              
+              channel.send({
+                type: 'broadcast',
+                event: 'answer',
+                payload: { answer, from: user.id },
+              });
+              console.log('Sent answer');
+            } catch (e) {
+              console.error('Error handling offer:', e);
+            }
           })
           .on('broadcast', { event: 'answer' }, async ({ payload }) => {
-            if (payload.from === user.id || !pc) return;
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            console.log('Received answer from:', payload.from);
+            if (payload.from === user.id || !pcRef.current) return;
+            
+            try {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+              console.log('Set remote description (answer)');
+              await processQueuedCandidates();
+            } catch (e) {
+              console.error('Error handling answer:', e);
+            }
           })
           .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-            if (payload.from === user.id || !pc) return;
-            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            if (payload.from === user.id || !pcRef.current) return;
+            
+            try {
+              const candidate = new RTCIceCandidate(payload.candidate);
+              if (pcRef.current.remoteDescription) {
+                await pcRef.current.addIceCandidate(candidate);
+                console.log('Added ICE candidate');
+              } else {
+                console.log('Queuing ICE candidate');
+                iceCandidatesQueue.current.push(candidate);
+              }
+            } catch (e) {
+              console.error('Error adding ICE candidate:', e);
+            }
           })
           .on('broadcast', { event: 'end-call' }, () => {
+            console.log('Received end-call signal');
             if (mounted) onClose();
-          })
-          .subscribe();
+          });
 
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            channel.send({
+          if (event.candidate && channelRef.current) {
+            console.log('Sending ICE candidate');
+            channelRef.current.send({
               type: 'broadcast',
               event: 'ice-candidate',
               payload: { candidate: event.candidate, from: user.id },
@@ -178,18 +251,36 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           }
         };
 
-        // Create and send offer
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        
-        channel.send({
-          type: 'broadcast',
-          event: 'offer',
-          payload: { offer, from: user.id },
+        // Subscribe and wait for channel to be ready
+        await new Promise<void>((resolve) => {
+          channel.subscribe((status) => {
+            console.log('Signaling channel status:', status);
+            if (status === 'SUBSCRIBED') {
+              resolve();
+            }
+          });
         });
 
-        // Start call timer
-        callStartTime.current = Date.now();
+        console.log('Channel subscribed, isCaller:', isCaller);
+
+        // Only the caller creates and sends the offer
+        // The callee waits for the offer
+        if (isCaller) {
+          // Small delay to let the callee subscribe
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          console.log('Creating offer...');
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          console.log('Set local description (offer)');
+          
+          channel.send({
+            type: 'broadcast',
+            event: 'offer',
+            payload: { offer, from: user.id },
+          });
+          console.log('Sent offer');
+        }
 
       } catch (error) {
         console.error('Error initializing call:', error);
@@ -201,11 +292,14 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
     return () => {
       mounted = false;
+      console.log('Cleaning up call');
       stream?.getTracks().forEach(track => track.stop());
-      pc?.close();
-      supabase.removeChannel(supabase.channel(`call:${conversationId}`));
+      pcRef.current?.close();
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
     };
-  }, [open, user, conversationId, initialVideo]);
+  }, [open, user, conversationId, initialVideo, isCaller, onClose]);
 
   // Update call duration
   useEffect(() => {
@@ -240,13 +334,22 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
         });
         setIsVideoOff(!isVideoOff);
       } else if (isVideoOff) {
-        // Enable video if it was off initially
         try {
           const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
           const videoTrack = newStream.getVideoTracks()[0];
           localStream.addTrack(videoTrack);
-          if (peerConnection) {
-            peerConnection.addTrack(videoTrack, localStream);
+          
+          if (pcRef.current) {
+            const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
+            if (sender) {
+              sender.replaceTrack(videoTrack);
+            } else {
+              pcRef.current.addTrack(videoTrack, localStream);
+            }
+          }
+          
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStream;
           }
           setIsVideoOff(false);
         } catch (error) {
@@ -258,16 +361,18 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
 
   // End call
   const endCall = () => {
-    const channel = supabase.channel(`call:${conversationId}`);
-    channel.send({
-      type: 'broadcast',
-      event: 'end-call',
-      payload: {},
-    });
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'end-call',
+        payload: {},
+      });
+    }
     onClose();
   };
 
   const displayName = remoteProfile?.full_name || remoteProfile?.email || conversationName;
+  const hasRemoteVideo = remoteStream && remoteStream.getVideoTracks().some(t => t.enabled);
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && endCall()}>
@@ -306,7 +411,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           isFullscreen ? "h-[calc(100vh-120px)]" : "aspect-video"
         )}>
           {/* Remote Video / Placeholder */}
-          {remoteStream && !isVideoOff ? (
+          {remoteStream ? (
             <video
               ref={remoteVideoRef}
               autoPlay
@@ -341,7 +446,7 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover mirror"
+                className="w-full h-full object-cover"
                 style={{ transform: 'scaleX(-1)' }}
               />
             ) : (
