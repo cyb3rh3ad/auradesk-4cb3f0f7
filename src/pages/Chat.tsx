@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
-import { ConversationsList } from '@/components/chat/ConversationsList';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { CreateGroupDialog } from '@/components/chat/CreateGroupDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
 import { MessageSquare } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 
 const Chat = () => {
   const { conversations, loading: convoLoading, refetch } = useConversations();
@@ -28,47 +26,21 @@ const Chat = () => {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-full md:w-96 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden border-r border-border/50">
-        <div className="h-16 border-b border-border/50 px-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Messages</h2>
-          <div className="flex gap-2">
+      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden border-r border-border/50">
+        <div className="h-14 border-b border-border/50 px-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Direct Messages</h2>
+          <div className="flex gap-1">
             <AddFriendDialog />
             <CreateGroupDialog onGroupCreated={refetch} />
           </div>
         </div>
         
-        {/* Friends List */}
+        {/* Friends List - Now the main navigation */}
         <FriendsList 
           onSelectConversation={setSelectedConversationId}
           selectedConversationId={selectedConversationId}
+          conversations={conversations}
         />
-        
-        <Separator className="mx-2" />
-        
-        {/* Conversations */}
-        <div className="px-3 pt-2">
-          <div className="text-xs font-semibold text-muted-foreground mb-2">Conversations</div>
-        </div>
-        
-        {convoLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : conversations.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="text-center space-y-2">
-              <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">No conversations yet</p>
-              <p className="text-xs text-muted-foreground">Add friends or create groups to start chatting</p>
-            </div>
-          </div>
-        ) : (
-          <ConversationsList
-            conversations={conversations}
-            selectedId={selectedConversationId}
-            onSelect={setSelectedConversationId}
-          />
-        )}
       </div>
 
       {/* Main Chat Area */}
@@ -80,11 +52,15 @@ const Chat = () => {
             conversationName={getConversationName()}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-3">
-              <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground/30" />
-              <h3 className="text-xl font-semibold">Select a conversation</h3>
-              <p className="text-muted-foreground">Choose a conversation to start messaging</p>
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+                <MessageSquare className="w-10 h-10 text-muted-foreground/50" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium">No conversation selected</h3>
+                <p className="text-sm text-muted-foreground mt-1">Click on a friend to start chatting</p>
+              </div>
             </div>
           </div>
         )}
