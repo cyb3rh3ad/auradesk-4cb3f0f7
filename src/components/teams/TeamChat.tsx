@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeamChat, TeamMessage } from '@/hooks/useTeamChat';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useTeamCallInvitations } from '@/hooks/useTeamCallInvitations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,14 +21,17 @@ export const TeamChat = ({ team, onBack }: TeamChatProps) => {
   const { user } = useAuth();
   const { messages, loading, sendMessage, conversationId } = useTeamChat(team.id);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
+  const { sendTeamCallInvitation } = useTeamCallInvitations();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [callIsVideo, setCallIsVideo] = useState(false);
 
-  const handleStartCall = (isVideo: boolean) => {
+  const handleStartCall = async (isVideo: boolean) => {
     setCallIsVideo(isVideo);
     setCallDialogOpen(true);
+    // Send invitation to all team members
+    await sendTeamCallInvitation(team.id, team.name, isVideo);
   };
 
   useEffect(() => {
