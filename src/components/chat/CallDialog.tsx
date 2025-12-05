@@ -133,11 +133,22 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
         pc.ontrack = (event) => {
           console.log('Received remote track:', event.track.kind, 'enabled:', event.track.enabled);
           if (event.streams[0] && mounted) {
-            console.log('Setting remote stream with tracks:', event.streams[0].getTracks().map(t => `${t.kind}:${t.enabled}`));
-            setRemoteStream(event.streams[0]);
+            const remoteMediaStream = event.streams[0];
+            console.log('Setting remote stream with tracks:', remoteMediaStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
+            setRemoteStream(remoteMediaStream);
+            
+            // Set srcObject and force play
             if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = event.streams[0];
+              remoteVideoRef.current.srcObject = remoteMediaStream;
+              remoteVideoRef.current.play().catch(e => console.log('Video play error:', e));
             }
+            
+            // Also create a hidden audio element as backup for audio playback
+            const audioEl = document.createElement('audio');
+            audioEl.srcObject = remoteMediaStream;
+            audioEl.autoplay = true;
+            audioEl.play().catch(e => console.log('Audio play error:', e));
+            
             setConnectionState('connected');
             callStartTime.current = Date.now();
           }
@@ -482,14 +493,20 @@ export const CallDialog = ({ open, onClose, conversationName, conversationId, in
           isFullscreen ? "h-[calc(100vh-120px)]" : "aspect-video"
         )}>
           {/* Remote Video / Placeholder */}
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className={cn(
+              "w-full h-full object-cover",
+              !remoteStream && "hidden"
+            )}
+            onLoadedMetadata={(e) => {
+              const video = e.target as HTMLVideoElement;
+              video.play().catch(err => console.log('Play on metadata error:', err));
+            }}
+          />
+          {!remoteStream && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center space-y-4">
                 <Avatar className="w-24 h-24 mx-auto ring-4 ring-primary/20">
