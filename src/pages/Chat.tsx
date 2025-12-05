@@ -27,9 +27,9 @@ const Chat = () => {
     <div className="flex h-full">
       {/* Sidebar */}
       <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:block hidden border-r border-border/50">
-        <div className="h-14 border-b border-border/50 px-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Direct Messages</h2>
-          <div className="flex gap-1">
+        <div className="h-14 border-b border-border/50 px-3 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground shrink-0">Direct Messages</h2>
+          <div className="flex gap-1 ml-auto">
             <AddFriendDialog />
             <CreateGroupDialog onGroupCreated={refetch} />
           </div>
