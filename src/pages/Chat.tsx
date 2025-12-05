@@ -28,7 +28,7 @@ const Chat = () => {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidebar */}
-      <div className="w-full md:w-80 flex flex-col bg-card/30 backdrop-blur-sm md:flex hidden border-r border-border/40">
+      <div className="w-full md:w-64 flex flex-col bg-card/30 backdrop-blur-sm md:flex hidden border-r border-border/40">
         {/* Sidebar Header */}
         <div className="h-14 px-4 flex items-center justify-between border-b border-border/40">
           <div className="flex items-center gap-2">
