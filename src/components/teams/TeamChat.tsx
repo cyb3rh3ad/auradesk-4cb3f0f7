@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, Loader2, ArrowLeft, Users } from 'lucide-react';
+import { Send, Loader2, ArrowLeft, Users, Phone, Video } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Team } from '@/hooks/useTeams';
+import { TeamCallDialog } from './TeamCallDialog';
 
 interface TeamChatProps {
   team: Team;
@@ -21,6 +22,13 @@ export const TeamChat = ({ team, onBack }: TeamChatProps) => {
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callIsVideo, setCallIsVideo] = useState(false);
+
+  const handleStartCall = (isVideo: boolean) => {
+    setCallIsVideo(isVideo);
+    setCallDialogOpen(true);
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,6 +109,24 @@ export const TeamChat = ({ team, onBack }: TeamChatProps) => {
             <Users className="w-3 h-3" />
             {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
           </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleStartCall(false)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Phone className="w-5 h-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleStartCall(true)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Video className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
@@ -190,6 +216,14 @@ export const TeamChat = ({ team, onBack }: TeamChatProps) => {
           </Button>
         </div>
       </form>
+
+      {/* Team Call Dialog */}
+      <TeamCallDialog
+        team={team}
+        isVideo={callIsVideo}
+        open={callDialogOpen}
+        onClose={() => setCallDialogOpen(false)}
+      />
     </div>
   );
 };
