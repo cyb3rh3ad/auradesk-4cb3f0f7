@@ -294,8 +294,10 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
                 announceJoin();
               }, 2000);
               
+              // Mark as connected immediately - we're in the call room now
+              // The "Waiting for team members" badge shows when alone
               setConnectionState('connected');
-              callStartTime.current = Date.now();
+              if (!callStartTime.current) callStartTime.current = Date.now();
             }
           });
 
