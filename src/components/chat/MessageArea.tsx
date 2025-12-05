@@ -7,9 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useCall } from '@/contexts/CallContext';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
-import { CallDialog } from './CallDialog';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -21,19 +21,17 @@ interface MessageAreaProps {
 
 export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId }: MessageAreaProps) => {
   const { user } = useAuth();
+  const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
-  const [callOpen, setCallOpen] = useState(false);
-  const [callWithVideo, setCallWithVideo] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
 
   // Get current user's display name for typing events
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
-  const startCall = (withVideo: boolean) => {
+  const handleStartCall = (withVideo: boolean) => {
     if (!conversationId) return;
-    setCallWithVideo(withVideo);
-    setCallOpen(true);
+    initiateCall(conversationId, conversationName, withVideo);
   };
 
   useEffect(() => {
@@ -119,7 +117,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             variant="ghost" 
             size="icon" 
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => startCall(false)}
+            onClick={() => handleStartCall(false)}
           >
             <Phone className="w-4 h-4" />
           </Button>
@@ -127,7 +125,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             variant="ghost" 
             size="icon" 
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => startCall(true)}
+            onClick={() => handleStartCall(true)}
           >
             <Video className="w-4 h-4" />
           </Button>
@@ -233,17 +231,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </Button>
         </form>
       </div>
-
-      {/* Call Dialog */}
-      {conversationId && (
-        <CallDialog
-          open={callOpen}
-          onClose={() => setCallOpen(false)}
-          conversationName={conversationName}
-          conversationId={conversationId}
-          initialVideo={callWithVideo}
-        />
-      )}
     </div>
   );
 };
