@@ -47,8 +47,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
         f.user_id === user.id ? f.friend_id : f.user_id
       );
 
-// Get profiles for friends
-      if (!profiles) {
+      // Get profiles for friends
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name, username, email, avatar_url')
@@ -59,57 +58,48 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
         setLoading(false);
         return;
       }
-      // VVVV The new optimized logic must follow VVVV
 
-// 3. Get all private conversations between you and ALL your friends in one query.
-const { data: allConvoMembers, error: convoError } = await supabase
-  .from('conversation_members')
-  .select(`
-    conversation_id,
-    user_id,
-    conversations!inner(is_group)
-  `)
-  .in('user_id', [...friendIds, user.id]) // Get all records involving you or a friend
-  .eq('conversations.is_group', false); // Only private chats
+      // Get all private conversations between you and ALL your friends in one query
+      const { data: allConvoMembers, error: convoError } = await supabase
+        .from('conversation_members')
+        .select(`
+          conversation_id,
+          user_id,
+          conversations!inner(is_group)
+        `)
+        .in('user_id', [...friendIds, user.id])
+        .eq('conversations.is_group', false);
 
-if (convoError || !allConvoMembers) {
-  // If there's an error fetching conversations, continue without conversation IDs
-  console.error("Error fetching conversations:", convoError);
-}
-
-// Map conversation IDs to friend IDs for quick lookup
-const friendConvoMap = new Map<string, string>(); // Key: Friend ID, Value: Conversation ID
-
-if (allConvoMembers) {
-  // Group members by conversation ID
-  const convosByFriend: { [key: string]: string[] } = {};
-  for (const member of allConvoMembers) {
-    if (!convosByFriend[member.conversation_id]) {
-      convosByFriend[member.conversation_id] = [];
-    }
-    convosByFriend[member.conversation_id].push(member.user_id);
-  }
-
-  // Identify 1:1 chats with friends
-  for (const [convoId, members] of Object.entries(convosByFriend)) {
-    if (members.length === 2 && members.includes(user.id)) {
-      // Find the friend's ID in this 1:1 chat
-      const friendIdInConvo = members.find(id => id !== user.id);
-      if (friendIdInConvo) {
-        friendConvoMap.set(friendIdInConvo, convoId);
+      if (convoError) {
+        console.error("Error fetching conversations:", convoError);
       }
-    }
-  }
-}
 
-// 4. Combine profiles with the conversation ID from the map (no looping queries!)
-const friendsWithConvos = profiles.map(profile => ({
-  ...profile,
-  conversation_id: friendConvoMap.get(profile.id),
-})) as Friend[];
+      // Map conversation IDs to friend IDs for quick lookup
+      const friendConvoMap = new Map<string, string>();
 
-setFriends(friendsWithConvos);
-setLoading(false);
+      if (allConvoMembers) {
+        const convosByFriend: { [key: string]: string[] } = {};
+        for (const member of allConvoMembers) {
+          if (!convosByFriend[member.conversation_id]) {
+            convosByFriend[member.conversation_id] = [];
+          }
+          convosByFriend[member.conversation_id].push(member.user_id);
+        }
+
+        for (const [convoId, members] of Object.entries(convosByFriend)) {
+          if (members.length === 2 && members.includes(user.id)) {
+            const friendIdInConvo = members.find(id => id !== user.id);
+            if (friendIdInConvo) {
+              friendConvoMap.set(friendIdInConvo, convoId);
+            }
+          }
+        }
+      }
+
+      const friendsWithConvos = profiles.map(profile => ({
+        ...profile,
+        conversation_id: friendConvoMap.get(profile.id),
+      })) as Friend[];
 
       setFriends(friendsWithConvos);
       setLoading(false);
@@ -130,23 +120,37 @@ setLoading(false);
         () => fetchFriends()
       )
       .subscribe();
-return () => {
+
+    return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]); // <-- End of useEffect
+  }, [user]);
 
-  const handleFriendClick = async (friend: Friend) => { // <-- Start of function
+  const handleFriendClick = async (friend: Friend) => {
     if (friend.conversation_id) {
       onSelectConversation(friend.conversation_id);
       return;
     }
 
-    if (error || !conversation) return;
+    // Create new conversation if none exists
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) return;
+
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .insert({ is_group: false, created_by: authData.user.id })
+      .select()
+      .single();
+
+    if (error || !conversation) {
+      console.error('Error creating conversation:', error);
+      return;
+    }
 
     // Add both users as members
     await supabase.from('conversation_members').insert({ 
       conversation_id: conversation.id, 
-      user_id: authUser.id 
+      user_id: authData.user.id 
     });
     await supabase.from('conversation_members').insert({ 
       conversation_id: conversation.id, 
@@ -231,4 +235,3 @@ return () => {
     </div>
   );
 };
-
