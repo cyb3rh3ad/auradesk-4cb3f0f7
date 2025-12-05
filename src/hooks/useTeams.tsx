@@ -84,7 +84,7 @@ export const useTeams = () => {
   }, [user]);
 
   const createTeam = async (name: string, description: string) => {
-    if (!user) return;
+    if (!user) return null;
 
     try {
       const { data: team, error: teamError } = await supabase
@@ -123,6 +123,7 @@ export const useTeams = () => {
         description: 'Failed to create team',
         variant: 'destructive',
       });
+      return null;
     }
   };
 
