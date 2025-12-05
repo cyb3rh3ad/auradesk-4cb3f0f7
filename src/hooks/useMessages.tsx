@@ -34,11 +34,18 @@ export const useMessages = (conversationId: string | null) => {
       // Get unique sender IDs
       const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
       
+      console.log('Fetching profiles for senderIds:', senderIds);
+      
       // Fetch sender profiles
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, full_name, avatar_url')
         .in('id', senderIds);
+
+      console.log('Profiles fetched:', profiles);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
 
       // Map profiles to messages
       const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
