@@ -38,11 +38,34 @@ serve(async (req) => {
 
     const { messages } = await req.json();
     
-    if (!messages || !Array.isArray(messages)) {
+    // Input validation
+    const MAX_MESSAGES = 50;
+    const MAX_MESSAGE_LENGTH = 50000;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Invalid input: messages array is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (messages.length > MAX_MESSAGES) {
+      return new Response(JSON.stringify({ error: `Too many messages: maximum ${MAX_MESSAGES} allowed` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    for (const msg of messages) {
+      if (!msg || typeof msg.role !== "string" || typeof msg.content !== "string") {
+        return new Response(JSON.stringify({ error: "Invalid message format" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (msg.content.length > MAX_MESSAGE_LENGTH) {
+        return new Response(JSON.stringify({ error: `Message too long: maximum ${MAX_MESSAGE_LENGTH} characters` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
