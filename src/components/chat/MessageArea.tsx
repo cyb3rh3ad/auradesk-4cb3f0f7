@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -14,12 +15,17 @@ interface MessageAreaProps {
   onSendMessage: (content: string) => void;
   conversationName: string;
   isGroup?: boolean;
+  conversationId: string | null;
 }
 
-export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup }: MessageAreaProps) => {
+export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId }: MessageAreaProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
+
+  // Get current user's display name for typing events
+  const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -30,9 +36,17 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     }
   }, [messages]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    if (e.target.value.trim()) {
+      sendTypingEvent(currentUserName);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    stopTyping(currentUserName);
     onSendMessage(input);
     setInput('');
   };
@@ -164,12 +178,29 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
-        <form onSubmit={handleSubmit} className="flex gap-3 items-center">
+      {/* Typing Indicator & Input */}
+      <div className="border-t border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
+        {/* Typing Indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <span className="font-medium text-foreground/70">
+                {typingUsers.map(u => u.username).join(', ')}
+              </span>
+              <span>is typing</span>
+              <span className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            </div>
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="p-4 flex gap-3 items-center">
           <Input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type a message..."
             className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30"
           />

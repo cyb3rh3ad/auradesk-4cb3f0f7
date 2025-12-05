@@ -59,6 +59,7 @@ const Chat = () => {
             onSendMessage={sendMessage}
             conversationName={getConversationName()}
             isGroup={selectedConversation?.is_group || false}
+            conversationId={selectedConversationId}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
