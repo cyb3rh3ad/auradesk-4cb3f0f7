@@ -2,12 +2,14 @@ import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useMeetings } from "@/hooks/useMeetings";
-import { format } from "date-fns";
+import { useRecentContacts } from "@/hooks/useRecentContacts";
+import { format, formatDistanceToNow } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { meetings } = useMeetings();
-
+  const { contacts, loading: contactsLoading } = useRecentContacts(5);
   // Get the next upcoming meeting
   const upcomingMeeting = meetings
     ?.filter(m => new Date(m.scheduled_at) > new Date())
@@ -128,34 +130,57 @@ const Dashboard = () => {
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
         <CardHeader className="border-b border-border/50">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">Recent Activity</CardTitle>
+            <CardTitle className="text-xl">Recent Contacts</CardTitle>
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
           </div>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-1">
-            {[
-              { name: "Sarah Chen", action: "shared a file", time: "2 minutes ago", color: "from-blue-500 to-cyan-500" },
-              { name: "Mike Johnson", action: "scheduled a meeting", time: "15 minutes ago", color: "from-purple-500 to-pink-500" },
-              { name: "AI Assistant", action: "summarized your last meeting", time: "1 hour ago", color: "from-orange-500 to-red-500" },
-              { name: "Emily Davis", action: "mentioned you in chat", time: "2 hours ago", color: "from-green-500 to-emerald-500" },
-            ].map((item, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-4 rounded-xl hover:bg-accent/5 transition-all duration-200 group border border-transparent hover:border-border/50"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white font-semibold shadow-lg group-hover:scale-110 transition-transform duration-200`}>
-                    {item.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.action}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">{item.time}</span>
+            {contactsLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : contacts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No recent contacts yet.</p>
+                <p className="text-sm mt-1">Start chatting with friends to see them here!</p>
               </div>
-            ))}
+            ) : (
+              contacts.map((contact, i) => {
+                const gradients = [
+                  "from-blue-500 to-cyan-500",
+                  "from-purple-500 to-pink-500",
+                  "from-orange-500 to-red-500",
+                  "from-green-500 to-emerald-500",
+                  "from-indigo-500 to-violet-500",
+                ];
+                const initials = contact.full_name 
+                  ? contact.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                  : contact.username?.slice(0, 2).toUpperCase() || contact.email.slice(0, 2).toUpperCase();
+                
+                return (
+                  <div 
+                    key={contact.id} 
+                    onClick={() => navigate('/chat')}
+                    className="flex items-center justify-between p-4 rounded-xl hover:bg-accent/5 transition-all duration-200 group border border-transparent hover:border-border/50 cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <Avatar className={`w-12 h-12 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-200`}>
+                        <AvatarImage src={contact.avatar_url || undefined} />
+                        <AvatarFallback className={`rounded-2xl bg-gradient-to-br ${gradients[i % gradients.length]} text-white font-semibold`}>
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold">{contact.full_name || contact.username || contact.email}</p>
+                        {contact.username && <p className="text-xs text-muted-foreground">@{contact.username}</p>}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+                      {formatDistanceToNow(new Date(contact.last_message_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>

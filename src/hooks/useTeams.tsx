@@ -83,7 +83,7 @@ export const useTeams = () => {
     fetchTeams();
   }, [user]);
 
-  const createTeam = async (name: string, description: string) => {
+  const createTeam = async (name: string, description?: string) => {
     if (!user) return null;
 
     try {
@@ -91,7 +91,7 @@ export const useTeams = () => {
         .from('teams')
         .insert({
           name,
-          description,
+          description: description?.trim() || null,
           created_by: user.id,
         })
         .select()
