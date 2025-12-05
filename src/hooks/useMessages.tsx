@@ -23,22 +23,33 @@ export const useMessages = (conversationId: string | null) => {
       return;
     }
 
-    const { data } = await supabase
+    // Fetch messages first
+    const { data: messagesData } = await supabase
       .from('messages')
-      .select(`
-        *,
-        sender:profiles!messages_sender_id_fkey (
-          id,
-          email,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
-    if (data) {
-      setMessages(data);
+    if (messagesData && messagesData.length > 0) {
+      // Get unique sender IDs
+      const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+      
+      // Fetch sender profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url')
+        .in('id', senderIds);
+
+      // Map profiles to messages
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const messagesWithSenders = messagesData.map(m => ({
+        ...m,
+        sender: profilesMap.get(m.sender_id) || null
+      }));
+
+      setMessages(messagesWithSenders);
+    } else {
+      setMessages([]);
     }
     setLoading(false);
   };
