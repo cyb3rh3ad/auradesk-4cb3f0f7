@@ -28,6 +28,7 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
   const activeChannelsRef = useRef<Set<string>>(new Set());
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const acceptedCallsRef = useRef<Set<string>>(new Set()); // Track accepted team calls
 
   // Get user profile
   const getUserProfile = async (userId: string) => {
@@ -77,6 +78,12 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
             
             // Don't show if call is older than 60 seconds
             if (Date.now() - payload.timestamp > 60000) return;
+
+            // Don't show if already accepted this call
+            if (acceptedCallsRef.current.has(payload.teamId)) {
+              console.log('Ignoring invitation - already accepted this call');
+              return;
+            }
 
             setIncomingTeamCall({
               callerId: payload.callerId,
@@ -179,9 +186,18 @@ export const useTeamCallInvitations = (): UseTeamCallInvitationsReturn => {
 
   // Accept call - only stops ringing locally for this user
   const acceptTeamCall = useCallback(() => {
+    if (incomingTeamCall) {
+      // Track that we accepted this call so we ignore future invitations
+      acceptedCallsRef.current.add(incomingTeamCall.teamId);
+      
+      // Clear after 2 minutes (call should be over or user left)
+      setTimeout(() => {
+        acceptedCallsRef.current.delete(incomingTeamCall.teamId);
+      }, 120000);
+    }
     setTeamCallAccepted(true);
     setIncomingTeamCall(null);
-  }, []);
+  }, [incomingTeamCall]);
 
   // Decline call
   const declineTeamCall = useCallback(() => {
