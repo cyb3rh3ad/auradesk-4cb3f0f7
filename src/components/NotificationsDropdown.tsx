@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDismissedHelpRequests } from '@/hooks/useDismissedHelpRequests';
 import { formatDistanceToNow } from 'date-fns';
 
 interface FriendRequest {
@@ -45,8 +46,11 @@ export const NotificationsDropdown = () => {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const { dismissRequest, filterDismissed } = useDismissedHelpRequests(user?.id);
 
-  const totalNotifications = friendRequests.length + helpRequests.length;
+  // Filter help requests to exclude dismissed ones
+  const visibleHelpRequests = filterDismissed(helpRequests);
+  const totalNotifications = friendRequests.length + visibleHelpRequests.length;
 
   useEffect(() => {
     if (!user) return;
@@ -282,6 +286,7 @@ export const NotificationsDropdown = () => {
   };
 
   const handleDismissHelp = (requestId: string) => {
+    dismissRequest(requestId);
     setHelpRequests((prev) => prev.filter((r) => r.id !== requestId));
   };
 
@@ -351,7 +356,7 @@ export const NotificationsDropdown = () => {
                 </div>
               ))}
 
-              {helpRequests.map((request) => (
+              {visibleHelpRequests.map((request) => (
                 <div key={request.id} className="p-3 border-b border-border/50">
                   <div className="flex items-start gap-3">
                     <div className="p-2 rounded-full bg-orange-500/10">
