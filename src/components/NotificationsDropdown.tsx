@@ -155,7 +155,16 @@ export const NotificationsDropdown = () => {
   }, [user]);
 
   const handleAcceptFriend = async (requestId: string) => {
+    if (!user) return;
     setLoading(true);
+    
+    // Get the friend request to find the sender's user_id
+    const request = friendRequests.find(r => r.id === requestId);
+    if (!request) {
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase
       .from('friendships')
       .update({ status: 'accepted' })
@@ -167,13 +176,30 @@ export const NotificationsDropdown = () => {
         description: 'Failed to accept friend request',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Friend request accepted!',
-        description: 'You are now friends.',
-      });
-      setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setLoading(false);
+      return;
     }
+
+    // Create a private conversation between the two users
+    const { data: conversation, error: convoError } = await supabase
+      .from('conversations')
+      .insert({ is_group: false, created_by: user.id })
+      .select()
+      .single();
+
+    if (!convoError && conversation) {
+      // Add both users as members
+      await supabase.from('conversation_members').insert([
+        { conversation_id: conversation.id, user_id: user.id },
+        { conversation_id: conversation.id, user_id: request.user_id },
+      ]);
+    }
+
+    toast({
+      title: 'Friend request accepted!',
+      description: 'You are now friends and can start chatting.',
+    });
+    setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
     setLoading(false);
   };
 

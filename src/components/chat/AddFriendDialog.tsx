@@ -48,11 +48,20 @@ export const AddFriendDialog = () => {
       .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`);
 
     if (existing && existing.length > 0) {
-      toast({
-        title: 'Already friends',
-        description: 'You are already friends with this user.',
-        variant: 'destructive',
-      });
+      const friendship = existing[0];
+      if (friendship.status === 'accepted') {
+        toast({
+          title: 'Already friends',
+          description: 'You are already friends with this user.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Request pending',
+          description: 'A friend request is already pending with this user.',
+          variant: 'destructive',
+        });
+      }
       setLoading(false);
       return;
     }
