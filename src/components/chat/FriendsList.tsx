@@ -132,10 +132,35 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId }: Fr
       return;
     }
 
-    // Create new conversation if none exists
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return;
 
+    // Check if a conversation already exists between these two users
+    const { data: existingConvos } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', authData.user.id);
+
+    if (existingConvos) {
+      for (const convo of existingConvos) {
+        const { data: members } = await supabase
+          .from('conversation_members')
+          .select('user_id, conversations!inner(is_group)')
+          .eq('conversation_id', convo.conversation_id)
+          .eq('conversations.is_group', false);
+
+        if (members && members.length === 2) {
+          const hasFriend = members.some(m => m.user_id === friend.id);
+          const hasMe = members.some(m => m.user_id === authData.user.id);
+          if (hasFriend && hasMe) {
+            onSelectConversation(convo.conversation_id);
+            return;
+          }
+        }
+      }
+    }
+
+    // Create new conversation if none exists
     const { data: conversation, error } = await supabase
       .from('conversations')
       .insert({ is_group: false, created_by: authData.user.id })
