@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone, PhoneOff, Video, Users } from 'lucide-react';
+import { Phone, PhoneOff, Video, Users, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface IncomingTeamCallDialogProps {
@@ -16,6 +16,53 @@ interface IncomingTeamCallDialogProps {
   onDecline: () => void;
 }
 
+// Generate a team call ringtone (two-tone) as base64 WAV
+const generateTeamRingtoneDataUrl = (): string => {
+  const sampleRate = 8000;
+  const duration = 0.6;
+  const samples = Math.floor(sampleRate * duration);
+  
+  const buffer = new ArrayBuffer(44 + samples * 2);
+  const view = new DataView(buffer);
+  
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + samples * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, samples * 2, true);
+  
+  // Generate two-tone wave (C5 then E5)
+  for (let i = 0; i < samples; i++) {
+    const t = i / sampleRate;
+    const freq = t < 0.3 ? 523.25 : 659.25; // C5 then E5
+    const localT = t < 0.3 ? t : t - 0.3;
+    const envelope = Math.min(1, (0.3 - localT) * 5) * Math.min(1, localT * 20);
+    const sample = Math.sin(2 * Math.PI * freq * t) * envelope * 0.3;
+    view.setInt16(44 + i * 2, sample * 32767, true);
+  }
+  
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return 'data:audio/wav;base64,' + btoa(binary);
+};
+
 export const IncomingTeamCallDialog = ({ 
   open, 
   callerName, 
@@ -25,6 +72,7 @@ export const IncomingTeamCallDialog = ({
   onAccept, 
   onDecline 
 }: IncomingTeamCallDialogProps) => {
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -32,50 +80,42 @@ export const IncomingTeamCallDialog = ({
 
   // Play ringtone when dialog opens
   useEffect(() => {
-    if (open) {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      let intervalId: NodeJS.Timeout | null = null;
+    if (!open) return;
 
-      const playRingTone = () => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 523.25; // C5 note - different tone for team calls
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.4);
-        
-        // Second tone
-        setTimeout(() => {
-          const osc2 = audioContext.createOscillator();
-          const gain2 = audioContext.createGain();
-          osc2.connect(gain2);
-          gain2.connect(audioContext.destination);
-          osc2.frequency.value = 659.25; // E5 note
-          osc2.type = 'sine';
-          gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-          gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-          osc2.start(audioContext.currentTime);
-          osc2.stop(audioContext.currentTime + 0.4);
-        }, 200);
-      };
+    let intervalId: NodeJS.Timeout | null = null;
+    const ringtoneUrl = generateTeamRingtoneDataUrl();
+    
+    const playRing = async () => {
+      try {
+        const audio = new Audio(ringtoneUrl);
+        audio.volume = 0.5;
+        await audio.play();
+        setAudioBlocked(false);
+      } catch (e) {
+        console.log('Team ringtone blocked by browser:', e);
+        setAudioBlocked(true);
+      }
+    };
 
-      playRingTone();
-      intervalId = setInterval(playRingTone, 2500);
+    playRing();
+    intervalId = setInterval(playRing, 2000);
 
-      return () => {
-        if (intervalId) clearInterval(intervalId);
-        audioContext.close();
-      };
-    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [open]);
+
+  const handleUnblockAudio = async () => {
+    try {
+      const ringtoneUrl = generateTeamRingtoneDataUrl();
+      const audio = new Audio(ringtoneUrl);
+      audio.volume = 0.5;
+      await audio.play();
+      setAudioBlocked(false);
+    } catch (e) {
+      console.log('Still blocked:', e);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
@@ -85,6 +125,19 @@ export const IncomingTeamCallDialog = ({
           <DialogDescription>Join or decline the {isVideo ? 'video' : 'voice'} call in {teamName}</DialogDescription>
         </VisuallyHidden.Root>
         <div className="p-8 flex flex-col items-center text-center space-y-6">
+          {/* Audio blocked indicator */}
+          {audioBlocked && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="absolute top-2 right-2 text-muted-foreground"
+              onClick={handleUnblockAudio}
+            >
+              <Volume2 className="w-4 h-4 mr-1" />
+              Enable sound
+            </Button>
+          )}
+
           {/* Team Icon with pulsing ring animation */}
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
