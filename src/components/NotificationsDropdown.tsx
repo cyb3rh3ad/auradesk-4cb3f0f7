@@ -155,8 +155,19 @@ export const NotificationsDropdown = () => {
   }, [user]);
 
   const handleAcceptFriend = async (requestId: string) => {
-    if (!user) return;
     setLoading(true);
+    
+    // Get the current authenticated user directly from Supabase
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
     
     // Get the friend request to find the sender's user_id
     const request = friendRequests.find(r => r.id === requestId);
@@ -171,6 +182,7 @@ export const NotificationsDropdown = () => {
       .eq('id', requestId);
 
     if (error) {
+      console.error('Error accepting friend request:', error);
       toast({
         title: 'Error',
         description: 'Failed to accept friend request',
@@ -183,16 +195,38 @@ export const NotificationsDropdown = () => {
     // Create a private conversation between the two users
     const { data: conversation, error: convoError } = await supabase
       .from('conversations')
-      .insert({ is_group: false, created_by: user.id })
+      .insert({ is_group: false, created_by: authUser.id })
       .select()
       .single();
 
-    if (!convoError && conversation) {
-      // Add both users as members
-      await supabase.from('conversation_members').insert([
-        { conversation_id: conversation.id, user_id: user.id },
-        { conversation_id: conversation.id, user_id: request.user_id },
-      ]);
+    if (convoError) {
+      console.error('Error creating conversation:', convoError);
+      toast({
+        title: 'Friend added',
+        description: 'Friend request accepted but could not create chat.',
+        variant: 'destructive',
+      });
+      setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setLoading(false);
+      return;
+    }
+
+    // Add current user as member first (RLS allows creator to add members)
+    const { error: memberError1 } = await supabase
+      .from('conversation_members')
+      .insert({ conversation_id: conversation.id, user_id: authUser.id });
+
+    if (memberError1) {
+      console.error('Error adding self to conversation:', memberError1);
+    }
+
+    // Add friend as member
+    const { error: memberError2 } = await supabase
+      .from('conversation_members')
+      .insert({ conversation_id: conversation.id, user_id: request.user_id });
+
+    if (memberError2) {
+      console.error('Error adding friend to conversation:', memberError2);
     }
 
     toast({
