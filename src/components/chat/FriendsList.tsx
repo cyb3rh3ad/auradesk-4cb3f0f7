@@ -251,15 +251,15 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
               const unread = hasUnreadMessages(friend);
               
               return (
-                <button
-                  key={friend.id}
-                  onClick={() => handleFriendClick(friend)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md transition-all duration-150',
-                    'hover:bg-accent/50',
-                    isSelected && 'bg-accent'
-                  )}
-                  style={{ width: 'calc(100% - 16px)' }}
+                  <button
+                    key={friend.id}
+                    onClick={() => handleFriendClick(friend)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg transition-all duration-150',
+                      'hover:bg-muted/40',
+                      isSelected && 'bg-muted/50'
+                    )}
+                    style={{ width: 'calc(100% - 16px)' }}
                 >
                   <div className="relative">
                     <Avatar className="w-10 h-10">
@@ -305,9 +305,9 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                     key={group.id}
                     onClick={() => onSelectConversation(group.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 mx-2 rounded-md transition-all duration-150',
-                      'hover:bg-accent/50',
-                      isSelected && 'bg-accent'
+                      'w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-lg transition-all duration-150',
+                      'hover:bg-muted/40',
+                      isSelected && 'bg-muted/50'
                     )}
                     style={{ width: 'calc(100% - 16px)' }}
                   >
