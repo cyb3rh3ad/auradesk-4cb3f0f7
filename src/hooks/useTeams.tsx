@@ -127,18 +127,52 @@ export const useTeams = () => {
     }
   };
 
-  const addMember = async (teamId: string, username: string) => {
+  const addMember = async (teamId: string, usernameOrEmail: string) => {
     try {
-      const { data: profile, error: profileError } = await supabase
+      // Try to find user by username first, then by email
+      let profile = null;
+      
+      // Try username first
+      const { data: byUsername } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('username', username)
-        .single();
+        .select('id, username, email')
+        .eq('username', usernameOrEmail)
+        .maybeSingle();
+      
+      if (byUsername) {
+        profile = byUsername;
+      } else {
+        // Try email
+        const { data: byEmail } = await supabase
+          .from('profiles')
+          .select('id, username, email')
+          .eq('email', usernameOrEmail)
+          .maybeSingle();
+        
+        profile = byEmail;
+      }
 
-      if (profileError || !profile) {
+      if (!profile) {
         toast({
-          title: 'Error',
-          description: 'User not found',
+          title: 'User not found',
+          description: 'No user found with that username or email',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Check if already a member
+      const { data: existingMember } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('user_id', profile.id)
+        .maybeSingle();
+
+      if (existingMember) {
+        toast({
+          title: 'Already a member',
+          description: 'This user is already in the team',
           variant: 'destructive',
         });
         return;
@@ -156,7 +190,7 @@ export const useTeams = () => {
 
       toast({
         title: 'Success',
-        description: 'Member added successfully',
+        description: `${profile.username || profile.email} added to the team`,
       });
 
       fetchTeams();
