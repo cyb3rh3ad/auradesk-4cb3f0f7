@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTeams, Team } from '@/hooks/useTeams';
 import { useFriends, Friend } from '@/hooks/useFriends';
+import { useTeamCallInvitations } from '@/hooks/useTeamCallInvitations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,10 +13,17 @@ import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft } from 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { TeamChat } from '@/components/teams/TeamChat';
+import { TeamCallDialog } from '@/components/teams/TeamCallDialog';
+import { IncomingTeamCallDialog } from '@/components/teams/IncomingTeamCallDialog';
 
 const Teams = () => {
   const { teams, loading, createTeam, addMember } = useTeams();
   const { friends, loading: friendsLoading } = useFriends();
+  const { 
+    incomingTeamCall, 
+    acceptTeamCall, 
+    declineTeamCall 
+  } = useTeamCallInvitations();
   const [createOpen, setCreateOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -26,6 +34,22 @@ const Teams = () => {
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  
+  // State for joining a call from invitation
+  const [joiningCallTeam, setJoiningCallTeam] = useState<Team | null>(null);
+  const [joiningCallIsVideo, setJoiningCallIsVideo] = useState(false);
+
+  // Handle accepting incoming team call
+  const handleAcceptTeamCall = () => {
+    if (!incomingTeamCall) return;
+    
+    const team = teams.find(t => t.id === incomingTeamCall.teamId);
+    if (team) {
+      setJoiningCallTeam(team);
+      setJoiningCallIsVideo(incomingTeamCall.isVideo);
+    }
+    acceptTeamCall();
+  };
 
   const toggleFriend = (friendId: string) => {
     setSelectedFriends(prev => {
@@ -349,6 +373,27 @@ const Teams = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Incoming Team Call Dialog */}
+      <IncomingTeamCallDialog
+        open={!!incomingTeamCall}
+        callerName={incomingTeamCall?.callerName || ''}
+        callerAvatar={incomingTeamCall?.callerAvatar}
+        teamName={incomingTeamCall?.teamName || ''}
+        isVideo={incomingTeamCall?.isVideo || false}
+        onAccept={handleAcceptTeamCall}
+        onDecline={declineTeamCall}
+      />
+
+      {/* Team Call Dialog for joining from invitation */}
+      {joiningCallTeam && (
+        <TeamCallDialog
+          team={joiningCallTeam}
+          isVideo={joiningCallIsVideo}
+          open={!!joiningCallTeam}
+          onClose={() => setJoiningCallTeam(null)}
+        />
+      )}
     </div>
   );
 };
