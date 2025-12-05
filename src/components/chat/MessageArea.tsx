@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, createSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -60,7 +60,10 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       });
 
       toast.success(withVideo ? 'Starting video call...' : 'Starting voice call...');
-      navigate(`/meetings?room=${meeting.id}&video=${withVideo}`);
+      navigate({
+        pathname: '/meetings',
+        search: createSearchParams({ room: meeting.id, video: String(withVideo) }).toString()
+      });
     } catch (error) {
       console.error('Error starting call:', error);
       toast.error('Failed to start call');
