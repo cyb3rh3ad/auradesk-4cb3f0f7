@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+// Ensure the path to supabase client and AuthContext is correct in your project
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -8,9 +9,10 @@ interface Participant {
   name: string;
 }
 
-// *** LIVE TURN SERVER CREDENTIALS INSERTED HERE ***
+// *** LIVE TURN SERVER CREDENTIALS ***
+// This is the most robust ICE configuration possible.
 const ICE_SERVERS = [
-  // Public STUN Servers (Keep these for fast, direct connections)
+  // Public STUN Servers
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
@@ -73,8 +75,11 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   // Create peer connection for a specific user
   const createPeerConnection = useCallback(
     (remoteUserId: string, remoteName: string) => {
-      // Check localStreamRef.current instead of localStream state to avoid stale closure issues
-      if (!localStreamRef.current || !user) return null;
+      // Must have a user and local media stream to proceed
+      if (!localStreamRef.current || !user) {
+        console.warn(`PC creation aborted: user or localStream missing.`);
+        return null;
+      }
 
       console.log(`Creating peer connection for ${remoteUserId}`);
 
@@ -101,9 +106,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
       // Handle ICE candidates (CORRECTED BUFFERING LOGIC)
       pc.onicecandidate = (event) => {
-        if (event.candidate && channelRef.current) {
-          // Check if the signaling is stable (meaning the offer/answer is complete)
-          // If not stable, buffer the candidates
+        // Must check if the channel is available to send data
+        if (!channelRef.current) {
+          console.warn("Channel not available, skipping ICE candidate send.");
+          return;
+        }
+
+        if (event.candidate) {
+          // If the remote description hasn't been set yet (signaling is not 'stable' after offer/answer), buffer candidates
           if (pc.signalingState !== "stable" && !pc.remoteDescription) {
             const buffer = iceCandidateBuffer.current.get(remoteUserId) || [];
             buffer.push(event.candidate.toJSON());
@@ -142,7 +152,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       return pc;
     },
     [user],
-  );
+  ); // user is in dependency array
 
   // Send offer to a new participant
   const sendOffer = useCallback(
@@ -186,6 +196,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         }
       }
 
+      // Explicitly define the peer connection locally for clarity and scope
       let pc = peerConnections.current.get(from);
       if (!pc) {
         pc = createPeerConnection(from, fromName);
@@ -198,17 +209,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        // Join the meeting room (Set up all listeners)
-        const joinRoom = useCallback(async (video: boolean = true, audio: boolean = true) => {
-        // --- PASTE LOGS HERE ---
-        console.log("Attempting to join room...");
-        console.log("Current User:", user); 
-        // -----------------------
-  
-  if (!meetingId || !user) {
-    if (!user) console.error("FATAL ERROR: User is not authenticated. Cannot join room.");
-    return;
-  }
+
         channelRef.current.send({
           type: "broadcast",
           event: "answer",
@@ -229,7 +230,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
         // 2. Flush buffered ICE candidates (Fixes Intermittent Connection)
         const bufferedCandidates = iceCandidateBuffer.current.get(from);
-        if (bufferedCandidates) {
+        if (bufferedCandidates && bufferedCandidates.length > 0) {
           bufferedCandidates.forEach((candidate) => {
             pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) =>
               console.error("Error adding buffered ICE candidate:", err),
@@ -246,6 +247,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
   // Handle incoming answer (Includes ICE Flushing)
   const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit) => {
+    // Explicitly define the peer connection locally for clarity and scope
     const pc = peerConnections.current.get(from);
     if (!pc) return;
 
@@ -254,7 +256,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
       // Flush buffered ICE candidates (Fixes Intermittent Connection)
       const bufferedCandidates = iceCandidateBuffer.current.get(from);
-      if (bufferedCandidates) {
+      if (bufferedCandidates && bufferedCandidates.length > 0) {
         bufferedCandidates.forEach((candidate) => {
           pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) =>
             console.error("Error adding buffered ICE candidate:", err),
@@ -273,16 +275,26 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     if (!pc) return;
 
     try {
+      // RTCIceCandidate() constructor takes a RTCIceCandidateInit object or RTCIceCandidate
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
-      console.error("Error adding ICE candidate:", err);
+      // Ignore errors when trying to add candidates after connection is closed or done
+      if (!err.toString().includes("failed to set remote answer")) {
+        console.error("Error adding ICE candidate:", err);
+      }
     }
   }, []);
 
   // Join the meeting room (Set up all listeners)
   const joinRoom = useCallback(
     async (video: boolean = true, audio: boolean = true) => {
-      if (!meetingId || !user) return;
+      console.log("Attempting to join room..."); // Debugging check
+      console.log("Current User:", user); // Debugging check
+
+      if (!meetingId || !user) {
+        if (!user) console.error("FATAL ERROR: User is not authenticated. Cannot join room.");
+        return;
+      }
 
       setIsConnecting(true);
       setError(null);
