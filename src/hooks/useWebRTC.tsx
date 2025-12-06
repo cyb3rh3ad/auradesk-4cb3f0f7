@@ -198,7 +198,17 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-
+        // Join the meeting room (Set up all listeners)
+        const joinRoom = useCallback(async (video: boolean = true, audio: boolean = true) => {
+        // --- PASTE LOGS HERE ---
+        console.log("Attempting to join room...");
+        console.log("Current User:", user); 
+        // -----------------------
+  
+  if (!meetingId || !user) {
+    if (!user) console.error("FATAL ERROR: User is not authenticated. Cannot join room.");
+    return;
+  }
         channelRef.current.send({
           type: "broadcast",
           event: "answer",
