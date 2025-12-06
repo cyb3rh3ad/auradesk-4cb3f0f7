@@ -8,10 +8,13 @@ interface Participant {
   name: string;
 }
 
+// NOTE: For reliable connections across all networks, you MUST replace these with
+// a credentialed TURN server (e.g., from Xirsys or Coturn) in a production app.
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun.services.mozilla.com" }, // Added additional STUN for robustness
 ];
 
 export const useWebRTC = (meetingId: string | null, userName: string) => {
@@ -21,14 +24,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // NEW STATE: To manage the call ringing/answered status in the UI
+  // State: To manage the call ringing/answered status in the UI
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
-  // NEW REF: Stores unsent ICE candidates for robust connection (Fixes Intermittent Connection)
+  // REF: Stores unsent ICE candidates for robust connection (Fixes Intermittent Connection)
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   // Initialize local media stream
@@ -60,9 +63,10 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     }
   }, []);
 
-  // Create peer connection for a specific user (FIXED & CLEANED)
+  // Create peer connection for a specific user
   const createPeerConnection = useCallback(
     (remoteUserId: string, remoteName: string) => {
+      // Check localStreamRef.current instead of localStream state to avoid stale closure issues
       if (!localStreamRef.current || !user) return null;
 
       console.log(`Creating peer connection for ${remoteUserId}`);
@@ -92,8 +96,8 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
           // Check if the signaling is stable (meaning the offer/answer is complete)
-          if (pc.signalingState !== "stable") {
-            // Buffer candidates if the peer is not ready
+          // If not stable, buffer the candidates
+          if (pc.signalingState !== "stable" && !pc.remoteDescription) {
             const buffer = iceCandidateBuffer.current.get(remoteUserId) || [];
             buffer.push(event.candidate.toJSON());
             iceCandidateBuffer.current.set(remoteUserId, buffer);
@@ -153,6 +157,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
             to: remoteUserId,
           },
         });
+        setCallStatus("RINGING"); // Caller sets status to RINGING here
       } catch (err) {
         console.error("Error creating offer:", err);
       }
@@ -160,14 +165,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     [createPeerConnection, userName, user],
   );
 
-  // Handle incoming offer (CRITICAL FIX: Guarantees media and handles signaling)
+  // Handle incoming offer (CRITICAL FIX: Guarantees media initialization before answering)
   const handleOffer = useCallback(
     async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
-      if (!user) return; // Must have a user ID
+      if (!user) return;
 
-      // CRITICAL FIX: Ensure media is initialized if the receiver hasn't joined the room yet.
+      // CRITICAL FIX: Ensure media is initialized if the receiver hasn't done so yet.
       if (!localStreamRef.current) {
-        const stream = await initializeMedia(true, true); // Assuming video/audio default
+        const stream = await initializeMedia(true, true);
         if (!stream) {
           console.error("Failed to initialize media for call answer.");
           return;
@@ -176,13 +181,11 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
       let pc = peerConnections.current.get(from);
       if (!pc) {
-        // Media is now guaranteed to be ready, so createPeerConnection will work.
         pc = createPeerConnection(from, fromName);
       }
       if (!pc || !channelRef.current) return;
 
-      // Set status to RINGING here (Your UI component should detect this and start the ringtone)
-      setCallStatus("RINGING");
+      setCallStatus("RINGING"); // Receiver sets status to RINGING
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -199,7 +202,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
           },
         });
 
-        // 1. Send call-answered signal (FIXES RINGING BUG)
+        // 1. Send call-answered signal (Stops ringing audio for the caller)
         channelRef.current.send({
           type: "broadcast",
           event: "call-answered",
@@ -207,7 +210,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         });
         setCallStatus("IN_CALL");
 
-        // 2. Flush buffered ICE candidates (FIXES INTERMITTENT CONNECTION)
+        // 2. Flush buffered ICE candidates (Fixes Intermittent Connection)
         const bufferedCandidates = iceCandidateBuffer.current.get(from);
         if (bufferedCandidates) {
           bufferedCandidates.forEach((candidate) => {
@@ -224,7 +227,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     [createPeerConnection, user, initializeMedia],
   );
 
-  // Handle incoming answer (FIXED: Added ICE Flushing)
+  // Handle incoming answer (Includes ICE Flushing)
   const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit) => {
     const pc = peerConnections.current.get(from);
     if (!pc) return;
@@ -232,7 +235,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
 
-      // Flush buffered ICE candidates (FIXES INTERMITTENT CONNECTION)
+      // Flush buffered ICE candidates (Fixes Intermittent Connection)
       const bufferedCandidates = iceCandidateBuffer.current.get(from);
       if (bufferedCandidates) {
         bufferedCandidates.forEach((candidate) => {
@@ -259,7 +262,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     }
   }, []);
 
-  // Join the meeting room (FIXED: Added call-answered listener)
+  // Join the meeting room (Set up all listeners)
   const joinRoom = useCallback(
     async (video: boolean = true, audio: boolean = true) => {
       if (!meetingId || !user) return;
@@ -299,7 +302,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
             handleIceCandidate(payload.from, payload.candidate);
           }
         })
-        // NEW LISTENER: Stops the ringing audio for the caller (FIXES RINGING BUG)
+        // LISTENER: Stops the ringing audio for the caller
         .on("broadcast", { event: "call-answered" }, ({ payload }) => {
           if (payload.to === user.id) {
             console.log(`Call answered by ${payload.from}`);
@@ -338,7 +341,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     [meetingId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate],
   );
 
-  // Leave the room (FIXED: Clears hanging buffers and resets status)
+  // Leave the room
   const leaveRoom = useCallback(() => {
     if (channelRef.current && user) {
       channelRef.current.send({
@@ -396,7 +399,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     participants,
     isConnecting,
     error,
-    callStatus, // NEW: Export the call status
+    callStatus,
     joinRoom,
     leaveRoom,
     toggleAudio,
