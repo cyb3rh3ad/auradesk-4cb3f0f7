@@ -160,13 +160,23 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     [createPeerConnection, userName, user],
   );
 
-  // Handle incoming offer (FIXED: Added Answered Signal and ICE Flushing)
+  // Handle incoming offer (CRITICAL FIX: Guarantees media and handles signaling)
   const handleOffer = useCallback(
     async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
-      if (!user || !localStreamRef.current) return;
+      if (!user) return; // Must have a user ID
+
+      // CRITICAL FIX: Ensure media is initialized if the receiver hasn't joined the room yet.
+      if (!localStreamRef.current) {
+        const stream = await initializeMedia(true, true); // Assuming video/audio default
+        if (!stream) {
+          console.error("Failed to initialize media for call answer.");
+          return;
+        }
+      }
 
       let pc = peerConnections.current.get(from);
       if (!pc) {
+        // Media is now guaranteed to be ready, so createPeerConnection will work.
         pc = createPeerConnection(from, fromName);
       }
       if (!pc || !channelRef.current) return;
@@ -211,7 +221,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         console.error("Error handling offer:", err);
       }
     },
-    [createPeerConnection, user],
+    [createPeerConnection, user, initializeMedia],
   );
 
   // Handle incoming answer (FIXED: Added ICE Flushing)
@@ -328,7 +338,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     [meetingId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate],
   );
 
-  // Leave the room
+  // Leave the room (FIXED: Clears hanging buffers and resets status)
   const leaveRoom = useCallback(() => {
     if (channelRef.current && user) {
       channelRef.current.send({
@@ -345,7 +355,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     peerConnections.current.clear();
     iceCandidateBuffer.current.clear(); // Clear any hanging buffers
 
-    // Stop local stream (FIXED: Cleans up local stream and state)
+    // Stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
