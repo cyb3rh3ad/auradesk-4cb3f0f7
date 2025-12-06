@@ -51,50 +51,74 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   }, []);
 
   // Create peer connection for a specific user
-  const createPeerConnection = useCallback((remoteUserId: string, remoteName: string) => {
-    if (!localStreamRef.current || !user) return null;
+const createPeerConnection = useCallback((remoteUserId: string, remoteName: string) => {
+  if (!localStreamRef.current || !user) return null;
 
-    console.log(`Creating peer connection for ${remoteUserId}`);
+  console.log(`Creating peer connection for ${remoteUserId}`);
     
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     
-    // Add local tracks to the connection
-    localStreamRef.current.getTracks().forEach(track => {
-      pc.addTrack(track, localStreamRef.current!);
+  // Add local tracks to the connection
+  localStreamRef.current.getTracks().forEach(track => {
+    pc.addTrack(track, localStreamRef.current!);
+  });
+
+  // Handle incoming tracks
+  pc.ontrack = (event) => {
+    console.log(`Received track from ${remoteUserId}`);
+    setParticipants(prev => {
+      const newMap = new Map(prev);
+      newMap.set(remoteUserId, {
+        odakle: remoteUserId,
+        stream: event.streams[0],
+        name: remoteName
+      });
+      return newMap;
     });
+  };
 
-    // Handle incoming tracks
-    pc.ontrack = (event) => {
-      console.log(`Received track from ${remoteUserId}`);
+  // Handle ICE candidates (CORRECTED BUFFERING LOGIC)
+  pc.onicecandidate = (event) => {
+    if (event.candidate && channelRef.current) {
+      // Check if the signaling is stable (meaning the offer/answer is complete)
+      if (pc.signalingState !== 'stable') {
+        // Buffer candidates if the peer is not ready
+        const buffer = iceCandidateBuffer.current.get(remoteUserId) || [];
+        buffer.push(event.candidate.toJSON());
+        iceCandidateBuffer.current.set(remoteUserId, buffer);
+        console.log(`ICE candidate buffered for ${remoteUserId}`);
+        return;
+      }
+      
+      // Send only if stable or after remote description is set
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'ice-candidate',
+        payload: {
+          candidate: event.candidate,
+          from: user.id,
+          to: remoteUserId
+        }
+      });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    console.log(`Connection state with ${remoteUserId}: ${pc.connectionState}`);
+    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      // Remove participant on disconnect
       setParticipants(prev => {
         const newMap = new Map(prev);
-        newMap.set(remoteUserId, {
-          odakle: remoteUserId,
-          stream: event.streams[0],
-          name: remoteName
-        });
+        newMap.delete(remoteUserId);
         return newMap;
       });
-    };
+      peerConnections.current.delete(remoteUserId);
+    }
+  };
 
-    // Handle ICE candidates
-    pc.onicecandidate = (event) => {
-      if (event.candidate && channelRef.current) {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'ice-candidate',
-          payload: {
-            candidate: event.candidate,
-            from: user.id,
-            to: remoteUserId
-          }
-        });
-      }
-    };
-
-    pc.onconnectionstatechange = () => {
-      console.log(`Connection state with ${remoteUserId}: ${pc.connectionState}`);
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+  peerConnections.current.set(remoteUserId, pc);
+  return pc;
+}, [user]);  
         // Remove participant on disconnect
         setParticipants(prev => {
           const newMap = new Map(prev);
@@ -119,34 +143,53 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       await pc.setLocalDescription(offer);
       
       channelRef.current.send({
-        type: 'broadcast',
-        event: 'offer',
-        payload: {
-          offer: pc.localDescription,
-          from: user.id,
-          fromName: userName,
-          to: remoteUserId
-        }
-      });
-    } catch (err) {
-      console.error('Error creating offer:', err);
-    }
-  }, [createPeerConnection, user, userName]);
+// Replace the block from Line 146 to Line 173 with this:
 
-  // Handle incoming offer
-  const handleOffer = useCallback(async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
-    if (!user) return;
+const handleOffer = useCallback(async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
+  if (!user || !localStreamRef.current) return;
     
-    let pc = peerConnections.current.get(from);
-    if (!pc) {
-      pc = createPeerConnection(from, fromName);
-    }
-    if (!pc || !channelRef.current) return;
+  let pc = peerConnections.current.get(from);
+  if (!pc) {
+    pc = createPeerConnection(from, fromName);
+  }
+  if (!pc || !channelRef.current) return;
 
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'answer',
+      payload: {
+        answer: pc.localDescription,
+        from: user.id,
+        to: from
+      }
+    });
+
+    // 1. Send call-answered signal (FIXES RINGING BUG)
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'call-answered',
+      payload: { from: user.id, to: from }
+    });
+    setCallStatus('IN_CALL');
+
+    // 2. Flush buffered ICE candidates (FIXES INTERMITTENT CONNECTION)
+    const bufferedCandidates = iceCandidateBuffer.current.get(from);
+    if (bufferedCandidates) {
+      bufferedCandidates.forEach(candidate => {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => console.error('Error adding buffered ICE candidate:', err));
+      });
+      iceCandidateBuffer.current.delete(from);
+    }
+    
+  } catch (err) {
+    console.error('Error handling offer:', err);
+  }
+}, [createPeerConnection, user]);
       
       channelRef.current.send({
         type: 'broadcast',
@@ -169,6 +212,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      // FIX for Intermittent Connection: Flush buffered ICE candidates
+const bufferedCandidates = iceCandidateBuffer.current.get(from);
+if (bufferedCandidates) {
+  bufferedCandidates.forEach(candidate => {
+    pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => console.error('Error adding buffered ICE candidate:', err));
+  });
+  iceCandidateBuffer.current.delete(from);
+}
     } catch (err) {
       console.error('Error handling answer:', err);
     }
