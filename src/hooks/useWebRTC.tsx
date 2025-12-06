@@ -8,13 +8,20 @@ interface Participant {
   name: string;
 }
 
-// NOTE: For reliable connections across all networks, you MUST replace these with
-// a credentialed TURN server (e.g., from Xirsys or Coturn) in a production app.
+// *** LIVE TURN SERVER CREDENTIALS INSERTED HERE ***
 const ICE_SERVERS = [
+  // Public STUN Servers (Keep these for fast, direct connections)
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
   { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun.services.mozilla.com" }, // Added additional STUN for robustness
+  { urls: "stun:stun.services.mozilla.com" },
+
+  // YOUR EXPRESS-TURN CREDENTIALS:
+  {
+    urls: "turn:relay1.expressturn.com:3480",
+    username: "000000002080378788",
+    credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
+  },
 ];
 
 export const useWebRTC = (meetingId: string | null, userName: string) => {
