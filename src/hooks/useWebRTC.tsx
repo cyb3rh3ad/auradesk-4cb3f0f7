@@ -41,7 +41,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       localStreamRef.current = stream;
       return stream;
     } catch (err) {
-      setError("Check camera/microphone permissions.");
+      setError("Media access denied. Check permissions.");
       return null;
     }
   }, []);
@@ -49,16 +49,21 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   const createPeerConnection = useCallback(
     (remoteUserId: string, remoteName: string) => {
       if (!localStreamRef.current || !user) return null;
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!));
 
-      // CRITICAL: Listen for remote tracks and attach them
+      // FIX: Listen explicitly for tracks and update participant stream state
       pc.ontrack = (event) => {
+        console.log("Received remote track for", remoteUserId);
         if (event.streams[0]) {
           setParticipants((prev) => {
             const newMap = new Map(prev);
-            newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
+            newMap.set(remoteUserId, {
+              odakle: remoteUserId,
+              stream: event.streams[0],
+              name: remoteName,
+            });
             return newMap;
           });
         }
@@ -66,7 +71,6 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
-          // Only send if signalling is complete or buffer it
           if (pc.signalingState !== "stable" && !pc.remoteDescription) {
             const buffer = iceCandidateBuffer.current.get(remoteUserId) || [];
             buffer.push(event.candidate.toJSON());
@@ -129,14 +133,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         channelRef.current.send({ type: "broadcast", event: "call-answered", payload: { from: user.id, to: from } });
         setCallStatus("IN_CALL");
 
-        // Flush buffered candidates
+        // Flush candidates after stable state
         const bufferedCandidates = iceCandidateBuffer.current.get(from);
         if (bufferedCandidates) {
           bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)));
           iceCandidateBuffer.current.delete(from);
         }
       } catch (err) {
-        console.error("Handle Offer Error:", err);
+        console.error("Signaling Negotiation Error:", err);
       }
     },
     [createPeerConnection, user, initializeMedia],
@@ -153,7 +157,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         iceCandidateBuffer.current.delete(from);
       }
     } catch (err) {
-      console.error("Handle Answer Error:", err);
+      console.error("Answer Process Error:", err);
     }
   }, []);
 
@@ -162,8 +166,8 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     if (!pc) return;
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (err) {
-      console.warn("ICE Candidate skipped.");
+    } catch (e) {
+      console.warn("ICE ignored during connect.");
     }
   }, []);
 
@@ -180,13 +184,6 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       const channel = supabase
         .channel(`meeting-${meetingId}`)
         .on("broadcast", { event: "user-joined" }, ({ payload }) => {
-          if (payload.userId !== user.id) {
-            // Send 'ready' signal so caller knows to send offer
-            channel.send({ type: "broadcast", event: "ready", payload: { userId: user.id } });
-          }
-        })
-        .on("broadcast", { event: "ready" }, ({ payload }) => {
-          // Caller receives ready and sends offer
           if (payload.userId !== user.id) sendOffer(payload.userId, payload.userName);
         })
         .on("broadcast", { event: "offer" }, ({ payload }) => {
