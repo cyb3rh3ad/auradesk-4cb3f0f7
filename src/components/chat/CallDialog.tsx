@@ -31,7 +31,6 @@ export const CallDialog = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
-  const [remoteProfile, setRemoteProfile] = useState<any>(null);
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -48,33 +47,40 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // FIX: Force wake-up call for browser video element
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      console.log("Remote stream detected, triggering play manually...");
-      remoteVideoRef.current.srcObject = remoteStream;
-
-      const awakenRemote = async () => {
-        try {
-          // Play triggers unmuted sound IF the user has already interacted with the app
-          await remoteVideoRef.current?.play();
-          setRemoteVideoEnabled(true);
-        } catch (e) {
-          console.warn("Media engine stalled. User interaction required to hear sound.");
-        }
-      };
-
-      awakenRemote();
-    }
-  }, [remoteStream]);
-
-  // FIX: local self-view binding
+  // Force local preview
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
       localVideoRef.current.play().catch(() => {});
     }
   }, [localStream, isVideoOff]);
+
+  // Robust Kickstart Loop for Remote Media
+  useEffect(() => {
+    let playInterval: NodeJS.Timeout;
+
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+
+      const attemptPlay = async () => {
+        try {
+          if (remoteVideoRef.current) {
+            await remoteVideoRef.current.play();
+            console.log("Remote media playing successfully");
+            setRemoteVideoEnabled(true);
+            clearInterval(playInterval);
+          }
+        } catch (e) {
+          console.warn("Browser still blocking media... Albina needs to click.");
+        }
+      };
+
+      playInterval = setInterval(attemptPlay, 1000); // Retry every second until playback works
+      attemptPlay();
+    }
+
+    return () => clearInterval(playInterval);
+  }, [remoteStream]);
 
   useEffect(() => {
     if (!open || !user || !conversationId) return;
@@ -85,8 +91,7 @@ export const CallDialog = ({
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
 
-        // DEFAULT STATE
-        stream.getAudioTracks().forEach((t) => (t.enabled = false));
+        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default muted
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -99,7 +104,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay",
+          iceTransportPolicy: "relay", // Bypass firewall
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -107,8 +112,7 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            // CRITICAL: Ensure track is allowed to play
-            incoming.getTracks().forEach((t) => (t.enabled = true));
+            incoming.getTracks().forEach((t) => (t.enabled = true)); // Force allow tracks
             setRemoteStream(incoming);
             setConnectionState("connected");
           }
@@ -173,39 +177,33 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      // FORCE MEDIA AWAKENING ON CLICK
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.play().catch(() => {});
-      }
-    }
-  };
-  const toggleVideo = () => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
-      setIsVideoOff(!isVideoOff);
+      // User gesture allows browser to start unmuted audio
+      remoteVideoRef.current?.play().catch(() => {});
     }
   };
 
+  const displayName = remoteProfile?.full_name || conversationName;
+
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting</DialogTitle>
+          <DialogTitle>Meeting Interface</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
-              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
-                <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {getInitials(conversationName)}
-                </AvatarFallback>
+              <Avatar className="w-32 h-32 mx-auto">
+                <AvatarFallback className="bg-primary text-3xl">{getInitials(conversationName)}</AvatarFallback>
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
                 <p className="animate-pulse">
-                  {connectionState === "connecting" ? "Establishing tunnel..." : "Media Paused"}
+                  {connectionState === "connecting"
+                    ? "Establishing link..."
+                    : "Media Blocked - albina must click screen"}
                 </p>
               </div>
             </div>
@@ -222,14 +220,12 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-                </Avatar>
+                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
         </div>
-        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t border-border/20">
+        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
           <Button
             variant="ghost"
             onClick={toggleMute}
@@ -237,18 +233,7 @@ export const CallDialog = ({
           >
             {isMuted ? <MicOff /> : <Mic />}
           </Button>
-          <Button
-            variant="ghost"
-            onClick={toggleVideo}
-            className={cn("w-14 h-14 rounded-full", isVideoOff && "bg-red-500/10 text-red-500")}
-          >
-            {isVideoOff ? <VideoOff /> : <Video />}{" "}
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={onClose}
-            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
-          >
+          <Button variant="destructive" onClick={onClose} className="w-14 h-14 rounded-full bg-red-500">
             <PhoneOff />
           </Button>
         </div>
