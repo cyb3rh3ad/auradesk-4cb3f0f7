@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Loader2 } from "lucide-react";
 
 interface Participant {
   odakle: string;
@@ -20,7 +23,7 @@ const ICE_SERVERS = [
   },
 ];
 
-export const useWebRTC = (meetingId: string | null, userName: string) => {
+const useWebRTC = (meetingId: string | null, userName: string) => {
   const { user } = useAuth();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
@@ -33,21 +36,18 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
-  // --- Optimization: Audio SDP Mangler ---
-  // Limits audio to 24kbps to save bandwidth in a decentralized mesh
   const mangleAudioBitrate = (sdp: string, bitrate = 24) => {
     return sdp.replace(/a=fmtp:111 (.*)/g, `a=fmtp:111 $1;maxaveragebitrate=${bitrate * 1000}`);
   };
 
-  // --- Initialize Media: 720p @ 30fps constraints ---
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: video
           ? {
-              width: { ideal: 1280, max: 1280 }, // 720p constraint
+              width: { ideal: 1280, max: 1280 },
               height: { ideal: 720, max: 720 },
-              frameRate: { ideal: 30, max: 30 }, // 30fps constraint
+              frameRate: { ideal: 30, max: 30 },
             }
           : false,
         audio: audio
@@ -112,7 +112,6 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       if (!pc || !channelRef.current || !user) return;
       try {
         let offer = await pc.createOffer();
-        // Mangle SDP to limit audio bitrate before setting local description
         offer.sdp = mangleAudioBitrate(offer.sdp!);
         await pc.setLocalDescription(offer);
 
@@ -141,7 +140,6 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         let answer = await pc.createAnswer();
-        // Mangle audio bitrate in response
         answer.sdp = mangleAudioBitrate(answer.sdp!);
         await pc.setLocalDescription(answer);
 
@@ -274,4 +272,200 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   }, [leaveRoom]);
 
   return { localStream, participants, isConnecting, error, callStatus, joinRoom, leaveRoom, toggleAudio, toggleVideo };
+};
+
+// Remote Video Component
+const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        className="w-full h-full object-cover"
+      />
+      <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 rounded text-xs font-medium">
+        {name}
+      </div>
+    </div>
+  );
+};
+
+// MeetingRoom Component
+interface MeetingRoomProps {
+  meetingId: string;
+  meetingTitle: string;
+  initialVideo?: boolean;
+  onClose: () => void;
+}
+
+export const MeetingRoom = ({ meetingId, meetingTitle, initialVideo = true, onClose }: MeetingRoomProps) => {
+  const { user } = useAuth();
+  const [userName, setUserName] = useState(user?.email || "User");
+  const { localStream, participants, isConnecting, error, joinRoom, leaveRoom, toggleAudio, toggleVideo } = useWebRTC(meetingId, userName);
+
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Fetch profile for display name
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+      if (data) {
+        setUserName(data.full_name || data.username || user.email || "User");
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
+  // Join room on mount
+  useEffect(() => {
+    joinRoom(initialVideo, true);
+  }, []);
+
+  // Set local video
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  const handleToggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    toggleAudio(!newMuted);
+  };
+
+  const handleToggleVideo = () => {
+    const newVideoOff = !isVideoOff;
+    setIsVideoOff(newVideoOff);
+    toggleVideo(!newVideoOff);
+  };
+
+  const handleEndCall = () => {
+    leaveRoom();
+    onClose();
+  };
+
+  const participantCount = participants.size + 1;
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <h3 className="font-semibold">{meetingTitle}</h3>
+          <Badge variant="secondary" className="gap-1">
+            <Users className="w-3 h-3" />
+            {participantCount}
+          </Badge>
+          {isConnecting && (
+            <Badge variant="outline" className="gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Connecting...
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Video Grid */}
+      <div className="flex-1 p-4 overflow-auto">
+        {error ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-destructive">{error}</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {/* Local Video */}
+            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${isVideoOff ? 'hidden' : ''}`}
+              />
+              {isVideoOff && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-primary">
+                      {userName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 rounded text-xs font-medium">
+                You
+              </div>
+              {isMuted && (
+                <div className="absolute top-2 right-2">
+                  <MicOff className="w-4 h-4 text-destructive" />
+                </div>
+              )}
+            </div>
+
+            {/* Remote Participants */}
+            {Array.from(participants.values()).map((participant) => (
+              <RemoteVideo
+                key={participant.odakle}
+                stream={participant.stream}
+                name={participant.name}
+              />
+            ))}
+
+            {/* Waiting indicator */}
+            {participants.size === 0 && !isConnecting && (
+              <div className="aspect-video bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed border-border">
+                <p className="text-sm text-muted-foreground">Waiting for others to join...</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center justify-center gap-4">
+          <Button
+            variant={isMuted ? "destructive" : "secondary"}
+            size="lg"
+            className="rounded-full w-14 h-14"
+            onClick={handleToggleMute}
+          >
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </Button>
+          <Button
+            variant={isVideoOff ? "destructive" : "secondary"}
+            size="lg"
+            className="rounded-full w-14 h-14"
+            onClick={handleToggleVideo}
+          >
+            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </Button>
+          <Button
+            variant="destructive"
+            size="lg"
+            className="rounded-full w-14 h-14"
+            onClick={handleEndCall}
+          >
+            <PhoneOff className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 };
