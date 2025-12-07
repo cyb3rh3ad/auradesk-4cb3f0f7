@@ -236,6 +236,22 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     setCallStatus("IDLE");
   }, [user]);
 
+  const toggleAudio = useCallback((muted: boolean) => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !muted;
+      });
+    }
+  }, []);
+
+  const toggleVideo = useCallback((videoOff: boolean) => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(track => {
+        track.enabled = !videoOff;
+      });
+    }
+  }, []);
+
   useEffect(() => {
     return () => leaveRoom();
   }, [leaveRoom]);

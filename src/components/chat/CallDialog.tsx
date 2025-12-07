@@ -215,8 +215,10 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                </Avatar>
               </div>
             )}
           </div>
