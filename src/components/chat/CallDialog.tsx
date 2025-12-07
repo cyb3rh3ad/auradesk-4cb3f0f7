@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Fetch profile to restore identity
+  // Fetch remote user identity for the Meet-style UI
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -64,7 +64,7 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
-  // Mandatory play triggers
+  // Mandatory play triggers to prevent browser-paused video squares
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -86,6 +86,7 @@ export const CallDialog = ({
     }
   }, [remoteStream]);
 
+  // Main WebRTC Lifecycle
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
@@ -126,7 +127,6 @@ export const CallDialog = ({
 
         channel
           .on("broadcast", { event: "ready" }, async () => {
-            // Restore "Doorbell" handshake
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -144,9 +144,16 @@ export const CallDialog = ({
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           })
+          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            try {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+              /* Buffer candidate if needed */
+            }
+          })
           .subscribe(async (status) => {
             if (status === "SUBSCRIBED" && !isCaller) {
-              // Restore Callee check-in
               channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
             }
           });
@@ -182,7 +189,7 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting</DialogTitle>
+          <DialogTitle>Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
@@ -190,7 +197,7 @@ export const CallDialog = ({
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
-              <Avatar className="w-32 h-32 mx-auto">
+              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
                   {getInitials(displayName)}
                 </AvatarFallback>
