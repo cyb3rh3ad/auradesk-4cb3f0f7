@@ -30,13 +30,11 @@ export const CallDialog = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
-  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name?: string) =>
     name
@@ -46,35 +44,22 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // AGGRESSIVE PLAYBACK:Retries play every 1s until successful interaction
-  useEffect(() => {
-    let playInterval: NodeJS.Timeout;
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      const forcePlay = async () => {
-        try {
-          if (remoteVideoRef.current) {
-            await remoteVideoRef.current.play();
-            setRemoteVideoEnabled(true);
-            setConnectionState("connected");
-            clearInterval(playInterval);
-          }
-        } catch (e) {
-          console.warn("Browser holding unmuted audio... albina must click screen");
-        }
-      };
-      playInterval = setInterval(forcePlay, 1000);
-      forcePlay();
-    }
-    return () => clearInterval(playInterval);
-  }, [remoteStream]);
-
+  // RE-ENABLE LOCAL PREVIEW
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
       localVideoRef.current.play().catch(() => {});
     }
   }, [localStream]);
+
+  // RE-ENABLE REMOTE VIEW
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteStream.getTracks().forEach((t) => (t.enabled = true));
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
+    }
+  }, [remoteStream]);
 
   useEffect(() => {
     if (!open || !user || !conversationId) return;
@@ -84,30 +69,29 @@ export const CallDialog = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
+
+        // MIC OFF BY DEFAULT
         stream.getAudioTracks().forEach((t) => (t.enabled = false));
         setLocalStream(stream);
 
-        // FORCED RELAY: The 'Google Meet' bypass logic
+        // RESTORE DIRECT P2P (Standard routing)
         const pc = new RTCPeerConnection({
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            {
-              urls: "turn:relay1.expressturn.com:3480",
-              username: "000000002080378788",
-              credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
-            },
-          ],
-          iceTransportPolicy: "relay", // FORCE RELAY: Bypasses 100% of router stalls
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceTransportPolicy: "all",
         });
         pcRef.current = pc;
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+        // CLONE TRACKS to solve preview vs upload conflict
+        stream.getTracks().forEach((track) => {
+          pc.addTrack(track.clone(), stream);
+        });
 
         pc.ontrack = (event) => {
-          if (event.streams[0] && mounted) {
-            const rStream = event.streams[0];
-            rStream.getTracks().forEach((t) => (t.enabled = true)); // Manual enablement sync
-            setRemoteStream(rStream);
-          }
+          if (event.streams[0] && mounted) setRemoteStream(event.streams[0]);
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (mounted) setConnectionState(pc.connectionState as any);
         };
 
         const channel = supabase.channel(`webrtc:${conversationId}`);
@@ -117,11 +101,6 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            // Buffer flush ensuring candidates aren't applied to empty description
-            while (iceCandidatesQueue.current.length > 0) {
-              const cand = iceCandidatesQueue.current.shift();
-              if (cand) await pcRef.current.addIceCandidate(cand);
-            }
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -132,20 +111,17 @@ export const CallDialog = ({
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
-            const cand = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current.remoteDescription) {
-              await pcRef.current.addIceCandidate(cand).catch(() => {});
-            } else {
-              iceCandidatesQueue.current.push(cand);
-            }
+            try {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {}
           })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && isCaller) {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
-            } else {
-              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+            if (status === "SUBSCRIBED") {
+              if (isCaller) {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+              }
             }
           });
 
@@ -176,38 +152,36 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      remoteVideoRef.current?.play().catch(() => {}); // satisfy user click policy
+      remoteVideoRef.current?.play().catch(() => {});
     }
   };
 
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-zinc-950">
+      <DialogContent className="p-0 border-none overflow-hidden max-w-2xl w-full bg-[#111]">
         <VisuallyHidden.Root>
-          <DialogTitle>Secure Connection</DialogTitle>
+          <DialogTitle>Call Room</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {connectionState === "connected" && remoteVideoEnabled ? (
+          {connectionState === "connected" ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-6">
-              <Avatar className="w-32 h-32 mx-auto ring-2 ring-blue-500/20 shadow-2xl">
-                <AvatarFallback className="bg-zinc-900 text-primary text-4xl font-black">
+              <Avatar className="w-32 h-32 mx-auto">
+                <AvatarFallback className="bg-primary text-primary-foreground text-4xl">
                   {getInitials(conversationName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-white space-y-2">
-                <p className="font-bold text-2xl tracking-tighter uppercase">{conversationName}</p>
-                <div className="flex items-center justify-center gap-3 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-blue-400">
-                    Establishing Relay Path
-                  </span>
-                </div>
+              <div className="text-white">
+                <p className="font-semibold text-xl">{conversationName}</p>
+                <p className="animate-pulse opacity-50">
+                  {connectionState === "connecting" ? "Connecting P2P..." : "Connection Failed"}
+                </p>
               </div>
             </div>
           )}
-          <div className="absolute bottom-6 right-6 w-44 aspect-video rounded-3xl overflow-hidden border border-white/5 bg-zinc-900 shadow-2xl transition-all duration-500 ring-1 ring-white/10">
+          {/* Direct hardware preview small square */}
+          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-zinc-900 shadow-2xl">
             <video
               ref={localVideoRef}
               autoPlay
@@ -218,23 +192,20 @@ export const CallDialog = ({
             />
           </div>
         </div>
-        <div className="flex justify-center gap-10 py-10 bg-zinc-900/80 backdrop-blur-xl border-t border-white/5">
+        <div className="flex justify-center gap-6 py-6 bg-zinc-900/50">
           <Button
             variant="ghost"
             onClick={toggleMute}
-            className={cn(
-              "w-16 h-16 rounded-full border-2 transition-all hover:scale-110 active:scale-95",
-              isMuted ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-white/10 text-white",
-            )}
+            className={cn("w-14 h-14 rounded-full", isMuted && "bg-red-500/10 text-red-500")}
           >
-            {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
+            {isMuted ? <MicOff /> : <Mic />}
           </Button>
           <Button
             variant="destructive"
             onClick={onClose}
-            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 shadow-2xl shadow-red-950/40 hover:scale-110 active:scale-90 transition-all"
+            className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700"
           >
-            <PhoneOff size={28} />
+            <PhoneOff />
           </Button>
         </div>
       </DialogContent>
