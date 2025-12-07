@@ -37,7 +37,7 @@ export const CallDialog = ({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]); // Strict buffer for network info
+  const candidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name?: string) =>
     name
@@ -47,15 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Bind local preview
-  useEffect(() => {
-    if (localStream && localVideoRef.current && !isVideoOff) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch(() => {});
-    }
-  }, [localStream, isVideoOff]);
-
-  // Wake up remote rendering loop
+  // AGGRESSIVE RENDER LOOP: Retries playback until gesture is detected
   useEffect(() => {
     let playTimer: NodeJS.Timeout;
     if (remoteStream && remoteVideoRef.current) {
@@ -68,25 +60,25 @@ export const CallDialog = ({
             clearInterval(playTimer);
           }
         } catch (e) {
-          /* Interaction bypass pending gesture */
+          /* Pending Interaction */
         }
       };
-      playTimer = setInterval(refreshMedia, 1500);
+      playTimer = setInterval(refreshMedia, 1000);
       refreshMedia();
     }
     return () => clearInterval(playTimer);
   }, [remoteStream]);
 
   useEffect(() => {
+    if (localStream && localVideoRef.current && !isVideoOff) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
+    }
+  }, [localStream, isVideoOff]);
+
+  useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
-
-    const flushQueue = async (pc: RTCPeerConnection) => {
-      while (iceCandidatesQueue.current.length > 0) {
-        const cand = iceCandidatesQueue.current.shift();
-        if (cand) await pc.addIceCandidate(cand).catch(() => {});
-      }
-    };
 
     const initializeCall = async () => {
       try {
@@ -104,7 +96,8 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Ensure we use the bridge immediately
+          // ROUTING CHANGE: Force relay only to bypass standard router stalls
+          iceTransportPolicy: "relay",
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -125,7 +118,13 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            await flushQueue(pcRef.current); // Process buffer once offer is safe
+
+            // SIGNALING LOCK: Flush candidates only after description is solid
+            while (candidatesQueue.current.length > 0) {
+              const cand = candidatesQueue.current.shift();
+              if (cand) await pcRef.current.addIceCandidate(cand);
+            }
+
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -133,7 +132,10 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            await flushQueue(pcRef.current);
+            while (candidatesQueue.current.length > 0) {
+              const cand = candidatesQueue.current.shift();
+              if (cand) await pcRef.current.addIceCandidate(cand);
+            }
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
@@ -141,7 +143,7 @@ export const CallDialog = ({
             if (pcRef.current.remoteDescription) {
               await pcRef.current.addIceCandidate(cand).catch(() => {});
             } else {
-              iceCandidatesQueue.current.push(cand); // Safe storage
+              candidatesQueue.current.push(cand);
             }
           })
           .subscribe(async (status) => {
@@ -181,37 +183,36 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      remoteVideoRef.current?.play().catch(() => {}); // satisfy user gesture unblock
+      remoteVideoRef.current?.play().catch(() => {}); // удовлетворить gesture policy
     }
   };
 
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-[#0a0a0a]">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-zinc-950">
         <VisuallyHidden.Root>
-          <DialogTitle>Secure Meeting Room</DialogTitle>
+          <DialogTitle>Connection</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-6">
-              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
+              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20 scale-110">
                 <AvatarFallback className="bg-primary text-primary-foreground text-4xl font-bold">
                   {getInitials(conversationName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-white space-y-2">
-                <p className="font-semibold text-2xl tracking-tight">{conversationName}</p>
-                {/* REMOVED CHINESE SYSTEM TEXT - Replaced with clean status */}
-                <p className="text-white/60 text-sm flex items-center justify-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                  {connectionState === "connecting" ? "Establishing secure link..." : "Verifying media tracks..."}
+              <div className="text-white space-y-1">
+                <p className="font-semibold text-2xl tracking-tight uppercase">{conversationName}</p>
+                <p className="text-white/40 text-xs flex items-center justify-center gap-2 tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  {connectionState === "connecting" ? "Establishing Routing..." : "Waiting for Audio"}
                 </p>
               </div>
             </div>
           )}
-          <div className="absolute bottom-4 right-4 w-44 aspect-video rounded-2xl overflow-hidden border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-2xl transition-all duration-300">
+          <div className="absolute bottom-4 right-4 w-44 aspect-video rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 shadow-2xl transition-all duration-300">
             {!isVideoOff ? (
               <video
                 ref={localVideoRef}
@@ -222,21 +223,21 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <Avatar className="w-full h-full flex items-center justify-center">
-                <AvatarFallback className="bg-secondary/40 text-xs font-medium uppercase tracking-widest text-white/50">
-                  You
-                </AvatarFallback>
-              </Avatar>
+              <div className="w-full h-full flex items-center justify-center">
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-zinc-800 text-xs uppercase text-white/50 font-bold">You</AvatarFallback>
+                </Avatar>
+              </div>
             )}
           </div>
         </div>
-        <div className="flex justify-center gap-6 py-6 bg-zinc-900/50 backdrop-blur-lg border-t border-white/5">
+        <div className="flex justify-center gap-8 py-8 bg-zinc-900/40 backdrop-blur-md border-t border-white/5">
           <Button
             variant="ghost"
             onClick={toggleMute}
             className={cn(
-              "w-16 h-16 rounded-full border-2 border-white/5 bg-white/5 transition-all active:scale-95",
-              isMuted && "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20",
+              "w-16 h-16 rounded-full border border-white/10 transition-all active:scale-90",
+              isMuted && "bg-red-500/10 text-red-500 border-red-500/20",
             )}
           >
             {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
@@ -244,7 +245,7 @@ export const CallDialog = ({
           <Button
             variant="destructive"
             onClick={onClose}
-            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 active:scale-90 shadow-lg shadow-red-600/20"
+            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 shadow-xl shadow-red-950/20 active:scale-90 transition-all"
           >
             <PhoneOff size={28} />
           </Button>
