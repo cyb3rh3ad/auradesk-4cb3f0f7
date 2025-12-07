@@ -8,15 +8,30 @@ interface Participant {
   name: string;
 }
 
-const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  {
-    urls: "turn:relay1.expressturn.com:3480",
-    username: "000000002080378788",
-    credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
-  },
-];
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+  iceCandidatePoolSize: 10,
+};
 
 export const useWebRTC = (meetingId: string | null, userName: string) => {
   const { user } = useAuth();
@@ -61,7 +76,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     (remoteUserId: string, remoteName: string) => {
       if (!localStreamRef.current || !user) return null;
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection(ICE_SERVERS);
       localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!));
 
       pc.ontrack = (event) => {
