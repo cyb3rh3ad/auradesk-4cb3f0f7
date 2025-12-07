@@ -11,7 +11,6 @@ interface Participant {
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
   {
     urls: "turn:relay1.expressturn.com:3480",
     username: "000000002080378788",
@@ -42,8 +41,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       localStreamRef.current = stream;
       return stream;
     } catch (err) {
-      console.error("Media error:", err);
-      setError("Check camera/microphone permissions");
+      setError("Check camera/microphone permissions.");
       return null;
     }
   }, []);
@@ -55,16 +53,20 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
       localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!));
 
+      // CRITICAL: Listen for remote tracks and attach them
       pc.ontrack = (event) => {
-        setParticipants((prev) => {
-          const newMap = new Map(prev);
-          newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
-          return newMap;
-        });
+        if (event.streams[0]) {
+          setParticipants((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
+            return newMap;
+          });
+        }
       };
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
+          // Only send if signalling is complete or buffer it
           if (pc.signalingState !== "stable" && !pc.remoteDescription) {
             const buffer = iceCandidateBuffer.current.get(remoteUserId) || [];
             buffer.push(event.candidate.toJSON());
@@ -98,7 +100,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
           payload: { offer: pc.localDescription, from: user.id, fromName: userName, to: remoteUserId },
         });
       } catch (err) {
-        console.error("Offer error:", err);
+        console.error("Signaling Offer Error:", err);
       }
     },
     [createPeerConnection, userName, user],
@@ -127,13 +129,14 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         channelRef.current.send({ type: "broadcast", event: "call-answered", payload: { from: user.id, to: from } });
         setCallStatus("IN_CALL");
 
+        // Flush buffered candidates
         const bufferedCandidates = iceCandidateBuffer.current.get(from);
         if (bufferedCandidates) {
           bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)));
           iceCandidateBuffer.current.delete(from);
         }
       } catch (err) {
-        console.error("Error handling offer:", err);
+        console.error("Handle Offer Error:", err);
       }
     },
     [createPeerConnection, user, initializeMedia],
@@ -150,7 +153,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         iceCandidateBuffer.current.delete(from);
       }
     } catch (err) {
-      console.error("Answer handle error:", err);
+      console.error("Handle Answer Error:", err);
     }
   }, []);
 
@@ -160,7 +163,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
-      console.error("ICE candidate error:", err);
+      console.warn("ICE Candidate skipped.");
     }
   }, []);
 
@@ -177,6 +180,13 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       const channel = supabase
         .channel(`meeting-${meetingId}`)
         .on("broadcast", { event: "user-joined" }, ({ payload }) => {
+          if (payload.userId !== user.id) {
+            // Send 'ready' signal so caller knows to send offer
+            channel.send({ type: "broadcast", event: "ready", payload: { userId: user.id } });
+          }
+        })
+        .on("broadcast", { event: "ready" }, ({ payload }) => {
+          // Caller receives ready and sends offer
           if (payload.userId !== user.id) sendOffer(payload.userId, payload.userName);
         })
         .on("broadcast", { event: "offer" }, ({ payload }) => {
@@ -209,20 +219,13 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     peerConnections.current.forEach((pc) => pc.close());
     peerConnections.current.clear();
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
       setLocalStream(null);
     }
+    setParticipants(new Map());
     setCallStatus("IDLE");
   }, [user]);
-
-  const toggleAudio = useCallback((enabled: boolean) => {
-    if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = enabled));
-  }, []);
-
-  const toggleVideo = useCallback((enabled: boolean) => {
-    if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = enabled));
-  }, []);
 
   useEffect(() => {
     return () => leaveRoom();
