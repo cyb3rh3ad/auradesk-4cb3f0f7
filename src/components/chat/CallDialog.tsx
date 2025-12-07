@@ -26,7 +26,7 @@ export const CallDialog = ({
   isCaller = true,
 }: CallDialogProps) => {
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(true); // Mic Off by Default
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Force local preview
+  // Force Render Local
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -55,31 +55,23 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // Robust Kickstart Loop for Remote Media
+  // Awaken Media Engine
   useEffect(() => {
-    let playInterval: NodeJS.Timeout;
-
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
 
-      const attemptPlay = async () => {
+      const awaken = async () => {
         try {
-          if (remoteVideoRef.current) {
-            await remoteVideoRef.current.play();
-            console.log("Remote media playing successfully");
-            setRemoteVideoEnabled(true);
-            clearInterval(playInterval);
-          }
+          // Play triggers unmuted sound IF the user has clicked on the page
+          await remoteVideoRef.current?.play();
+          setRemoteVideoEnabled(true);
         } catch (e) {
-          console.warn("Browser still blocking media... Albina needs to click.");
+          console.warn("Media engine stalled. User click needed to hear audio.");
         }
       };
 
-      playInterval = setInterval(attemptPlay, 1000); // Retry every second until playback works
-      attemptPlay();
+      awaken();
     }
-
-    return () => clearInterval(playInterval);
   }, [remoteStream]);
 
   useEffect(() => {
@@ -91,7 +83,8 @@ export const CallDialog = ({
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
 
-        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default muted
+        // APPLY MIC-OFF DEFAULT STATE
+        stream.getAudioTracks().forEach((t) => (t.enabled = false));
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -104,7 +97,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Bypass firewall
+          iceTransportPolicy: "relay", // Fireproof school bypass
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -112,7 +105,7 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            incoming.getTracks().forEach((t) => (t.enabled = true)); // Force allow tracks
+            incoming.getTracks().forEach((t) => (t.enabled = true)); // Wake tracks up
             setRemoteStream(incoming);
             setConnectionState("connected");
           }
@@ -125,6 +118,7 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+            // Buffer candidates until offer is processed
             while (iceCandidatesQueue.current.length > 0) {
               const cand = iceCandidatesQueue.current.shift();
               if (cand) await pcRef.current.addIceCandidate(cand);
@@ -177,33 +171,39 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      // User gesture allows browser to start unmuted audio
-      remoteVideoRef.current?.play().catch(() => {});
+      // Manual click wakes browser playback engine
+      if (remoteVideoRef.current) remoteVideoRef.current.play().catch(() => {});
+    }
+  };
+  const toggleVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
+      setIsVideoOff(!isVideoOff);
     }
   };
 
-  const displayName = remoteProfile?.full_name || conversationName;
-
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting Interface</DialogTitle>
+          <DialogTitle>Secure Meeting Interface</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
-              <Avatar className="w-32 h-32 mx-auto">
-                <AvatarFallback className="bg-primary text-3xl">{getInitials(conversationName)}</AvatarFallback>
+              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
+                <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
+                  {getInitials(conversationName)}
+                </AvatarFallback>
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
                 <p className="animate-pulse">
                   {connectionState === "connecting"
-                    ? "Establishing link..."
-                    : "Media Blocked - albina must click screen"}
+                    ? "Establishing secure link..."
+                    : "Media Blocked - click Mic to start audio"}
                 </p>
               </div>
             </div>
@@ -220,12 +220,14 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">
-                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                </Avatar>
               </div>
             )}
           </div>
         </div>
-        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
+        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t border-border/20">
           <Button
             variant="ghost"
             onClick={toggleMute}
@@ -233,7 +235,18 @@ export const CallDialog = ({
           >
             {isMuted ? <MicOff /> : <Mic />}
           </Button>
-          <Button variant="destructive" onClick={onClose} className="w-14 h-14 rounded-full bg-red-500">
+          <Button
+            variant="ghost"
+            onClick={toggleVideo}
+            className={cn("w-14 h-14 rounded-full", isVideoOff && "bg-red-500/10 text-red-500")}
+          >
+            {isVideoOff ? <VideoOff /> : <Video />}{" "}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onClose}
+            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
+          >
             <PhoneOff />
           </Button>
         </div>
