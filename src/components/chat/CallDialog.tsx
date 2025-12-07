@@ -107,7 +107,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // CRITICAL FIX: Bypass school firewalls
+          iceTransportPolicy: "relay",
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
@@ -121,7 +121,6 @@ export const CallDialog = ({
 
         pc.onicecandidate = (event) => {
           if (event.candidate && channelRef.current) {
-            // Delay sending candidate slightly for channel reliability
             setTimeout(() => {
               channelRef.current?.send({
                 type: "broadcast",
@@ -161,7 +160,6 @@ export const CallDialog = ({
             }
           })
           .on("broadcast", { event: "ready" }, async () => {
-            // HANDSHAKE: Trigger call flow only when receiver is fully ready
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -205,7 +203,7 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting</DialogTitle>
+          <DialogTitle>Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
@@ -237,7 +235,9 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">
-                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                </Avatar>
               </div>
             )}
           </div>
