@@ -38,6 +38,7 @@ export const CallDialog = ({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name: string) =>
     name
@@ -47,7 +48,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // SAFETY: Profile fetching guard
+  // Fetch remote user identity for profile fallback
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -64,6 +65,7 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
+  // Handle local video playback
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -71,10 +73,12 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
+  // Handle remote stream and track visibility (Meet-style)
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.play().catch(() => {});
+
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
         setRemoteVideoEnabled(vTrack.enabled);
@@ -84,7 +88,7 @@ export const CallDialog = ({
     }
   }, [remoteStream]);
 
-  // SAFETY: Signaling Lifecycle guard to prevent crash on undefined conversationId
+  // Main Signaling Lifecycle
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
@@ -96,6 +100,7 @@ export const CallDialog = ({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -123,16 +128,16 @@ export const CallDialog = ({
         channelRef.current = channel;
 
         channel
-          .on("broadcast", { event: "ready" }, async () => {
-            if (isCaller && pcRef.current?.signalingState === "stable") {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
-            }
-          })
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+
+            // Add queued ICE candidates
+            while (iceCandidatesQueue.current.length > 0) {
+              const cand = iceCandidatesQueue.current.shift();
+              if (cand) await pcRef.current.addIceCandidate(cand);
+            }
+
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -141,11 +146,37 @@ export const CallDialog = ({
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           })
+          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            const cand = new RTCIceCandidate(payload.candidate);
+            if (pcRef.current.remoteDescription) {
+              await pcRef.current.addIceCandidate(cand);
+            } else {
+              iceCandidatesQueue.current.push(cand);
+            }
+          })
+          .on("broadcast", { event: "ready" }, async () => {
+            if (isCaller && pcRef.current?.signalingState === "stable") {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            }
+          })
           .subscribe(async (status) => {
             if (status === "SUBSCRIBED" && !isCaller) {
               channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
             }
           });
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            channelRef.current.send({
+              type: "broadcast",
+              event: "ice-candidate",
+              payload: { candidate: event.candidate, from: user.id },
+            });
+          }
+        };
       } catch (e) {
         if (mounted) setConnectionState("failed");
       }
@@ -165,6 +196,7 @@ export const CallDialog = ({
       setIsMuted(!isMuted);
     }
   };
+
   const toggleVideo = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
@@ -209,7 +241,7 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-card">
+              <div className="w-full h-full flex items-center justify-center">
                 <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
