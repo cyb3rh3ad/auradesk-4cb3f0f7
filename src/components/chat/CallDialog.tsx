@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -26,19 +26,18 @@ export const CallDialog = ({
   isCaller = true,
 }: CallDialogProps) => {
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(true); // Default to muted for privacy
+  const [isMuted, setIsMuted] = useState(true);
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
-  const [remoteProfile, setRemoteProfile] = useState<any>(null);
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
+  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]); // Strict buffer for network info
 
   const getInitials = (name?: string) =>
     name
@@ -48,24 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Fetch remote user identity
-  useEffect(() => {
-    const fetchRemoteProfile = async () => {
-      if (!conversationId || !user || !open) return;
-      const { data: members } = await supabase
-        .from("conversation_members")
-        .select("user_id")
-        .eq("conversation_id", conversationId)
-        .neq("user_id", user.id);
-      if (members?.[0]) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
-        if (profile) setRemoteProfile(profile);
-      }
-    };
-    fetchRemoteProfile();
-  }, [conversationId, user, open]);
-
-  // Bind streams with null safety
+  // Bind local preview
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -73,40 +55,44 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
+  // Wake up remote rendering loop
   useEffect(() => {
+    let playTimer: NodeJS.Timeout;
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-
-      // Programmatically trigger play to bypass browser security
-      remoteVideoRef.current
-        .play()
-        .then(() => {
-          setRemoteVideoEnabled(true);
-        })
-        .catch((e) => console.warn("Remote playback blocked:", e));
-
-      const vTrack = remoteStream.getVideoTracks()[0];
-      if (vTrack) {
-        setRemoteVideoEnabled(vTrack.enabled);
-        vTrack.onunmute = () => setRemoteVideoEnabled(true);
-        vTrack.onmute = () => setRemoteVideoEnabled(false);
-      }
+      const refreshMedia = async () => {
+        try {
+          if (remoteVideoRef.current) {
+            await remoteVideoRef.current.play();
+            setRemoteVideoEnabled(true);
+            clearInterval(playTimer);
+          }
+        } catch (e) {
+          /* Interaction bypass pending gesture */
+        }
+      };
+      playTimer = setInterval(refreshMedia, 1500);
+      refreshMedia();
     }
+    return () => clearInterval(playTimer);
   }, [remoteStream]);
 
-  // Main Signaling Lifecycle
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
+
+    const flushQueue = async (pc: RTCPeerConnection) => {
+      while (iceCandidatesQueue.current.length > 0) {
+        const cand = iceCandidatesQueue.current.shift();
+        if (cand) await pc.addIceCandidate(cand).catch(() => {});
+      }
+    };
 
     const initializeCall = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
-
-        // Initial state set
-        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default Mic Off
-        stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+        stream.getAudioTracks().forEach((t) => (t.enabled = false));
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
@@ -118,7 +104,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Bypass router firewalls
+          iceTransportPolicy: "relay", // Ensure we use the bridge immediately
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -126,7 +112,7 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            incoming.getTracks().forEach((t) => (t.enabled = true)); // Wake tracks up
+            incoming.getTracks().forEach((t) => (t.enabled = true));
             setRemoteStream(incoming);
             setConnectionState("connected");
           }
@@ -139,12 +125,7 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-
-            while (iceCandidatesQueue.current.length > 0) {
-              const cand = iceCandidatesQueue.current.shift();
-              if (cand) await pcRef.current.addIceCandidate(cand);
-            }
-
+            await flushQueue(pcRef.current); // Process buffer once offer is safe
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -152,25 +133,23 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            await flushQueue(pcRef.current);
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             const cand = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current?.remoteDescription) {
-              await pcRef.current.addIceCandidate(cand);
+            if (pcRef.current.remoteDescription) {
+              await pcRef.current.addIceCandidate(cand).catch(() => {});
             } else {
-              iceCandidatesQueue.current.push(cand); // Buffer candidates
-            }
-          })
-          .on("broadcast", { event: "ready" }, async () => {
-            if (isCaller && pcRef.current?.signalingState === "stable") {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+              iceCandidatesQueue.current.push(cand); // Safe storage
             }
           })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && !isCaller) {
+            if (status === "SUBSCRIBED" && isCaller) {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            } else {
               channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
             }
           });
@@ -202,35 +181,37 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      remoteVideoRef.current?.play().catch(() => {}); // Gesture bypass
+      remoteVideoRef.current?.play().catch(() => {}); // satisfy user gesture unblock
     }
   };
 
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-[#0a0a0a]">
         <VisuallyHidden.Root>
-          <DialogTitle>Secure Call</DialogTitle>
+          <DialogTitle>Secure Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-6">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
-                <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
+                <AvatarFallback className="bg-primary text-primary-foreground text-4xl font-bold">
                   {getInitials(conversationName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-white">
-                <p className="font-medium text-xl">{conversationName}</p>
-                <p className="animate-pulse">
-                  {connectionState === "connecting" ? "Establishing secure connection..." : "Camera Off - click Mic"}
+              <div className="text-white space-y-2">
+                <p className="font-semibold text-2xl tracking-tight">{conversationName}</p>
+                {/* REMOVED CHINESE SYSTEM TEXT - Replaced with clean status */}
+                <p className="text-white/60 text-sm flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                  {connectionState === "connecting" ? "Establishing secure link..." : "Verifying media tracks..."}
                 </p>
               </div>
             </div>
           )}
-          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card shadow-2xl">
+          <div className="absolute bottom-4 right-4 w-44 aspect-video rounded-2xl overflow-hidden border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-2xl transition-all duration-300">
             {!isVideoOff ? (
               <video
                 ref={localVideoRef}
@@ -241,28 +222,31 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-card">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-                </Avatar>
-              </div>
+              <Avatar className="w-full h-full flex items-center justify-center">
+                <AvatarFallback className="bg-secondary/40 text-xs font-medium uppercase tracking-widest text-white/50">
+                  You
+                </AvatarFallback>
+              </Avatar>
             )}
           </div>
         </div>
-        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t border-border/20">
+        <div className="flex justify-center gap-6 py-6 bg-zinc-900/50 backdrop-blur-lg border-t border-white/5">
           <Button
             variant="ghost"
             onClick={toggleMute}
-            className={cn("w-14 h-14 rounded-full", isMuted && "bg-red-500/10 text-red-500")}
+            className={cn(
+              "w-16 h-16 rounded-full border-2 border-white/5 bg-white/5 transition-all active:scale-95",
+              isMuted && "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20",
+            )}
           >
-            {isMuted ? <MicOff /> : <Mic />}
+            {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
           </Button>
           <Button
             variant="destructive"
             onClick={onClose}
-            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
+            className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 active:scale-90 shadow-lg shadow-red-600/20"
           >
-            <PhoneOff />
+            <PhoneOff size={28} />
           </Button>
         </div>
       </DialogContent>
