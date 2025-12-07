@@ -32,6 +32,7 @@ export const CallDialog = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
   const [remoteProfile, setRemoteProfile] = useState<any>(null);
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -46,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // RESTORED: Profile fetching so names show up correctly
+  // Fetch profile to restore identity
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -55,7 +56,7 @@ export const CallDialog = ({
         .select("user_id")
         .eq("conversation_id", conversationId)
         .neq("user_id", user.id);
-      if (members && members.length > 0) {
+      if (members?.[0]) {
         const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
         if (profile) setRemoteProfile(profile);
       }
@@ -63,6 +64,7 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
+  // Mandatory play triggers
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -73,14 +75,20 @@ export const CallDialog = ({
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch((e) => console.warn("Remote playback blocked:", e));
+      remoteVideoRef.current.play().catch(() => {});
+
+      const vTrack = remoteStream.getVideoTracks()[0];
+      if (vTrack) {
+        setRemoteVideoEnabled(vTrack.enabled);
+        vTrack.onunmute = () => setRemoteVideoEnabled(true);
+        vTrack.onmute = () => setRemoteVideoEnabled(false);
+      }
     }
   }, [remoteStream]);
 
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
-    let signalRetry: NodeJS.Timeout;
 
     const initializeCall = async () => {
       try {
@@ -118,7 +126,7 @@ export const CallDialog = ({
 
         channel
           .on("broadcast", { event: "ready" }, async () => {
-            // RESTORED: Handshake - if callee is ready, caller sends offer
+            // Restore "Doorbell" handshake
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -136,23 +144,10 @@ export const CallDialog = ({
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           })
-          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-            if (payload.from === user.id || !pcRef.current) return;
-            try {
-              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-            } catch (e) {
-              console.warn("ICE candidate skipped during signaling");
-            }
-          })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-              if (!isCaller) {
-                // RESTORED: Callee sends ready signal repeatedly until offer is received
-                signalRetry = setInterval(() => {
-                  if (pcRef.current?.remoteDescription) clearInterval(signalRetry);
-                  else channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
-                }, 1500);
-              }
+            if (status === "SUBSCRIBED" && !isCaller) {
+              // Restore Callee check-in
+              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
             }
           });
       } catch (e) {
@@ -164,7 +159,6 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
-      if (signalRetry) clearInterval(signalRetry);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [open, user, conversationId, isCaller]);
@@ -175,7 +169,6 @@ export const CallDialog = ({
       setIsMuted(!isMuted);
     }
   };
-
   const toggleVideo = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
@@ -189,24 +182,22 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Call</DialogTitle>
-          <DialogDescription>Interactive Video Interface</DialogDescription>
+          <DialogTitle>Meeting</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {connectionState === "connected" ? (
+          {remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
-              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
-                <AvatarImage src={remoteProfile?.avatar_url || undefined} />
+              <Avatar className="w-32 h-32 mx-auto">
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
                   {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Failed"}</p>
+                <p>{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
               </div>
             </div>
           )}
@@ -223,9 +214,7 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-                </Avatar>
+                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
