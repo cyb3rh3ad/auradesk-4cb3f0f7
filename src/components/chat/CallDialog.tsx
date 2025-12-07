@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export const CallDialog = ({
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
-  const getInitials = (name: string) =>
+  const getInitials = (name?: string) =>
     name
       ?.split(" ")
       .map((n) => n[0])
@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Bind local preview
+  // SAFETY: Null-safe stream binding
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -55,25 +55,22 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // AGGRESSIVE REMOTE WAKEUP: retry logic to force pixels
   useEffect(() => {
     let playTimer: NodeJS.Timeout;
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-
       const refreshMedia = async () => {
         try {
           if (remoteVideoRef.current) {
             await remoteVideoRef.current.play();
             setRemoteVideoEnabled(true);
-            console.log("Pixels flowing successfully");
+            clearInterval(playTimer);
           }
         } catch (e) {
-          console.warn("Media engine needs interaction...");
+          /* Silent catch to prevent crash */
         }
       };
-
-      playTimer = setInterval(refreshMedia, 1500); // Pulse play every 1.5s until unblocked
+      playTimer = setInterval(refreshMedia, 1500);
       refreshMedia();
     }
     return () => clearInterval(playTimer);
@@ -87,8 +84,7 @@ export const CallDialog = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
-
-        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default mic off
+        stream.getAudioTracks().forEach((t) => (t.enabled = false));
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
@@ -108,7 +104,6 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            // FORCE ENABLE ALL TRACKS: Ensures sound/video isn't arriving "off"
             incoming.getTracks().forEach((t) => (t.enabled = true));
             setRemoteStream(incoming);
             setConnectionState("connected");
@@ -133,15 +128,6 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-          })
-          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-            if (payload.from === user.id || !pcRef.current) return;
-            const cand = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current?.remoteDescription) {
-              await pcRef.current.addIceCandidate(cand);
-            } else {
-              iceCandidatesQueue.current.push(cand);
-            }
           })
           .on("broadcast", { event: "ready" }, async () => {
             if (isCaller && pcRef.current?.signalingState === "stable") {
@@ -183,18 +169,15 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      // FORCE RENDER: Play call refreshes media engine on user click
       remoteVideoRef.current?.play().catch(() => {});
     }
   };
-
-  const displayName = remoteProfile?.full_name || conversationName;
 
   return (
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
         <VisuallyHidden.Root>
-          <DialogTitle>Active Call</DialogTitle>
+          <DialogTitle>Secure Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
@@ -209,9 +192,7 @@ export const CallDialog = ({
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
                 <p className="animate-pulse">
-                  {connectionState === "connecting"
-                    ? "建立隧道 Establishing tunnel..."
-                    : "Media Blocked - click Mic to enable pixels"}
+                  {connectionState === "connecting" ? "建立隧道 Establishing tunnel..." : "Media Blocked - click Mic"}
                 </p>
               </div>
             </div>
@@ -227,11 +208,9 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-card">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-                </Avatar>
-              </div>
+              <Avatar className="w-full h-full flex items-center justify-center">
+                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+              </Avatar>
             )}
           </div>
         </div>
