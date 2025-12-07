@@ -42,42 +42,47 @@ export const CallDialog = ({
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
   const [remoteProfile, setRemoteProfile] = useState<Profile | null>(null);
 
+  // Track visibility state for Meet-style UI
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const callStartTime = useRef<number | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
-  // 1. FIX: Explicitly bind local stream to the video element's srcObject property
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+
+  // FIX 1: Explicitly bind local stream to srcObject and trigger play
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      console.log("Binding local stream to srcObject");
+    if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
-
-      // Mandatory play command to prevent frozen/blank frames in browsers
-      localVideoRef.current.play().catch((err) => console.error("Self-view playback failed:", err));
+      localVideoRef.current.play().catch(() => {});
     }
-  }, [localStream]);
+  }, [localStream, isVideoOff]);
 
-  // Rest of profile logic...
+  // FIX 2: Bind remote stream and monitor track state
   useEffect(() => {
-    const fetchRemoteProfile = async () => {
-      if (!conversationId || !user) return;
-      const { data: members } = await supabase
-        .from("conversation_members")
-        .select("user_id")
-        .eq("conversation_id", conversationId)
-        .neq("user_id", user.id);
-      if (members && members.length > 0) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
-        if (profile) setRemoteProfile(profile);
-      }
-    };
-    if (open) fetchRemoteProfile();
-  }, [conversationId, user, open]);
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
 
-  // Webrtc Handshake...
+      // Watch for track enablement changes to toggle between video and profile pic
+      const videoTrack = remoteStream.getVideoTracks()[0];
+      if (videoTrack) {
+        setRemoteVideoEnabled(videoTrack.enabled);
+        videoTrack.onmute = () => setRemoteVideoEnabled(false);
+        videoTrack.onunmute = () => setRemoteVideoEnabled(true);
+      }
+    }
+  }, [remoteStream]);
+
+  // Main WebRTC initialization
   useEffect(() => {
     if (!open || !user) return;
     let mounted = true;
@@ -85,11 +90,14 @@ export const CallDialog = ({
 
     const initializeCall = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: initialVideo, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+
+        // Disable initial video track if user requested it off
+        stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
@@ -100,23 +108,18 @@ export const CallDialog = ({
 
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
-            const rStream = event.streams[0];
-            setRemoteStream(rStream);
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = rStream;
-              remoteVideoRef.current.play().catch(() => {});
-            }
+            setRemoteStream(event.streams[0]);
             setConnectionState("connected");
           }
         };
 
+        pc.oniceconnectionstatechange = () => {
+          if (pc.iceConnectionState === "failed") setConnectionState("failed");
+        };
+
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
-        channel.subscribe((status) => {
-          if (status === "SUBSCRIBED") console.log("Ready for offer");
-        });
-
-        // offer/answer logic continues here...
+        channel.subscribe();
       } catch (e) {
         setConnectionState("failed");
       }
@@ -128,76 +131,99 @@ export const CallDialog = ({
     };
   }, [open, user, conversationId]);
 
-  const endCall = () => {
-    onClose();
-  };
   const toggleMute = () => {
-    if (localStream) localStream.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
-    setIsMuted(!isMuted);
+    if (localStream) {
+      localStream.getAudioTracks().forEach((t) => (t.enabled = isMuted));
+      setIsMuted(!isMuted);
+    }
   };
+
   const toggleVideo = () => {
-    if (localStream) localStream.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
-    setIsVideoOff(!isVideoOff);
+    if (localStream) {
+      localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
+      setIsVideoOff(!isVideoOff);
+    }
   };
 
   const displayName = remoteProfile?.full_name || conversationName;
-  const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   return (
     <Dialog open={open}>
       <DialogContent
-        className={cn("p-0 p-0 border-border/50", isFullscreen ? "max-w-full w-full h-full" : "max-w-2xl")}
+        className={cn(
+          "p-0 border-border/50 overflow-hidden",
+          isFullscreen ? "max-w-full w-full h-full" : "max-w-2xl w-full",
+        )}
       >
         <VisuallyHidden.Root>
           <DialogTitle>Call with {displayName}</DialogTitle>
-          <DialogDescription>Media stream display</DialogDescription>
+          <DialogDescription>Video and voice call interface</DialogDescription>
         </VisuallyHidden.Root>
 
-        <div className="flex justify-between px-4 py-3 bg-card/50">
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                "w-2 h-2 rounded-full",
-                connectionState === "connected" ? "bg-green-500" : "bg-yellow-500 animate-pulse",
-              )}
-            />
-            <span className="text-sm">{displayName}</span>
-          </div>
-          <span className="text-xs">{formatTime(callDuration)}</span>
-        </div>
+        {/* Meet-style Video Area */}
+        <div className="relative aspect-video bg-black flex items-center justify-center">
+          {/* Remote Feed */}
+          {remoteVideoEnabled ? (
+            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-center space-y-4">
+              <Avatar className="w-32 h-32 mx-auto">
+                <AvatarImage src={remoteProfile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
+                  {getInitials(displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-white">
+                <p className="font-medium text-xl">{displayName}</p>
+                <p className="text-white/60 text-sm">
+                  {connectionState === "connecting" ? "Connecting..." : "Camera Off"}
+                </p>
+              </div>
+            </div>
+          )}
 
-        <div className="relative aspect-video bg-black">
-          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-
-          <div className="absolute bottom-4 right-4 w-32 md:w-40 rounded-lg overflow-hidden border border-white/10 shadow-lg">
-            {localStream && !isVideoOff ? (
-              // 2. FIX: Added muted, autoPlay, and playsInline for consistent rendering
+          {/* Local Feed (PiP Style) */}
+          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 shadow-2xl bg-card">
+            {!isVideoOff ? (
               <video
                 ref={localVideoRef}
                 autoPlay
-                muted // Mandatory to avoid loopback audio and follow browser privacy rules
-                playsInline // Required for mobile Safari internal rendering
+                muted
+                playsInline
                 className="w-full h-full object-cover"
-                style={{ transform: "scaleX(-1)" }} // Mirror effect for natural feel
+                style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-card/80 aspect-video">
-                <Avatar>
-                  <AvatarFallback>You</AvatarFallback>
+              <div className="w-full h-full flex items-center justify-center">
+                <Avatar className="w-12 h-12">
+                  <AvatarFallback className="bg-secondary text-xs">{getInitials(user?.email || "You")}</AvatarFallback>
                 </Avatar>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex justify-center gap-4 py-4 bg-card/50 border-t">
-          <Button variant="ghost" onClick={toggleMute} className="w-12 h-12 rounded-full">
+        {/* Controls */}
+        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
+          <Button
+            variant="ghost"
+            onClick={toggleMute}
+            className={cn("w-14 h-14 rounded-full", isMuted && "bg-red-500/10 text-red-500")}
+          >
             {isMuted ? <MicOff /> : <Mic />}
           </Button>
-          <Button variant="ghost" onClick={toggleVideo} className="w-12 h-12 rounded-full">
+          <Button
+            variant="ghost"
+            onClick={toggleVideo}
+            className={cn("w-14 h-14 rounded-full", isVideoOff && "bg-red-500/10 text-red-500")}
+          >
             {isVideoOff ? <VideoOff /> : <Video />}
           </Button>
-          <Button variant="destructive" onClick={endCall} className="w-14 h-14 rounded-full">
+          <Button
+            variant="destructive"
+            onClick={onClose}
+            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
+          >
             <PhoneOff />
           </Button>
         </div>
