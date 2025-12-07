@@ -65,13 +65,15 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
     }
   }, [profile, hasJoined, joinRoom, initialVideo]);
 
-  // FIX: Attach local stream to video element and trigger play
+  // FIX: Attach local stream and explicitly play to prevent "frozen/brown" frames
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
 
-      // Explicit play command to force initial render
-      localVideoRef.current.play().catch((err) => console.error("Local video playback failed:", err));
+      // Ensure the video starts rendering as soon as the stream is bound
+      localVideoRef.current.play().catch((err) => {
+        console.warn("Local video play was interrupted/blocked by browser:", err);
+      });
     }
   }, [localStream]);
 
@@ -220,9 +222,10 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
               <video
                 ref={localVideoRef}
                 autoPlay
-                muted // FIX: Mandatory for local playback on most browsers
-                playsInline // FIX: Mandatory for mobile compatibility
-                className="w-full h-full object-cover"
+                muted // Mandatary for browsers to allow playback
+                playsInline // Mandatary for iOS
+                className="w-full h-full object-cover mirror" // mirror added for standard self-view feel
+                style={{ transform: "scaleX(-1)" }} // Manually mirror local video
               />
             )}
 
@@ -258,7 +261,7 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls Area */}
       <div className="h-20 px-4 flex items-center justify-center gap-3 bg-card/50 border-t border-border/40 shrink-0">
         <div className="flex items-center gap-2">
           <Button
@@ -296,14 +299,13 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
   );
 };
 
-// Component for remote participant video
+// Remote Video sub-component
 const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
-      // Remote streams may also benefit from programmatic play()
       videoRef.current.play().catch(() => {});
     }
   }, [stream]);
@@ -333,7 +335,6 @@ const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: strin
           </div>
         </div>
       )}
-
       <div className="absolute bottom-3 left-3">
         <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">{name}</Badge>
       </div>
