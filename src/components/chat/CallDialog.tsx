@@ -31,6 +31,7 @@ export const CallDialog = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
+  const [remoteProfile, setRemoteProfile] = useState<any>(null);
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -47,7 +48,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Force local preview to render
+  // FIX: Force local preview render
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -55,25 +56,20 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // CRITICAL: Force remote media to start immediately
+  // FIX: Programmatic play and remote track state monitor
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
 
-      const startPlayback = async () => {
-        try {
-          await remoteVideoRef.current?.play();
-          console.log("Remote playback started successfully");
-        } catch (e) {
-          console.warn("Autoplay blocked: Browser requires user interaction for sound", e);
-        }
-      };
-
-      startPlayback();
+      // Mandatory Wake-up trigger for browser playback engines
+      remoteVideoRef.current
+        .play()
+        .then(() => console.log("Remote playback started"))
+        .catch((err) => console.warn("Browser blocked autoplay - user interaction required", err));
 
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
-        setRemoteVideoEnabled(vTrack.enabled);
+        setRemoteVideoEnabled(vTrack.enabled || true);
         vTrack.onunmute = () => setRemoteVideoEnabled(true);
         vTrack.onmute = () => setRemoteVideoEnabled(false);
       }
@@ -88,6 +84,7 @@ export const CallDialog = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
+
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -105,10 +102,10 @@ export const CallDialog = ({
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
+        // FIX: Manually enable remote tracks to force playback
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incomingStream = event.streams[0];
-            // FORCE ENABLE: Ensure browser hasn't muted tracks during handshake
             incomingStream.getTracks().forEach((t) => (t.enabled = true));
             setRemoteStream(incomingStream);
             setConnectionState("connected");
@@ -144,6 +141,7 @@ export const CallDialog = ({
             }
           })
           .on("broadcast", { event: "ready" }, async () => {
+            // RESTORED: Signaling handshake triggers offer only when joined
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -158,7 +156,7 @@ export const CallDialog = ({
 
         pc.onicecandidate = (event) => {
           if (event.candidate && channelRef.current) {
-            channel.send({
+            channelRef.current.send({
               type: "broadcast",
               event: "ice-candidate",
               payload: { candidate: event.candidate, from: user.id },
@@ -209,7 +207,9 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Relaying Feed..." : "Camera Off"}</p>
+                <p className="animate-pulse">
+                  {connectionState === "connecting" ? "Connecting media..." : "Camera Off"}
+                </p>
               </div>
             </div>
           )}
