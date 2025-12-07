@@ -41,14 +41,13 @@ export const CallDialog = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
   const [remoteProfile, setRemoteProfile] = useState<Profile | null>(null);
-
-  // Track visibility state for Meet-style UI
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name: string) =>
     name
@@ -58,7 +57,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2);
 
-  // FIX 1: Explicitly bind local stream to srcObject and trigger play
+  // FIX: Explicitly bind local and remote streams
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -66,37 +65,33 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // FIX 2: Bind remote stream and monitor track state
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
+      // Remote video must be programmatically played to avoid browser pause
       remoteVideoRef.current.play().catch(() => {});
 
-      // Watch for track enablement changes to toggle between video and profile pic
       const videoTrack = remoteStream.getVideoTracks()[0];
       if (videoTrack) {
         setRemoteVideoEnabled(videoTrack.enabled);
-        videoTrack.onmute = () => setRemoteVideoEnabled(false);
         videoTrack.onunmute = () => setRemoteVideoEnabled(true);
+        videoTrack.onmute = () => setRemoteVideoEnabled(false);
       }
     }
   }, [remoteStream]);
 
-  // Main WebRTC initialization
   useEffect(() => {
     if (!open || !user) return;
     let mounted = true;
-    let stream: MediaStream | null = null;
 
     const initializeCall = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
 
-        // Disable initial video track if user requested it off
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -113,17 +108,60 @@ export const CallDialog = ({
           }
         };
 
-        pc.oniceconnectionstatechange = () => {
-          if (pc.iceConnectionState === "failed") setConnectionState("failed");
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            channelRef.current.send({
+              type: "broadcast",
+              event: "ice-candidate",
+              payload: { candidate: event.candidate, from: user.id },
+            });
+          }
         };
 
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
-        channel.subscribe();
+
+        channel
+          .on("broadcast", { event: "offer" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+
+            // Add any queued candidates received before offer
+            while (iceCandidatesQueue.current.length > 0) {
+              const candidate = iceCandidatesQueue.current.shift();
+              if (candidate) await pcRef.current.addIceCandidate(candidate);
+            }
+
+            const answer = await pcRef.current.createAnswer();
+            await pcRef.current.setLocalDescription(answer);
+            channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
+          })
+          .on("broadcast", { event: "answer" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          })
+          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            const candidate = new RTCIceCandidate(payload.candidate);
+            if (pcRef.current.remoteDescription) {
+              await pcRef.current.addIceCandidate(candidate);
+            } else {
+              iceCandidatesQueue.current.push(candidate);
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === "SUBSCRIBED" && isCaller) {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            }
+          });
       } catch (e) {
+        console.error("Connection failed:", e);
         setConnectionState("failed");
       }
     };
+
     initializeCall();
     return () => {
       mounted = false;
@@ -157,17 +195,15 @@ export const CallDialog = ({
       >
         <VisuallyHidden.Root>
           <DialogTitle>Call with {displayName}</DialogTitle>
-          <DialogDescription>Video and voice call interface</DialogDescription>
+          <DialogDescription>Media stream display</DialogDescription>
         </VisuallyHidden.Root>
 
-        {/* Meet-style Video Area */}
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {/* Remote Feed */}
           {remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
-              <Avatar className="w-32 h-32 mx-auto">
+              <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
                 <AvatarImage src={remoteProfile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
                   {getInitials(displayName)}
@@ -182,7 +218,6 @@ export const CallDialog = ({
             </div>
           )}
 
-          {/* Local Feed (PiP Style) */}
           <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 shadow-2xl bg-card">
             {!isVideoOff ? (
               <video
@@ -203,7 +238,6 @@ export const CallDialog = ({
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
           <Button
             variant="ghost"
