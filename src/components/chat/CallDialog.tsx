@@ -26,7 +26,7 @@ export const CallDialog = ({
   isCaller = true,
 }: CallDialogProps) => {
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // MIC OFF BY DEFAULT
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -48,7 +48,22 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // FIX: Force local preview render
+  useEffect(() => {
+    const fetchRemoteProfile = async () => {
+      if (!conversationId || !user || !open) return;
+      const { data: members } = await supabase
+        .from("conversation_members")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .neq("user_id", user.id);
+      if (members?.[0]) {
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
+        if (profile) setRemoteProfile(profile);
+      }
+    };
+    fetchRemoteProfile();
+  }, [conversationId, user, open]);
+
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -56,16 +71,24 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // FIX: Programmatic play and remote track state monitor
+  // AWAKEN MEDIA: Aggressive play trigger to bypass browser blocks
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
 
-      // Mandatory Wake-up trigger for browser playback engines
-      remoteVideoRef.current
-        .play()
-        .then(() => console.log("Remote playback started"))
-        .catch((err) => console.warn("Browser blocked autoplay - user interaction required", err));
+      const awaken = async () => {
+        try {
+          // Explicit muted start helps bypass standard autoplay security
+          remoteVideoRef.current!.muted = true;
+          await remoteVideoRef.current!.play();
+          // Attempt to restore sound immediately, will work if user has clicked anything on tab
+          remoteVideoRef.current!.muted = false;
+        } catch (e) {
+          console.warn("Autoplay block detected. Interaction required to unmute.");
+        }
+      };
+
+      awaken();
 
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
@@ -85,6 +108,8 @@ export const CallDialog = ({
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
 
+        // APPLY DEFAULT STATE
+        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // MIC OFF
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -102,12 +127,11 @@ export const CallDialog = ({
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-        // FIX: Manually enable remote tracks to force playback
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
-            const incomingStream = event.streams[0];
-            incomingStream.getTracks().forEach((t) => (t.enabled = true));
-            setRemoteStream(incomingStream);
+            const incoming = event.streams[0];
+            incoming.getTracks().forEach((t) => (t.enabled = true));
+            setRemoteStream(incoming);
             setConnectionState("connected");
           }
         };
@@ -141,7 +165,6 @@ export const CallDialog = ({
             }
           })
           .on("broadcast", { event: "ready" }, async () => {
-            // RESTORED: Signaling handshake triggers offer only when joined
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -178,8 +201,14 @@ export const CallDialog = ({
 
   const toggleMute = () => {
     if (localStream) {
-      localStream.getAudioTracks().forEach((t) => (t.enabled = isMuted));
-      setIsMuted(!isMuted);
+      const newState = !isMuted;
+      localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
+      setIsMuted(newState);
+
+      // FORCE REFRESH: Click wakes browser playback engine
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.play().catch(() => {});
+      }
     }
   };
   const toggleVideo = () => {
@@ -189,12 +218,15 @@ export const CallDialog = ({
     }
   };
 
+  const displayName = remoteProfile?.full_name || conversationName;
+
   return (
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting Room</DialogTitle>
+          <DialogTitle>Meeting</DialogTitle>
         </VisuallyHidden.Root>
+
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
@@ -202,17 +234,16 @@ export const CallDialog = ({
             <div className="text-center space-y-4">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {getInitials(conversationName)}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
-                <p className="font-medium text-xl">{conversationName}</p>
-                <p className="animate-pulse">
-                  {connectionState === "connecting" ? "Connecting media..." : "Camera Off"}
-                </p>
+                <p className="font-medium text-xl">{displayName}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Media Relaying..." : "Camera Off"}</p>
               </div>
             </div>
           )}
+
           <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card shadow-2xl">
             {!isVideoOff ? (
               <video
@@ -232,6 +263,7 @@ export const CallDialog = ({
             )}
           </div>
         </div>
+
         <div className="flex justify-center gap-6 py-4 bg-card/50 border-t border-border/20">
           <Button
             variant="ghost"
@@ -245,7 +277,7 @@ export const CallDialog = ({
             onClick={toggleVideo}
             className={cn("w-14 h-14 rounded-full", isVideoOff && "bg-red-500/10 text-red-500")}
           >
-            {isVideoOff ? <VideoOff /> : <Video />}
+            {isVideoOff ? <VideoOff /> : <Video />}{" "}
           </Button>
           <Button
             variant="destructive"
