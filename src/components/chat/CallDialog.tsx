@@ -31,15 +31,12 @@ export const CallDialog = ({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
-  const [remoteProfile, setRemoteProfile] = useState<any>(null);
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  // FIX: Buffer queue ensures candidates don't arrive before remote description
   const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name: string) =>
@@ -50,24 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Fetch remote identity
-  useEffect(() => {
-    const fetchRemoteProfile = async () => {
-      if (!conversationId || !user || !open) return;
-      const { data: members } = await supabase
-        .from("conversation_members")
-        .select("user_id")
-        .eq("conversation_id", conversationId)
-        .neq("user_id", user.id);
-      if (members?.[0]) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
-        if (profile) setRemoteProfile(profile);
-      }
-    };
-    fetchRemoteProfile();
-  }, [conversationId, user, open]);
-
-  // programmatically trigger render
+  // Force Render Triggers
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -78,7 +58,7 @@ export const CallDialog = ({
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
+      remoteVideoRef.current.play().catch((e) => console.warn("Remote play blocked", e));
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
         setRemoteVideoEnabled(vTrack.enabled);
@@ -91,25 +71,16 @@ export const CallDialog = ({
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
-
-    const processBufferedCandidates = async () => {
-      // Logic loop to process network info once description is ready
-      while (iceCandidatesQueue.current.length > 0 && pcRef.current?.remoteDescription) {
-        const candidate = iceCandidatesQueue.current.shift();
-        if (candidate) await pcRef.current.addIceCandidate(candidate);
-      }
-    };
+    let signalingPulse: NodeJS.Timeout;
 
     const initializeCall = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (!mounted) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
+        if (!mounted) return stream.getTracks().forEach((t) => t.stop());
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
+        // FORCED RELAY POLICY: Bypass local firewall/router restrictions
         const pc = new RTCPeerConnection({
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -119,13 +90,14 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
+          iceTransportPolicy: "relay",
         });
         pcRef.current = pc;
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-        pc.ontrack = (event) => {
-          if (event.streams[0] && mounted) {
-            setRemoteStream(event.streams[0]);
+        pc.ontrack = (e) => {
+          if (e.streams[0] && mounted) {
+            setRemoteStream(e.streams[0]);
             setConnectionState("connected");
           }
         };
@@ -137,8 +109,10 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            await processBufferedCandidates(); // Flush queue after offer
-
+            while (iceCandidatesQueue.current.length > 0) {
+              const cand = iceCandidatesQueue.current.shift();
+              if (cand) await pcRef.current.addIceCandidate(new RTCIceCandidate(cand));
+            }
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -146,34 +120,36 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            await processBufferedCandidates(); // Flush queue after answer
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             const cand = new RTCIceCandidate(payload.candidate);
-            // Wait for description before adding candidate
-            if (pcRef.current.remoteDescription && pcRef.current.remoteDescription.type) {
+            if (pcRef.current?.remoteDescription) {
               await pcRef.current.addIceCandidate(cand);
             } else {
               iceCandidatesQueue.current.push(cand);
             }
           })
-          .on("broadcast", { event: "ready" }, async () => {
-            if (isCaller && pcRef.current?.signalingState === "stable") {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
-            }
-          })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && !isCaller) {
-              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+            if (status === "SUBSCRIBED" && isCaller) {
+              // Pulse the offer until connection succeeds to bypass cache stalls
+              signalingPulse = setInterval(async () => {
+                if (pcRef.current?.connectionState === "connected" || !mounted) {
+                  clearInterval(signalingPulse);
+                  return;
+                }
+                if (pcRef.current?.signalingState === "stable") {
+                  const offer = await pc.createOffer();
+                  await pc.setLocalDescription(offer);
+                  channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+                }
+              }, 2000);
             }
           });
 
         pc.onicecandidate = (event) => {
           if (event.candidate && channelRef.current) {
-            channel.send({
+            channelRef.current.send({
               type: "broadcast",
               event: "ice-candidate",
               payload: { candidate: event.candidate, from: user.id },
@@ -181,7 +157,7 @@ export const CallDialog = ({
           }
         };
       } catch (e) {
-        if (mounted) setConnectionState("failed");
+        setConnectionState("failed");
       }
     };
 
@@ -189,6 +165,7 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
+      if (signalingPulse) clearInterval(signalingPulse);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [open, user, conversationId, isCaller]);
@@ -206,33 +183,31 @@ export const CallDialog = ({
     }
   };
 
-  const displayName = remoteProfile?.full_name || conversationName;
-
   return (
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting room Interface</DialogTitle>
+          <DialogTitle>Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
-
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {remoteVideoEnabled && connectionState === "connected" ? (
+          {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {getInitials(displayName)}
+                  {getInitials(conversationName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
-                <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
+                <p className="font-medium text-xl">{conversationName}</p>
+                <p className="animate-pulse">
+                  {connectionState === "connecting" ? "Relaying Connection..." : "Camera Off"}
+                </p>
               </div>
             </div>
           )}
-
-          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card shadow-2xl">
+          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card">
             {!isVideoOff ? (
               <video
                 ref={localVideoRef}
@@ -243,14 +218,13 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-card">
+              <div className="w-full h-full flex items-center justify-center">
                 <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
         </div>
-
-        <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
+        <div className="flex justify-center gap-6 py-4 bg-card border-t">
           <Button
             variant="ghost"
             onClick={toggleMute}
