@@ -46,7 +46,6 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // FIX: Force local playback
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -54,17 +53,15 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // FIX: Force remote playback & bypass track state for higher reliability
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      // Programmatic play triggers audio flow immediately
       remoteVideoRef.current.play().catch((e) => console.warn("Remote playback blocked:", e));
     }
   }, [remoteStream]);
 
   useEffect(() => {
-    if (!open || !user) return;
+    if (!open || !user || !conversationId) return;
     let mounted = true;
 
     const initializeCall = async () => {
@@ -89,7 +86,7 @@ export const CallDialog = ({
           ],
         });
         pcRef.current = pc;
-        stream.getTracks().forEach((t) => pc.addTrack(t, stream!));
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
 
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
@@ -118,7 +115,7 @@ export const CallDialog = ({
             try {
               await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch (e) {
-              /* Buffer if needed */
+              console.error("ICE Candidate Error", e);
             }
           })
           .subscribe(async (status) => {
@@ -129,7 +126,8 @@ export const CallDialog = ({
             }
           });
       } catch (e) {
-        setConnectionState("failed");
+        console.error("Initialize Call Error", e);
+        if (mounted) setConnectionState("failed");
       }
     };
 
@@ -137,8 +135,9 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
-  }, [open, user, conversationId]);
+  }, [open, user, conversationId, isCaller]);
 
   const toggleMute = () => {
     if (localStream) {
@@ -160,13 +159,11 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Call Interface</DialogTitle>
-          <DialogDescription>Voice/Video area</DialogDescription>
+          <DialogTitle>Meeting</DialogTitle>
+          <DialogDescription>Video and Audio Call</DialogDescription>
         </VisuallyHidden.Root>
 
-        {/* Meet UI Layout */}
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {/* Remote Feed: Hidden if not connected, standard video otherwise */}
           {connectionState === "connected" ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
@@ -178,13 +175,12 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Failed"}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Call Failed"}</p>
               </div>
             </div>
           )}
 
-          {/* Local Feed (Small Picture) */}
-          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card">
+          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card shadow-2xl">
             {!isVideoOff ? (
               <video
                 ref={localVideoRef}
@@ -195,14 +191,13 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center bg-card">
                 <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
         </div>
 
-        {/* Call Controls */}
         <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
           <Button
             variant="ghost"
