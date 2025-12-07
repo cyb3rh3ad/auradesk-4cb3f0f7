@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Fetch remote user identity for the Meet-style UI
+  // SAFETY: Profile fetching guard
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -64,7 +64,6 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
-  // Mandatory play triggers to prevent browser-paused video squares
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -76,7 +75,6 @@ export const CallDialog = ({
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.play().catch(() => {});
-
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
         setRemoteVideoEnabled(vTrack.enabled);
@@ -86,7 +84,7 @@ export const CallDialog = ({
     }
   }, [remoteStream]);
 
-  // Main WebRTC Lifecycle
+  // SAFETY: Signaling Lifecycle guard to prevent crash on undefined conversationId
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
@@ -98,7 +96,6 @@ export const CallDialog = ({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
-
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -144,14 +141,6 @@ export const CallDialog = ({
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           })
-          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-            if (payload.from === user.id || !pcRef.current) return;
-            try {
-              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-            } catch (e) {
-              /* Buffer candidate if needed */
-            }
-          })
           .subscribe(async (status) => {
             if (status === "SUBSCRIBED" && !isCaller) {
               channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
@@ -189,7 +178,7 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting Room</DialogTitle>
+          <DialogTitle>Meeting</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
