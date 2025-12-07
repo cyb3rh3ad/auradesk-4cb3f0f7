@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2 } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -17,13 +17,6 @@ interface CallDialogProps {
   isCaller?: boolean;
 }
 
-interface Profile {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  email: string;
-}
-
 export const CallDialog = ({
   open,
   onClose,
@@ -35,29 +28,25 @@ export const CallDialog = ({
   const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
-  const [remoteProfile, setRemoteProfile] = useState<Profile | null>(null);
-  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
+  const [remoteProfile, setRemoteProfile] = useState<any>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
 
   const getInitials = (name: string) =>
     name
-      .split(" ")
+      ?.split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .slice(0, 2);
+      .slice(0, 2) || "??";
 
-  // FIX: Explicitly bind local and remote streams
+  // FIX: Force local playback
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -65,18 +54,12 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
+  // FIX: Force remote playback & bypass track state for higher reliability
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      // Remote video must be programmatically played to avoid browser pause
-      remoteVideoRef.current.play().catch(() => {});
-
-      const videoTrack = remoteStream.getVideoTracks()[0];
-      if (videoTrack) {
-        setRemoteVideoEnabled(videoTrack.enabled);
-        videoTrack.onunmute = () => setRemoteVideoEnabled(true);
-        videoTrack.onmute = () => setRemoteVideoEnabled(false);
-      }
+      // Programmatic play triggers audio flow immediately
+      remoteVideoRef.current.play().catch((e) => console.warn("Remote playback blocked:", e));
     }
   }, [remoteStream]);
 
@@ -96,7 +79,14 @@ export const CallDialog = ({
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            {
+              urls: "turn:relay1.expressturn.com:3480",
+              username: "000000002080378788",
+              credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
+            },
+          ],
         });
         pcRef.current = pc;
         stream.getTracks().forEach((t) => pc.addTrack(t, stream!));
@@ -108,16 +98,6 @@ export const CallDialog = ({
           }
         };
 
-        pc.onicecandidate = (event) => {
-          if (event.candidate && channelRef.current) {
-            channelRef.current.send({
-              type: "broadcast",
-              event: "ice-candidate",
-              payload: { candidate: event.candidate, from: user.id },
-            });
-          }
-        };
-
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
 
@@ -125,13 +105,6 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-
-            // Add any queued candidates received before offer
-            while (iceCandidatesQueue.current.length > 0) {
-              const candidate = iceCandidatesQueue.current.shift();
-              if (candidate) await pcRef.current.addIceCandidate(candidate);
-            }
-
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -142,11 +115,10 @@ export const CallDialog = ({
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
-            const candidate = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current.remoteDescription) {
-              await pcRef.current.addIceCandidate(candidate);
-            } else {
-              iceCandidatesQueue.current.push(candidate);
+            try {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+              /* Buffer if needed */
             }
           })
           .subscribe(async (status) => {
@@ -157,7 +129,6 @@ export const CallDialog = ({
             }
           });
       } catch (e) {
-        console.error("Connection failed:", e);
         setConnectionState("failed");
       }
     };
@@ -187,38 +158,33 @@ export const CallDialog = ({
 
   return (
     <Dialog open={open}>
-      <DialogContent
-        className={cn(
-          "p-0 border-border/50 overflow-hidden",
-          isFullscreen ? "max-w-full w-full h-full" : "max-w-2xl w-full",
-        )}
-      >
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Call with {displayName}</DialogTitle>
-          <DialogDescription>Media stream display</DialogDescription>
+          <DialogTitle>Call Interface</DialogTitle>
+          <DialogDescription>Voice/Video area</DialogDescription>
         </VisuallyHidden.Root>
 
+        {/* Meet UI Layout */}
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {remoteVideoEnabled ? (
+          {/* Remote Feed: Hidden if not connected, standard video otherwise */}
+          {connectionState === "connected" ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
-                <AvatarImage src={remoteProfile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
                   {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p className="text-white/60 text-sm">
-                  {connectionState === "connecting" ? "Connecting..." : "Camera Off"}
-                </p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Failed"}</p>
               </div>
             </div>
           )}
 
-          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 shadow-2xl bg-card">
+          {/* Local Feed (Small Picture) */}
+          <div className="absolute bottom-4 right-4 w-40 aspect-video rounded-xl overflow-hidden border border-white/20 bg-card">
             {!isVideoOff ? (
               <video
                 ref={localVideoRef}
@@ -230,14 +196,13 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Avatar className="w-12 h-12">
-                  <AvatarFallback className="bg-secondary text-xs">{getInitials(user?.email || "You")}</AvatarFallback>
-                </Avatar>
+                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
         </div>
 
+        {/* Call Controls */}
         <div className="flex justify-center gap-6 py-4 bg-card/50 border-t">
           <Button
             variant="ghost"
@@ -253,11 +218,7 @@ export const CallDialog = ({
           >
             {isVideoOff ? <VideoOff /> : <Video />}
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onClose}
-            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
-          >
+          <Button variant="destructive" onClick={onClose} className="w-14 h-14 rounded-full">
             <PhoneOff />
           </Button>
         </div>
