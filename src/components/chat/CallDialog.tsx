@@ -46,6 +46,23 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
+  // RESTORED: Profile fetching so names show up correctly
+  useEffect(() => {
+    const fetchRemoteProfile = async () => {
+      if (!conversationId || !user || !open) return;
+      const { data: members } = await supabase
+        .from("conversation_members")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .neq("user_id", user.id);
+      if (members && members.length > 0) {
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
+        if (profile) setRemoteProfile(profile);
+      }
+    };
+    fetchRemoteProfile();
+  }, [conversationId, user, open]);
+
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -63,6 +80,7 @@ export const CallDialog = ({
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
+    let signalRetry: NodeJS.Timeout;
 
     const initializeCall = async () => {
       try {
@@ -99,6 +117,14 @@ export const CallDialog = ({
         channelRef.current = channel;
 
         channel
+          .on("broadcast", { event: "ready" }, async () => {
+            // RESTORED: Handshake - if callee is ready, caller sends offer
+            if (isCaller && pcRef.current?.signalingState === "stable") {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            }
+          })
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
@@ -115,18 +141,21 @@ export const CallDialog = ({
             try {
               await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch (e) {
-              console.error("ICE Candidate Error", e);
+              console.warn("ICE candidate skipped during signaling");
             }
           })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && isCaller) {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            if (status === "SUBSCRIBED") {
+              if (!isCaller) {
+                // RESTORED: Callee sends ready signal repeatedly until offer is received
+                signalRetry = setInterval(() => {
+                  if (pcRef.current?.remoteDescription) clearInterval(signalRetry);
+                  else channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+                }, 1500);
+              }
             }
           });
       } catch (e) {
-        console.error("Initialize Call Error", e);
         if (mounted) setConnectionState("failed");
       }
     };
@@ -135,6 +164,7 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
+      if (signalRetry) clearInterval(signalRetry);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [open, user, conversationId, isCaller]);
@@ -159,8 +189,8 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting</DialogTitle>
-          <DialogDescription>Video and Audio Call</DialogDescription>
+          <DialogTitle>Call</DialogTitle>
+          <DialogDescription>Interactive Video Interface</DialogDescription>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
@@ -169,13 +199,14 @@ export const CallDialog = ({
           ) : (
             <div className="text-center space-y-4">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
+                <AvatarImage src={remoteProfile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
                   {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Call Failed"}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Failed"}</p>
               </div>
             </div>
           )}
@@ -215,7 +246,11 @@ export const CallDialog = ({
           >
             {isVideoOff ? <VideoOff /> : <Video />}
           </Button>
-          <Button variant="destructive" onClick={onClose} className="w-14 h-14 rounded-full">
+          <Button
+            variant="destructive"
+            onClick={onClose}
+            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
+          >
             <PhoneOff />
           </Button>
         </div>
