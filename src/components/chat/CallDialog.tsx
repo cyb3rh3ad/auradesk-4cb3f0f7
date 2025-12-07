@@ -74,12 +74,20 @@ export const CallDialog = ({
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
-      const vTrack = remoteStream.getVideoTracks()[0];
-      if (vTrack) {
-        setRemoteVideoEnabled(vTrack.enabled);
-        vTrack.onunmute = () => setRemoteVideoEnabled(true);
-        vTrack.onmute = () => setRemoteVideoEnabled(false);
+      // Remote video must be programmatically played to avoid browser pause
+      remoteVideoRef.current
+        .play()
+        .then(() => {
+          console.log("Remote playback started");
+        })
+        .catch((e) => console.warn("Playback blocked:", e));
+
+      const videoTrack = remoteStream.getVideoTracks()[0];
+      if (videoTrack) {
+        // Default to true to force grid display, then monitor track state
+        setRemoteVideoEnabled(videoTrack.enabled || true);
+        videoTrack.onmute = () => setRemoteVideoEnabled(false);
+        videoTrack.onunmute = () => setRemoteVideoEnabled(true);
       }
     }
   }, [remoteStream]);
@@ -95,6 +103,7 @@ export const CallDialog = ({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -107,14 +116,17 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay",
+          iceTransportPolicy: "relay", // Force TURN bypass for school firewall
         });
         pcRef.current = pc;
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream!));
 
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
-            setRemoteStream(event.streams[0]);
+            const rStream = event.streams[0];
+            // Explicitly force enable tracks on arrival to bypass silent muting
+            rStream.getTracks().forEach((track) => (track.enabled = true));
+            setRemoteStream(rStream);
             setConnectionState("connected");
           }
         };
@@ -203,11 +215,12 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting Room</DialogTitle>
+          <DialogTitle>Call</DialogTitle>
+          <DialogDescription>Media room</DialogDescription>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {remoteVideoEnabled ? (
+          {remoteVideoEnabled && connectionState === "connected" ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
@@ -218,7 +231,7 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p>{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
               </div>
             </div>
           )}
