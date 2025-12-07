@@ -32,7 +32,6 @@ export const CallDialog = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
   const [remoteProfile, setRemoteProfile] = useState<any>(null);
-  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -48,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Fetch remote user identity for profile fallback
+  // FETCH PROFILE: Required for Google Meet look
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -65,7 +64,7 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
-  // Handle local video playback
+  // UI BINDING: Force rendering
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -73,25 +72,18 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // Handle remote stream and track visibility (Meet-style)
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
-
-      const vTrack = remoteStream.getVideoTracks()[0];
-      if (vTrack) {
-        setRemoteVideoEnabled(vTrack.enabled);
-        vTrack.onunmute = () => setRemoteVideoEnabled(true);
-        vTrack.onmute = () => setRemoteVideoEnabled(false);
-      }
+      remoteVideoRef.current.play().catch((e) => console.error("Remote feed block:", e));
     }
   }, [remoteStream]);
 
-  // Main Signaling Lifecycle
+  // MAIN WEBRTC ENGINE: Restored with Retries
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
+    let signalingPulse: NodeJS.Timeout;
 
     const initializeCall = async () => {
       try {
@@ -100,7 +92,6 @@ export const CallDialog = ({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
-
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -127,12 +118,12 @@ export const CallDialog = ({
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
 
+        // REDUNDANT SIGNALING: Handles race conditions
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
 
-            // Add queued ICE candidates
             while (iceCandidatesQueue.current.length > 0) {
               const cand = iceCandidatesQueue.current.shift();
               if (cand) await pcRef.current.addIceCandidate(cand);
@@ -149,22 +140,26 @@ export const CallDialog = ({
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             const cand = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current.remoteDescription) {
+            if (pcRef.current?.remoteDescription) {
               await pcRef.current.addIceCandidate(cand);
             } else {
               iceCandidatesQueue.current.push(cand);
             }
           })
-          .on("broadcast", { event: "ready" }, async () => {
-            if (isCaller && pcRef.current?.signalingState === "stable") {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
-            }
-          })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && !isCaller) {
-              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+            if (status === "SUBSCRIBED") {
+              // HANDSHAKE LOOP: Pulse the offer until connection state changes
+              signalingPulse = setInterval(async () => {
+                if (pcRef.current?.connectionState === "connected" || !mounted) {
+                  clearInterval(signalingPulse);
+                  return;
+                }
+                if (isCaller && pcRef.current?.signalingState === "stable") {
+                  const offer = await pc.createOffer();
+                  await pc.setLocalDescription(offer);
+                  channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+                }
+              }, 2000);
             }
           });
 
@@ -186,6 +181,7 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
+      if (signalingPulse) clearInterval(signalingPulse);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [open, user, conversationId, isCaller]);
@@ -196,7 +192,6 @@ export const CallDialog = ({
       setIsMuted(!isMuted);
     }
   };
-
   const toggleVideo = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
@@ -210,11 +205,11 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting</DialogTitle>
+          <DialogTitle>Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {remoteVideoEnabled ? (
+          {connectionState === "connected" ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
@@ -225,7 +220,7 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p>{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Call Failed"}</p>
               </div>
             </div>
           )}
@@ -241,8 +236,10 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+              <div className="w-full h-full flex items-center justify-center bg-card">
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                </Avatar>
               </div>
             )}
           </div>
