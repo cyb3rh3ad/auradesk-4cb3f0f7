@@ -1,18 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTranscription } from '@/hooks/useTranscription';
-import { useWebRTC } from '@/hooks/useWebRTC';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  Mic, MicOff, Video, VideoOff, Phone, 
-  Monitor, Hand, MoreVertical,
-  Sparkles, X, Loader2
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTranscription } from "@/hooks/useTranscription";
+import { useWebRTC } from "@/hooks/useWebRTC";
+import { supabase } from "@/integrations/supabase/client";
+import { Mic, MicOff, Video, VideoOff, Phone, Monitor, Hand, MoreVertical, Sparkles, X, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 interface MeetingRoomProps {
   meetingId: string;
@@ -40,27 +36,21 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
   const [meetingTime, setMeetingTime] = useState(0);
   const [hasJoined, setHasJoined] = useState(false);
 
-  const userName = profile?.full_name || profile?.email || 'Anonymous';
-  
-  const {
-    localStream,
-    participants,
-    isConnecting,
-    error,
-    joinRoom,
-    leaveRoom,
-    toggleAudio,
-    toggleVideo
-  } = useWebRTC(meetingId, userName);
+  const userName = profile?.full_name || profile?.email || "Anonymous";
+
+  const { localStream, participants, isConnecting, error, joinRoom, leaveRoom, toggleAudio, toggleVideo } = useWebRTC(
+    meetingId,
+    userName,
+  );
 
   // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
       const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, avatar_url')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .eq("id", user.id)
         .single();
       if (data) setProfile(data);
     };
@@ -75,17 +65,20 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
     }
   }, [profile, hasJoined, joinRoom, initialVideo]);
 
-  // Attach local stream to video element
+  // FIX: Attach local stream to video element and trigger play
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
+
+      // Explicit play command to force initial render
+      localVideoRef.current.play().catch((err) => console.error("Local video playback failed:", err));
     }
   }, [localStream]);
 
   // Timer for meeting duration
   useEffect(() => {
     const interval = setInterval(() => {
-      setMeetingTime(prev => prev + 1);
+      setMeetingTime((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -107,15 +100,15 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
       await stopRecording(meetingId);
       setIsTranscribing(false);
       toast({
-        title: 'Transcription stopped',
-        description: 'AI transcription has been saved'
+        title: "Transcription stopped",
+        description: "AI transcription has been saved",
       });
     } else {
       await startRecording(meetingId);
       setIsTranscribing(true);
       toast({
-        title: 'Transcription started',
-        description: 'AI is now transcribing your meeting'
+        title: "Transcription started",
+        description: "AI is now transcribing your meeting",
       });
     }
   };
@@ -133,25 +126,29 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
-  const latestTranscript = transcript.length > 0 ? transcript[transcript.length - 1].text : '';
+  const latestTranscript = transcript.length > 0 ? transcript[transcript.length - 1].text : "";
   const participantCount = participants.size + 1; // +1 for self
   const participantArray = Array.from(participants.values());
 
-  // Grid layout based on participant count
   const getGridClass = () => {
-    if (participantCount === 1) return 'grid-cols-1';
-    if (participantCount === 2) return 'grid-cols-1 md:grid-cols-2';
-    if (participantCount <= 4) return 'grid-cols-2';
-    return 'grid-cols-2 md:grid-cols-3';
+    if (participantCount === 1) return "grid-cols-1";
+    if (participantCount === 2) return "grid-cols-1 md:grid-cols-2";
+    if (participantCount <= 4) return "grid-cols-2";
+    return "grid-cols-2 md:grid-cols-3";
   };
 
   if (isConnecting) {
@@ -183,21 +180,18 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
             {formatTime(meetingTime)}
           </Badge>
           <Badge variant="secondary" className="text-xs">
-            {participantCount} participant{participantCount !== 1 ? 's' : ''}
+            {participantCount} participant{participantCount !== 1 ? "s" : ""}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant={isTranscribing ? "default" : "outline"} 
-            size="sm" 
+          <Button
+            variant={isTranscribing ? "default" : "outline"}
+            size="sm"
             onClick={toggleTranscription}
-            className={cn(
-              "gap-2",
-              isTranscribing && "bg-gradient-to-r from-primary to-accent"
-            )}
+            className={cn("gap-2", isTranscribing && "bg-gradient-to-r from-primary to-accent")}
           >
             <Sparkles className="w-4 h-4" />
-            {isTranscribing ? 'Transcribing...' : 'AI Transcribe'}
+            {isTranscribing ? "Transcribing..." : "AI Transcribe"}
           </Button>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-4 h-4" />
@@ -219,19 +213,19 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="text-sm font-medium">{profile?.full_name || 'You'}</p>
+                  <p className="text-sm font-medium">{profile?.full_name || "You"}</p>
                 </div>
               </div>
             ) : (
               <video
                 ref={localVideoRef}
                 autoPlay
-                muted
-                playsInline
+                muted // FIX: Mandatory for local playback on most browsers
+                playsInline // FIX: Mandatory for mobile compatibility
                 className="w-full h-full object-cover"
               />
             )}
-            
+
             <div className="absolute bottom-3 left-3 flex items-center gap-2">
               <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
                 You
@@ -242,15 +236,10 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
 
           {/* Remote Participants */}
           {participantArray.map((participant) => (
-            <RemoteVideo
-              key={participant.odakle}
-              stream={participant.stream}
-              name={participant.name}
-            />
+            <RemoteVideo key={participant.odakle} stream={participant.stream} name={participant.name} />
           ))}
         </div>
 
-        {/* Live Transcript Panel */}
         {isTranscribing && latestTranscript && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-2xl w-full px-4">
             <div className="bg-background/95 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-border/50">
@@ -259,7 +248,6 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
           </div>
         )}
 
-        {/* Waiting indicator when alone */}
         {participantCount === 1 && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2">
             <Badge variant="secondary" className="gap-2 py-2 px-4">
@@ -289,30 +277,17 @@ export const MeetingRoom = ({ meetingId, meetingTitle, onClose, initialVideo = t
           >
             {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-14 h-14 rounded-full"
-          >
+          <Button variant="secondary" size="lg" className="w-14 h-14 rounded-full">
             <Monitor className="w-5 h-5" />
           </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-14 h-14 rounded-full"
-          >
+          <Button variant="secondary" size="lg" className="w-14 h-14 rounded-full">
             <Hand className="w-5 h-5" />
           </Button>
         </div>
 
         <div className="w-px h-10 bg-border mx-2" />
 
-        <Button
-          variant="destructive"
-          size="lg"
-          className="px-8 h-14 rounded-full gap-2"
-          onClick={handleEndCall}
-        >
+        <Button variant="destructive" size="lg" className="px-8 h-14 rounded-full gap-2" onClick={handleEndCall}>
           <Phone className="w-5 h-5 rotate-[135deg]" />
           End
         </Button>
@@ -328,22 +303,24 @@ const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: strin
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
+      // Remote streams may also benefit from programmatic play()
+      videoRef.current.play().catch(() => {});
     }
   }, [stream]);
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
     <div className="relative rounded-2xl overflow-hidden bg-card shadow-xl min-h-[200px]">
       {stream ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-muted">
           <div className="text-center space-y-3">
@@ -356,11 +333,9 @@ const RemoteVideo = ({ stream, name }: { stream: MediaStream | null; name: strin
           </div>
         </div>
       )}
-      
+
       <div className="absolute bottom-3 left-3">
-        <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">
-          {name}
-        </Badge>
+        <Badge className="bg-background/80 backdrop-blur-sm text-foreground text-xs">{name}</Badge>
       </div>
     </div>
   );
