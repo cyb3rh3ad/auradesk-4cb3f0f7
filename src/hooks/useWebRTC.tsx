@@ -31,17 +31,28 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
+  // SDP Optimizer: Capping audio at 24kbps for high-density group calls
+  const mangleAudioBitrate = (sdp: string, bitrate = 24) => {
+    return sdp.replace(/a=fmtp:111 (.*)/g, `a=fmtp:111 $1;maxaveragebitrate=${bitrate * 1000}`);
+  };
+
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: video ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+        video: video
+          ? {
+              width: { ideal: 1280, max: 1280 },
+              height: { ideal: 720, max: 720 },
+              frameRate: { ideal: 30, max: 30 },
+            }
+          : false,
         audio: audio ? { echoCancellation: true, noiseSuppression: true } : false,
       });
       setLocalStream(stream);
       localStreamRef.current = stream;
       return stream;
     } catch (err) {
-      setError("Media access denied. Check permissions.");
+      setError("Check camera/microphone permissions.");
       return null;
     }
   }, []);
@@ -53,17 +64,11 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!));
 
-      // FIX: Listen explicitly for tracks and update participant stream state
       pc.ontrack = (event) => {
-        console.log("Received remote track for", remoteUserId);
         if (event.streams[0]) {
           setParticipants((prev) => {
             const newMap = new Map(prev);
-            newMap.set(remoteUserId, {
-              odakle: remoteUserId,
-              stream: event.streams[0],
-              name: remoteName,
-            });
+            newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
             return newMap;
           });
         }
@@ -97,6 +102,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       if (!pc || !channelRef.current || !user) return;
       try {
         const offer = await pc.createOffer();
+        offer.sdp = mangleAudioBitrate(offer.sdp!); // Apply bitrate cap
         await pc.setLocalDescription(offer);
         channelRef.current.send({
           type: "broadcast",
@@ -104,7 +110,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
           payload: { offer: pc.localDescription, from: user.id, fromName: userName, to: remoteUserId },
         });
       } catch (err) {
-        console.error("Signaling Offer Error:", err);
+        console.error("Offer Error:", err);
       }
     },
     [createPeerConnection, userName, user],
@@ -122,6 +128,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
+        answer.sdp = mangleAudioBitrate(answer.sdp!); // Apply bitrate cap
         await pc.setLocalDescription(answer);
 
         channelRef.current.send({
@@ -129,14 +136,12 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
           event: "answer",
           payload: { answer: pc.localDescription, from: user.id, to: from },
         });
-
         channelRef.current.send({ type: "broadcast", event: "call-answered", payload: { from: user.id, to: from } });
         setCallStatus("IN_CALL");
 
-        // Flush candidates after stable state
         const bufferedCandidates = iceCandidateBuffer.current.get(from);
         if (bufferedCandidates) {
-          bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)));
+          bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}));
           iceCandidateBuffer.current.delete(from);
         }
       } catch (err) {
@@ -153,7 +158,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
       const bufferedCandidates = iceCandidateBuffer.current.get(from);
       if (bufferedCandidates) {
-        bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)));
+        bufferedCandidates.forEach((cand) => pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}));
         iceCandidateBuffer.current.delete(from);
       }
     } catch (err) {
@@ -167,7 +172,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (e) {
-      console.warn("ICE ignored during connect.");
+      console.warn("ICE candidate skipped.");
     }
   }, []);
 
@@ -181,10 +186,17 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         return;
       }
 
-      const channel = supabase
-        .channel(`meeting-${meetingId}`)
+      const channel = supabase.channel(`meeting-${meetingId}`);
+      channel
         .on("broadcast", { event: "user-joined" }, ({ payload }) => {
-          if (payload.userId !== user.id) sendOffer(payload.userId, payload.userName);
+          if (payload.userId !== user.id) {
+            // RESTORED: Signaling Handshake
+            channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+          }
+        })
+        .on("broadcast", { event: "ready" }, ({ payload }) => {
+          // HANDSHAKE: Trigger offer only when callee is ready
+          if (payload.from !== user.id) sendOffer(payload.from, userName);
         })
         .on("broadcast", { event: "offer" }, ({ payload }) => {
           if (payload.to === user.id) handleOffer(payload.from, payload.fromName, payload.offer);
