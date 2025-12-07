@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, MicOff, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -26,11 +26,12 @@ export const CallDialog = ({
   isCaller = true,
 }: CallDialogProps) => {
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(true); // Default to muted for privacy
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
+  const [remoteProfile, setRemoteProfile] = useState<any>(null);
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -47,7 +48,24 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // SAFETY: Null-safe stream binding
+  // Fetch remote user identity
+  useEffect(() => {
+    const fetchRemoteProfile = async () => {
+      if (!conversationId || !user || !open) return;
+      const { data: members } = await supabase
+        .from("conversation_members")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .neq("user_id", user.id);
+      if (members?.[0]) {
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
+        if (profile) setRemoteProfile(profile);
+      }
+    };
+    fetchRemoteProfile();
+  }, [conversationId, user, open]);
+
+  // Bind streams with null safety
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -56,26 +74,27 @@ export const CallDialog = ({
   }, [localStream, isVideoOff]);
 
   useEffect(() => {
-    let playTimer: NodeJS.Timeout;
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      const refreshMedia = async () => {
-        try {
-          if (remoteVideoRef.current) {
-            await remoteVideoRef.current.play();
-            setRemoteVideoEnabled(true);
-            clearInterval(playTimer);
-          }
-        } catch (e) {
-          /* Silent catch to prevent crash */
-        }
-      };
-      playTimer = setInterval(refreshMedia, 1500);
-      refreshMedia();
+
+      // Programmatically trigger play to bypass browser security
+      remoteVideoRef.current
+        .play()
+        .then(() => {
+          setRemoteVideoEnabled(true);
+        })
+        .catch((e) => console.warn("Remote playback blocked:", e));
+
+      const vTrack = remoteStream.getVideoTracks()[0];
+      if (vTrack) {
+        setRemoteVideoEnabled(vTrack.enabled);
+        vTrack.onunmute = () => setRemoteVideoEnabled(true);
+        vTrack.onmute = () => setRemoteVideoEnabled(false);
+      }
     }
-    return () => clearInterval(playTimer);
   }, [remoteStream]);
 
+  // Main Signaling Lifecycle
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
@@ -84,7 +103,10 @@ export const CallDialog = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
-        stream.getAudioTracks().forEach((t) => (t.enabled = false));
+
+        // Initial state set
+        stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default Mic Off
+        stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
@@ -96,7 +118,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay",
+          iceTransportPolicy: "relay", // Bypass router firewalls
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -104,7 +126,7 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            incoming.getTracks().forEach((t) => (t.enabled = true));
+            incoming.getTracks().forEach((t) => (t.enabled = true)); // Wake tracks up
             setRemoteStream(incoming);
             setConnectionState("connected");
           }
@@ -117,10 +139,12 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+
             while (iceCandidatesQueue.current.length > 0) {
               const cand = iceCandidatesQueue.current.shift();
               if (cand) await pcRef.current.addIceCandidate(cand);
             }
+
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -128,6 +152,15 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          })
+          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            const cand = new RTCIceCandidate(payload.candidate);
+            if (pcRef.current?.remoteDescription) {
+              await pcRef.current.addIceCandidate(cand);
+            } else {
+              iceCandidatesQueue.current.push(cand); // Buffer candidates
+            }
           })
           .on("broadcast", { event: "ready" }, async () => {
             if (isCaller && pcRef.current?.signalingState === "stable") {
@@ -169,7 +202,7 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      remoteVideoRef.current?.play().catch(() => {});
+      remoteVideoRef.current?.play().catch(() => {}); // Gesture bypass
     }
   };
 
@@ -177,7 +210,7 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
         <VisuallyHidden.Root>
-          <DialogTitle>Secure Meeting Room</DialogTitle>
+          <DialogTitle>Secure Call</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
@@ -192,7 +225,7 @@ export const CallDialog = ({
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
                 <p className="animate-pulse">
-                  {connectionState === "connecting" ? "建立隧道 Establishing tunnel..." : "Media Blocked - click Mic"}
+                  {connectionState === "connecting" ? "Establishing secure connection..." : "Camera Off - click Mic"}
                 </p>
               </div>
             </div>
@@ -208,9 +241,11 @@ export const CallDialog = ({
                 style={{ transform: "scaleX(-1)" }}
               />
             ) : (
-              <Avatar className="w-full h-full flex items-center justify-center">
-                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-              </Avatar>
+              <div className="w-full h-full flex items-center justify-center bg-card">
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
+                </Avatar>
+              </div>
             )}
           </div>
         </div>
