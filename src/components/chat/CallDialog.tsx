@@ -32,6 +32,7 @@ export const CallDialog = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "failed">("connecting");
   const [remoteProfile, setRemoteProfile] = useState<any>(null);
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -47,7 +48,6 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // FETCH PROFILE: Required for Google Meet look
   useEffect(() => {
     const fetchRemoteProfile = async () => {
       if (!conversationId || !user || !open) return;
@@ -64,7 +64,6 @@ export const CallDialog = ({
     fetchRemoteProfile();
   }, [conversationId, user, open]);
 
-  // UI BINDING: Force rendering
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -75,15 +74,19 @@ export const CallDialog = ({
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch((e) => console.error("Remote feed block:", e));
+      remoteVideoRef.current.play().catch(() => {});
+      const vTrack = remoteStream.getVideoTracks()[0];
+      if (vTrack) {
+        setRemoteVideoEnabled(vTrack.enabled);
+        vTrack.onunmute = () => setRemoteVideoEnabled(true);
+        vTrack.onmute = () => setRemoteVideoEnabled(false);
+      }
     }
   }, [remoteStream]);
 
-  // MAIN WEBRTC ENGINE: Restored with Retries
   useEffect(() => {
     if (!open || !user || !conversationId) return;
     let mounted = true;
-    let signalingPulse: NodeJS.Timeout;
 
     const initializeCall = async () => {
       try {
@@ -104,6 +107,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
+          iceTransportPolicy: "relay", // CRITICAL FIX: Bypass school firewalls
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
@@ -115,20 +119,30 @@ export const CallDialog = ({
           }
         };
 
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            // Delay sending candidate slightly for channel reliability
+            setTimeout(() => {
+              channelRef.current?.send({
+                type: "broadcast",
+                event: "ice-candidate",
+                payload: { candidate: event.candidate, from: user.id },
+              });
+            }, 100);
+          }
+        };
+
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
 
-        // REDUNDANT SIGNALING: Handles race conditions
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-
             while (iceCandidatesQueue.current.length > 0) {
               const cand = iceCandidatesQueue.current.shift();
               if (cand) await pcRef.current.addIceCandidate(cand);
             }
-
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -146,32 +160,19 @@ export const CallDialog = ({
               iceCandidatesQueue.current.push(cand);
             }
           })
+          .on("broadcast", { event: "ready" }, async () => {
+            // HANDSHAKE: Trigger call flow only when receiver is fully ready
+            if (isCaller && pcRef.current?.signalingState === "stable") {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            }
+          })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-              // HANDSHAKE LOOP: Pulse the offer until connection state changes
-              signalingPulse = setInterval(async () => {
-                if (pcRef.current?.connectionState === "connected" || !mounted) {
-                  clearInterval(signalingPulse);
-                  return;
-                }
-                if (isCaller && pcRef.current?.signalingState === "stable") {
-                  const offer = await pc.createOffer();
-                  await pc.setLocalDescription(offer);
-                  channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
-                }
-              }, 2000);
+            if (status === "SUBSCRIBED" && !isCaller) {
+              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
             }
           });
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate && channelRef.current) {
-            channelRef.current.send({
-              type: "broadcast",
-              event: "ice-candidate",
-              payload: { candidate: event.candidate, from: user.id },
-            });
-          }
-        };
       } catch (e) {
         if (mounted) setConnectionState("failed");
       }
@@ -181,7 +182,6 @@ export const CallDialog = ({
     return () => {
       mounted = false;
       pcRef.current?.close();
-      if (signalingPulse) clearInterval(signalingPulse);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [open, user, conversationId, isCaller]);
@@ -205,11 +205,11 @@ export const CallDialog = ({
     <Dialog open={open}>
       <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
         <VisuallyHidden.Root>
-          <DialogTitle>Meeting Room</DialogTitle>
+          <DialogTitle>Meeting</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {connectionState === "connected" ? (
+          {remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
@@ -220,7 +220,7 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Call Failed"}</p>
+                <p>{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
               </div>
             </div>
           )}
@@ -237,9 +237,7 @@ export const CallDialog = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
-                </Avatar>
+                <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
               </div>
             )}
           </div>
