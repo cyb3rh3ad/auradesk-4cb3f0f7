@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Bind local stream
+  // Force local preview to render
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -55,11 +55,22 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // Bind remote stream and force play to bypass silent policy
+  // CRITICAL: Force remote media to start immediately
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch((e) => console.warn("Remote playback blocked", e));
+
+      const startPlayback = async () => {
+        try {
+          await remoteVideoRef.current?.play();
+          console.log("Remote playback started successfully");
+        } catch (e) {
+          console.warn("Autoplay blocked: Browser requires user interaction for sound", e);
+        }
+      };
+
+      startPlayback();
+
       const vTrack = remoteStream.getVideoTracks()[0];
       if (vTrack) {
         setRemoteVideoEnabled(vTrack.enabled);
@@ -89,14 +100,17 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Force bypass of router blocks
+          iceTransportPolicy: "relay",
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
-            setRemoteStream(event.streams[0]);
+            const incomingStream = event.streams[0];
+            // FORCE ENABLE: Ensure browser hasn't muted tracks during handshake
+            incomingStream.getTracks().forEach((t) => (t.enabled = true));
+            setRemoteStream(incomingStream);
             setConnectionState("connected");
           }
         };
@@ -108,7 +122,6 @@ export const CallDialog = ({
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            // Process candidates buffered before description
             while (iceCandidatesQueue.current.length > 0) {
               const cand = iceCandidatesQueue.current.shift();
               if (cand) await pcRef.current.addIceCandidate(cand);
@@ -131,7 +144,6 @@ export const CallDialog = ({
             }
           })
           .on("broadcast", { event: "ready" }, async () => {
-            // Doorbell handshake
             if (isCaller && pcRef.current?.signalingState === "stable") {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -146,7 +158,7 @@ export const CallDialog = ({
 
         pc.onicecandidate = (event) => {
           if (event.candidate && channelRef.current) {
-            channelRef.current.send({
+            channel.send({
               type: "broadcast",
               event: "ice-candidate",
               payload: { candidate: event.candidate, from: user.id },
@@ -197,7 +209,7 @@ export const CallDialog = ({
               </Avatar>
               <div className="text-white">
                 <p className="font-medium text-xl">{conversationName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
+                <p className="animate-pulse">{connectionState === "connecting" ? "Relaying Feed..." : "Camera Off"}</p>
               </div>
             </div>
           )}
@@ -235,7 +247,11 @@ export const CallDialog = ({
           >
             {isVideoOff ? <VideoOff /> : <Video />}
           </Button>
-          <Button variant="destructive" onClick={onClose} className="w-14 h-14 rounded-full">
+          <Button
+            variant="destructive"
+            onClick={onClose}
+            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600"
+          >
             <PhoneOff />
           </Button>
         </div>
