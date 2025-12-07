@@ -26,7 +26,7 @@ export const CallDialog = ({
   isCaller = true,
 }: CallDialogProps) => {
   const { user } = useAuth();
-  const [isMuted, setIsMuted] = useState(true); // Mic Off by default to prevent loops
+  const [isMuted, setIsMuted] = useState(true);
   const [isVideoOff, setIsVideoOff] = useState(!initialVideo);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -47,7 +47,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  // Bind local preview immediately
+  // Bind local preview
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -55,27 +55,28 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
-  // Robust Kickstart Loop for Remote Media
+  // AGGRESSIVE REMOTE WAKEUP: retry logic to force pixels
   useEffect(() => {
-    let playInterval: NodeJS.Timeout;
+    let playTimer: NodeJS.Timeout;
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      const attemptPlay = async () => {
+
+      const refreshMedia = async () => {
         try {
           if (remoteVideoRef.current) {
             await remoteVideoRef.current.play();
-            console.log("Remote media rendering triggered");
             setRemoteVideoEnabled(true);
-            clearInterval(playInterval);
+            console.log("Pixels flowing successfully");
           }
         } catch (e) {
-          console.warn("Autoplay block detected. Peer must click screen.");
+          console.warn("Media engine needs interaction...");
         }
       };
-      playInterval = setInterval(attemptPlay, 1000); // Kickstart playback
-      attemptPlay();
+
+      playTimer = setInterval(refreshMedia, 1500); // Pulse play every 1.5s until unblocked
+      refreshMedia();
     }
-    return () => clearInterval(playInterval);
+    return () => clearInterval(playTimer);
   }, [remoteStream]);
 
   useEffect(() => {
@@ -88,7 +89,6 @@ export const CallDialog = ({
         if (!mounted) return stream.getTracks().forEach((t) => t.stop());
 
         stream.getAudioTracks().forEach((t) => (t.enabled = false)); // Default mic off
-        stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
         const pc = new RTCPeerConnection({
@@ -100,7 +100,7 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Bypass router-level stalls
+          iceTransportPolicy: "relay",
         });
         pcRef.current = pc;
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -108,7 +108,8 @@ export const CallDialog = ({
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
             const incoming = event.streams[0];
-            incoming.getTracks().forEach((t) => (t.enabled = true)); // Wake tracks up
+            // FORCE ENABLE ALL TRACKS: Ensures sound/video isn't arriving "off"
+            incoming.getTracks().forEach((t) => (t.enabled = true));
             setRemoteStream(incoming);
             setConnectionState("connected");
           }
@@ -132,6 +133,15 @@ export const CallDialog = ({
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          })
+          .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
+            if (payload.from === user.id || !pcRef.current) return;
+            const cand = new RTCIceCandidate(payload.candidate);
+            if (pcRef.current?.remoteDescription) {
+              await pcRef.current.addIceCandidate(cand);
+            } else {
+              iceCandidatesQueue.current.push(cand);
+            }
           })
           .on("broadcast", { event: "ready" }, async () => {
             if (isCaller && pcRef.current?.signalingState === "stable") {
@@ -173,22 +183,18 @@ export const CallDialog = ({
       const newState = !isMuted;
       localStream.getAudioTracks().forEach((t) => (t.enabled = !newState));
       setIsMuted(newState);
-      // Manual click wakes browser playback engine
-      if (remoteVideoRef.current) remoteVideoRef.current.play().catch(() => {});
-    }
-  };
-  const toggleVideo = () => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((t) => (t.enabled = isVideoOff));
-      setIsVideoOff(!isVideoOff);
+      // FORCE RENDER: Play call refreshes media engine on user click
+      remoteVideoRef.current?.play().catch(() => {});
     }
   };
 
+  const displayName = remoteProfile?.full_name || conversationName;
+
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-black">
         <VisuallyHidden.Root>
-          <DialogTitle>Secure Meeting Room</DialogTitle>
+          <DialogTitle>Active Call</DialogTitle>
         </VisuallyHidden.Root>
         <div className="relative aspect-video bg-black flex items-center justify-center">
           {connectionState === "connected" && remoteVideoEnabled ? (
@@ -204,8 +210,8 @@ export const CallDialog = ({
                 <p className="font-medium text-xl">{conversationName}</p>
                 <p className="animate-pulse">
                   {connectionState === "connecting"
-                    ? "Establishing link..."
-                    : "Media Blocked - click Mic to start audio"}
+                    ? "建立隧道 Establishing tunnel..."
+                    : "Media Blocked - click Mic to enable pixels"}
                 </p>
               </div>
             </div>
@@ -236,13 +242,6 @@ export const CallDialog = ({
             className={cn("w-14 h-14 rounded-full", isMuted && "bg-red-500/10 text-red-500")}
           >
             {isMuted ? <MicOff /> : <Mic />}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={toggleVideo}
-            className={cn("w-14 h-14 rounded-full", isVideoOff && "bg-red-500/10 text-red-500")}
-          >
-            {isVideoOff ? <VideoOff /> : <Video />}{" "}
           </Button>
           <Button
             variant="destructive"
