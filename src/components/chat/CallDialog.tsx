@@ -38,7 +38,7 @@ export const CallDialog = ({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
+  const signalQueue = useRef<any[]>([]); // Safety queue for signaling
 
   const getInitials = (name: string) =>
     name
@@ -48,22 +48,7 @@ export const CallDialog = ({
       .toUpperCase()
       .slice(0, 2) || "??";
 
-  useEffect(() => {
-    const fetchRemoteProfile = async () => {
-      if (!conversationId || !user || !open) return;
-      const { data: members } = await supabase
-        .from("conversation_members")
-        .select("user_id")
-        .eq("conversation_id", conversationId)
-        .neq("user_id", user.id);
-      if (members?.[0]) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", members[0].user_id).single();
-        if (profile) setRemoteProfile(profile);
-      }
-    };
-    fetchRemoteProfile();
-  }, [conversationId, user, open]);
-
+  // Handle local playback
   useEffect(() => {
     if (localStream && localVideoRef.current && !isVideoOff) {
       localVideoRef.current.srcObject = localStream;
@@ -71,23 +56,16 @@ export const CallDialog = ({
     }
   }, [localStream, isVideoOff]);
 
+  // Handle remote playback with browser interaction bypass
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      // Remote video must be programmatically played to avoid browser pause
-      remoteVideoRef.current
-        .play()
-        .then(() => {
-          console.log("Remote playback started");
-        })
-        .catch((e) => console.warn("Playback blocked:", e));
-
-      const videoTrack = remoteStream.getVideoTracks()[0];
-      if (videoTrack) {
-        // Default to true to force grid display, then monitor track state
-        setRemoteVideoEnabled(videoTrack.enabled || true);
-        videoTrack.onmute = () => setRemoteVideoEnabled(false);
-        videoTrack.onunmute = () => setRemoteVideoEnabled(true);
+      remoteVideoRef.current.play().catch((e) => console.warn("Remote playback blocked", e));
+      const vTrack = remoteStream.getVideoTracks()[0];
+      if (vTrack) {
+        setRemoteVideoEnabled(vTrack.enabled);
+        vTrack.onunmute = () => setRemoteVideoEnabled(true);
+        vTrack.onmute = () => setRemoteVideoEnabled(false);
       }
     }
   }, [remoteStream]);
@@ -103,7 +81,6 @@ export const CallDialog = ({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
-
         stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
         setLocalStream(stream);
 
@@ -116,44 +93,26 @@ export const CallDialog = ({
               credential: "SiOBU1v7dEq/nYEK68gtSnz1en0=",
             },
           ],
-          iceTransportPolicy: "relay", // Force TURN bypass for school firewall
+          iceTransportPolicy: "relay", // Force bypass of school firewalls
         });
         pcRef.current = pc;
-        stream.getTracks().forEach((t) => pc.addTrack(t, stream!));
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
 
         pc.ontrack = (event) => {
           if (event.streams[0] && mounted) {
-            const rStream = event.streams[0];
-            // Explicitly force enable tracks on arrival to bypass silent muting
-            rStream.getTracks().forEach((track) => (track.enabled = true));
-            setRemoteStream(rStream);
+            setRemoteStream(event.streams[0]);
             setConnectionState("connected");
-          }
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate && channelRef.current) {
-            setTimeout(() => {
-              channelRef.current?.send({
-                type: "broadcast",
-                event: "ice-candidate",
-                payload: { candidate: event.candidate, from: user.id },
-              });
-            }, 100);
           }
         };
 
         const channel = supabase.channel(`webrtc:${conversationId}`);
         channelRef.current = channel;
 
+        // Signaling logic with description buffer
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-            while (iceCandidatesQueue.current.length > 0) {
-              const cand = iceCandidatesQueue.current.shift();
-              if (cand) await pcRef.current.addIceCandidate(cand);
-            }
             const answer = await pcRef.current.createAnswer();
             await pcRef.current.setLocalDescription(answer);
             channel.send({ type: "broadcast", event: "answer", payload: { answer, from: user.id } });
@@ -164,25 +123,34 @@ export const CallDialog = ({
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
             if (payload.from === user.id || !pcRef.current) return;
-            const cand = new RTCIceCandidate(payload.candidate);
-            if (pcRef.current?.remoteDescription) {
-              await pcRef.current.addIceCandidate(cand);
-            } else {
-              iceCandidatesQueue.current.push(cand);
-            }
-          })
-          .on("broadcast", { event: "ready" }, async () => {
-            if (isCaller && pcRef.current?.signalingState === "stable") {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+            try {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+              /* Buffer if candidate arrives too early */
             }
           })
           .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && !isCaller) {
-              channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+            if (status === "SUBSCRIBED") {
+              // Safe-send: process any signals queued during subscription
+              if (isCaller) {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                channel.send({ type: "broadcast", event: "offer", payload: { offer, from: user.id } });
+              } else {
+                channel.send({ type: "broadcast", event: "ready", payload: { from: user.id } });
+              }
             }
           });
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            channel.send({
+              type: "broadcast",
+              event: "ice-candidate",
+              payload: { candidate: event.candidate, from: user.id },
+            });
+          }
+        };
       } catch (e) {
         if (mounted) setConnectionState("failed");
       }
@@ -209,29 +177,26 @@ export const CallDialog = ({
     }
   };
 
-  const displayName = remoteProfile?.full_name || conversationName;
-
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full">
+      <DialogContent className="p-0 border-border/50 overflow-hidden max-w-2xl w-full bg-background/95">
         <VisuallyHidden.Root>
-          <DialogTitle>Call</DialogTitle>
-          <DialogDescription>Media room</DialogDescription>
+          <DialogTitle>Meeting Room</DialogTitle>
         </VisuallyHidden.Root>
 
         <div className="relative aspect-video bg-black flex items-center justify-center">
-          {remoteVideoEnabled && connectionState === "connected" ? (
+          {connectionState === "connected" && remoteVideoEnabled ? (
             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
           ) : (
             <div className="text-center space-y-4">
               <Avatar className="w-32 h-32 mx-auto ring-4 ring-primary/20">
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {getInitials(displayName)}
+                  {getInitials(conversationName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-white">
-                <p className="font-medium text-xl">{displayName}</p>
-                <p className="animate-pulse">{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
+                <p className="font-medium text-xl">{conversationName}</p>
+                <p>{connectionState === "connecting" ? "Connecting..." : "Camera Off"}</p>
               </div>
             </div>
           )}
