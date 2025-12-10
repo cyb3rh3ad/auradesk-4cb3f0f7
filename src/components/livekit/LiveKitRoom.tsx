@@ -2,9 +2,30 @@ import { useEffect, useRef } from "react";
 import { Track } from "livekit-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mic, MicOn, Video, VideoOff, PhoneOn, Monitor, MonitorOff, Users } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Monitor,
+  MonitorOff,
+  Users,
+  PhoneOff, // Uporaba PhoneOff za prekinitev klica
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLiveKit } from "@/hooks/useLiveKit";
+import { useLiveKit } from "@/hooks/useLiveKit"; // Uvoz hooka
+
+// Dodajanje ParticipantProps za bolj natančno tipizacijo
+interface ParticipantProps {
+  identity: string;
+  name?: string;
+  isLocal: boolean;
+  isSpeaking: boolean;
+  isMuted: boolean;
+  isCameraOff: boolean;
+  videoTrack?: Track;
+  // Dodajte isScreenSharing, če ga hook vrača
+}
 
 interface LiveKitRoomProps {
   roomName: string;
@@ -16,7 +37,6 @@ interface LiveKitRoomProps {
 export function LiveKitRoom({ roomName, participantName, onDisconnect, className }: LiveKitRoomProps) {
   const {
     isConnecting,
-    isConnected,
     error,
     localParticipant,
     remoteParticipants,
@@ -25,9 +45,9 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     toggleMute,
     toggleCamera,
     toggleScreenShare,
-    isScreenSharing,
-    isMuted,
-    isCameraOff,
+    isScreenSharing, // Vzeto direktno iz hooka
+    isMuted, // Vzeto direktno iz hooka
+    isCameraOff, // Vzeto direktno iz hooka
   } = useLiveKit();
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -37,14 +57,17 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
   useEffect(() => {
     connect(roomName, participantName);
 
+    // VZROK POPRAVKA: Ta klic return() mora poklicati funkcijo disconnect() v useLiveKit,
+    // ki vključuje KRITIČNI POPRAVEK track.stop().
     return () => {
       disconnect();
     };
-  }, [roomName, participantName]);
+  }, [roomName, participantName, connect, disconnect]); // Dodane odvisnosti 'connect' in 'disconnect'
 
   // Attach local video
   useEffect(() => {
-    if (localParticipant?.videoTrack && localVideoRef.current) {
+    // Preverimo tudi, da kamera ni izklopljena (isCameraOff) in da video track obstaja
+    if (localParticipant?.videoTrack && localVideoRef.current && !isCameraOff) {
       const track = localParticipant.videoTrack;
       if ("attach" in track) {
         track.attach(localVideoRef.current);
@@ -59,7 +82,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
         }
       }
     };
-  }, [localParticipant?.videoTrack]);
+  }, [localParticipant?.videoTrack, isCameraOff]); // Dodan isCameraOff kot odvisnost
 
   // Attach remote videos
   useEffect(() => {
@@ -92,7 +115,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
       <div className={cn("flex items-center justify-center h-full bg-background", className)}>
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-muted-foreground">Connecting to room...</p>
+          <p className="text-muted-foreground">Povezovanje v sobo...</p>
         </div>
       </div>
     );
@@ -102,15 +125,26 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     return (
       <div className={cn("flex items-center justify-center h-full bg-background", className)}>
         <div className="text-center space-y-4">
-          <p className="text-destructive">Connection failed: {error}</p>
-          <Button onClick={() => connect(roomName, participantName)}>Retry Connection</Button>
+          <p className="text-destructive">Napaka pri povezovanju: {error}</p>
+          <Button onClick={() => connect(roomName, participantName)}>Poskusi ponovno</Button>
         </div>
       </div>
     );
   }
 
-  const allParticipants = [
-    ...(localParticipant ? [{ ...localParticipant, isLocal: true }] : []),
+  // Združevanje lokalnih in oddaljenih udeležencev
+  const allParticipants: ParticipantProps[] = [
+    // KLJUČNO: lokalni udeleženec dobi isCameraOff in isMuted stanja direktno iz hooka
+    ...(localParticipant
+      ? [
+          {
+            ...localParticipant,
+            isLocal: true,
+            isCameraOff: isCameraOff,
+            isMuted: isMuted,
+          },
+        ]
+      : []),
     ...remoteParticipants.map((p) => ({ ...p, isLocal: false })),
   ];
 
@@ -135,7 +169,8 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
               participant.isSpeaking && "ring-2 ring-primary",
             )}
           >
-            {participant.isCameraOff ? (
+            {/* Prikaz avatara, če je kamera izklopljena ali video track ne obstaja */}
+            {participant.isCameraOff || !participant.videoTrack ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Avatar className="h-20 w-20">
                   <AvatarFallback className="text-2xl">
@@ -148,7 +183,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
                 ref={participant.isLocal ? localVideoRef : (el) => setRemoteVideoRef(participant.identity, el)}
                 autoPlay
                 playsInline
-                muted={participant.isLocal}
+                muted={participant.isLocal} // Utišaj lokalni video
                 className="absolute inset-0 w-full h-full object-cover"
               />
             )}
@@ -171,6 +206,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
       {/* Controls */}
       <div className="p-4 border-t border-border bg-card">
         <div className="flex items-center justify-center gap-4">
+          {/* Gumb za mikrofon */}
           <Button
             variant={isMuted ? "destructive" : "secondary"}
             size="icon"
@@ -180,6 +216,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
             {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
 
+          {/* Gumb za kamero */}
           <Button
             variant={isCameraOff ? "destructive" : "secondary"}
             size="icon"
@@ -189,6 +226,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
             {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
           </Button>
 
+          {/* Gumb za deljenje zaslona */}
           <Button
             variant={isScreenSharing ? "default" : "secondary"}
             size="icon"
@@ -198,12 +236,13 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
             {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
           </Button>
 
+          {/* Gumb za prekinitev klica */}
           <Button variant="destructive" size="icon" className="h-12 w-12 rounded-full" onClick={handleDisconnect}>
             <PhoneOff className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Participant count */}
+        {/* Število udeležencev */}
         <div className="flex items-center justify-center gap-2 mt-3 text-muted-foreground text-sm">
           <Users className="h-4 w-4" />
           <span>
