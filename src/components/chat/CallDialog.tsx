@@ -1,238 +1,55 @@
-import { useEffect, useRef } from "react";
-import { Track } from "livekit-client";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, Users, PhoneOff } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useLiveKit } from "@/hooks/useLiveKit"; // Uporaba popravljenega hooka
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
+import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-// Uporaba enostavnega ParticipantProps, ki ustreza LiveKitParticipant iz hooka
-interface ParticipantProps {
-  identity: string;
-  name?: string;
-  isLocal: boolean;
-  isSpeaking: boolean;
-  isMuted: boolean;
-  isCameraOff: boolean;
-  videoTrack?: Track;
+interface CallDialogProps {
+  open: boolean;
+  onClose: () => void;
+  conversationName: string;
+  conversationId: string;
+  initialVideo: boolean;
+  isCaller?: boolean;
 }
 
-interface LiveKitRoomProps {
-  roomName: string;
-  participantName: string;
-  onDisconnect: () => void;
-  className?: string;
-}
+export const CallDialog = ({
+  open,
+  onClose,
+  conversationName,
+  conversationId,
+  initialVideo,
+  isCaller = true,
+}: CallDialogProps) => {
+  const { user } = useAuth();
+  const [userName, setUserName] = useState<string>("User");
 
-export function LiveKitRoom({ roomName, participantName, onDisconnect, className }: LiveKitRoomProps) {
-  const {
-    isConnecting,
-    error,
-    localParticipant,
-    remoteParticipants,
-    connect,
-    disconnect,
-    toggleMute,
-    toggleCamera,
-    toggleScreenShare,
-    isScreenSharing,
-    isMuted,
-    isCameraOff,
-  } = useLiveKit();
-
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
-
-  // Connect on mount
+  // Fetch user profile name
   useEffect(() => {
-    connect(roomName, participantName);
-
-    return () => {
-      // Kliče KRITIČNO popravljeno disconnect funkcijo
-      disconnect();
-    };
-  }, [roomName, participantName, connect, disconnect]);
-
-  // Attach local video
-  useEffect(() => {
-    // Pripne samo, če kamera ni izklopljena
-    if (localParticipant?.videoTrack && localVideoRef.current && !isCameraOff) {
-      const track = localParticipant.videoTrack;
-      if ("attach" in track) {
-        track.attach(localVideoRef.current);
-      }
-    }
-
-    return () => {
-      if (localParticipant?.videoTrack && localVideoRef.current) {
-        const track = localParticipant.videoTrack;
-        if ("detach" in track) {
-          track.detach(localVideoRef.current);
-        }
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("full_name, username, email").eq("id", user.id).single();
+      if (data) {
+        setUserName(data.full_name || data.username || data.email || "User");
       }
     };
-  }, [localParticipant?.videoTrack, isCameraOff]);
+    fetchProfile();
+  }, [user]);
 
-  // Attach remote videos
-  useEffect(() => {
-    remoteParticipants.forEach((participant) => {
-      const videoEl = remoteVideoRefs.current.get(participant.identity);
-      if (participant.videoTrack && videoEl) {
-        const track = participant.videoTrack;
-        if ("attach" in track) {
-          track.attach(videoEl);
-        }
-      }
-    });
-  }, [remoteParticipants]);
+  if (!user) return null;
 
-  const handleDisconnect = () => {
-    disconnect();
-    onDisconnect();
-  };
-
-  const setRemoteVideoRef = (identity: string, el: HTMLVideoElement | null) => {
-    if (el) {
-      remoteVideoRefs.current.set(identity, el);
-    } else {
-      remoteVideoRefs.current.delete(identity);
-    }
-  };
-
-  if (isConnecting) {
-    return (
-      <div className={cn("flex items-center justify-center h-full bg-background", className)}>
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-muted-foreground">Povezovanje v sobo...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={cn("flex items-center justify-center h-full bg-background", className)}>
-        <div className="text-center space-y-4">
-          <p className="text-destructive">Napaka pri povezovanju: {error}</p>
-          <Button onClick={() => connect(roomName, participantName)}>Poskusi ponovno</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const allParticipants: ParticipantProps[] = [
-    ...(localParticipant
-      ? [
-          {
-            ...localParticipant,
-            isLocal: true,
-            isCameraOff: isCameraOff,
-            isMuted: isMuted, // Poskrbite, da se uporablja stanje hooka
-          },
-        ]
-      : []),
-    ...remoteParticipants.map((p) => ({ ...p, isLocal: false })),
-  ];
-
-  const gridCols =
-    allParticipants.length <= 1
-      ? "grid-cols-1"
-      : allParticipants.length <= 4
-        ? "grid-cols-2"
-        : allParticipants.length <= 9
-          ? "grid-cols-3"
-          : "grid-cols-4";
+  // Generate unique room name based on conversation
+  const roomName = `call-${conversationId}`;
 
   return (
-    <div className={cn("flex flex-col h-full bg-background", className)}>
-      {/* Participants Grid */}
-      <div className={cn("flex-1 p-4 grid gap-4", gridCols)}>
-        {allParticipants.map((participant) => (
-          <div
-            key={participant.identity}
-            className={cn(
-              "relative rounded-xl overflow-hidden bg-muted",
-              participant.isSpeaking && "ring-2 ring-primary",
-            )}
-          >
-            {/* Prikaz avatara, če je kamera izklopljena */}
-            {participant.isCameraOff || !participant.videoTrack ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="text-2xl">
-                    {participant.name?.charAt(0).toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            ) : (
-              <video
-                ref={participant.isLocal ? localVideoRef : (el) => setRemoteVideoRef(participant.identity, el)}
-                autoPlay
-                playsInline
-                muted={participant.isLocal}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            )}
-
-            {/* Participant overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
-              <div className="flex items-center justify-between">
-                <span className="text-white text-sm font-medium truncate">
-                  {participant.name} {participant.isLocal && "(You)"}
-                </span>
-                <div className="flex items-center gap-1">
-                  {participant.isMuted && <MicOff className="h-4 w-4 text-red-400" />}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Controls */}
-      <div className="p-4 border-t border-border bg-card">
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant={isMuted ? "destructive" : "secondary"}
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={toggleMute}
-          >
-            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
-
-          <Button
-            variant={isCameraOff ? "destructive" : "secondary"}
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={toggleCamera}
-          >
-            {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-          </Button>
-
-          <Button
-            variant={isScreenSharing ? "default" : "secondary"}
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={toggleScreenShare}
-          >
-            {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
-          </Button>
-
-          <Button variant="destructive" size="icon" className="h-12 w-12 rounded-full" onClick={handleDisconnect}>
-            <PhoneOff className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Participant count */}
-        <div className="flex items-center justify-center gap-2 mt-3 text-muted-foreground text-sm">
-          <Users className="h-4 w-4" />
-          <span>
-            {allParticipants.length} participant{allParticipants.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-      </div>
-    </div>
+    <Dialog open={open}>
+      <DialogContent className="p-0 border-none overflow-hidden max-w-4xl w-full h-[80vh] bg-background">
+        <VisuallyHidden.Root>
+          <DialogTitle>Call with {conversationName}</DialogTitle>
+        </VisuallyHidden.Root>
+        <LiveKitRoom roomName={roomName} participantName={userName} onDisconnect={onClose} className="h-full" />
+      </DialogContent>
+    </Dialog>
   );
-}
+};
