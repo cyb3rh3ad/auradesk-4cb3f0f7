@@ -1,19 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { Track } from 'livekit-client';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  PhoneOff, 
-  Monitor,
-  MonitorOff,
-  Users
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useLiveKit } from '@/hooks/useLiveKit';
+import { useEffect, useRef } from "react";
+import { Track } from "livekit-client";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Mic, MicOn, Video, VideoOff, PhoneOn, Monitor, MonitorOff, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useLiveKit } from "@/hooks/useLiveKit";
 
 interface LiveKitRoomProps {
   roomName: string;
@@ -22,12 +13,7 @@ interface LiveKitRoomProps {
   className?: string;
 }
 
-export function LiveKitRoom({ 
-  roomName, 
-  participantName, 
-  onDisconnect,
-  className 
-}: LiveKitRoomProps) {
+export function LiveKitRoom({ roomName, participantName, onDisconnect, className }: LiveKitRoomProps) {
   const {
     isConnecting,
     isConnected,
@@ -50,7 +36,7 @@ export function LiveKitRoom({
   // Connect on mount
   useEffect(() => {
     connect(roomName, participantName);
-    
+
     return () => {
       disconnect();
     };
@@ -60,15 +46,15 @@ export function LiveKitRoom({
   useEffect(() => {
     if (localParticipant?.videoTrack && localVideoRef.current) {
       const track = localParticipant.videoTrack;
-      if ('attach' in track) {
+      if ("attach" in track) {
         track.attach(localVideoRef.current);
       }
     }
-    
+
     return () => {
       if (localParticipant?.videoTrack && localVideoRef.current) {
         const track = localParticipant.videoTrack;
-        if ('detach' in track) {
+        if ("detach" in track) {
           track.detach(localVideoRef.current);
         }
       }
@@ -81,7 +67,7 @@ export function LiveKitRoom({
       const videoEl = remoteVideoRefs.current.get(participant.identity);
       if (participant.videoTrack && videoEl) {
         const track = participant.videoTrack;
-        if ('attach' in track) {
+        if ("attach" in track) {
           track.attach(videoEl);
         }
       }
@@ -117,9 +103,7 @@ export function LiveKitRoom({
       <div className={cn("flex items-center justify-center h-full bg-background", className)}>
         <div className="text-center space-y-4">
           <p className="text-destructive">Connection failed: {error}</p>
-          <Button onClick={() => connect(roomName, participantName)}>
-            Retry Connection
-          </Button>
+          <Button onClick={() => connect(roomName, participantName)}>Retry Connection</Button>
         </div>
       </div>
     );
@@ -127,13 +111,17 @@ export function LiveKitRoom({
 
   const allParticipants = [
     ...(localParticipant ? [{ ...localParticipant, isLocal: true }] : []),
-    ...remoteParticipants.map(p => ({ ...p, isLocal: false })),
+    ...remoteParticipants.map((p) => ({ ...p, isLocal: false })),
   ];
 
-  const gridCols = allParticipants.length <= 1 ? 'grid-cols-1' :
-                   allParticipants.length <= 4 ? 'grid-cols-2' :
-                   allParticipants.length <= 9 ? 'grid-cols-3' :
-                   'grid-cols-4';
+  const gridCols =
+    allParticipants.length <= 1
+      ? "grid-cols-1"
+      : allParticipants.length <= 4
+        ? "grid-cols-2"
+        : allParticipants.length <= 9
+          ? "grid-cols-3"
+          : "grid-cols-4";
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
@@ -144,14 +132,14 @@ export function LiveKitRoom({
             key={participant.identity}
             className={cn(
               "relative rounded-xl overflow-hidden bg-muted",
-              participant.isSpeaking && "ring-2 ring-primary"
+              participant.isSpeaking && "ring-2 ring-primary",
             )}
           >
             {participant.isCameraOff ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Avatar className="h-20 w-20">
                   <AvatarFallback className="text-2xl">
-                    {participant.name?.charAt(0).toUpperCase() || '?'}
+                    {participant.name?.charAt(0).toUpperCase() || "?"}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -164,17 +152,15 @@ export function LiveKitRoom({
                 className="absolute inset-0 w-full h-full object-cover"
               />
             )}
-            
+
             {/* Participant overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
               <div className="flex items-center justify-between">
                 <span className="text-white text-sm font-medium truncate">
-                  {participant.name} {participant.isLocal && '(You)'}
+                  {participant.name} {participant.isLocal && "(You)"}
                 </span>
                 <div className="flex items-center gap-1">
-                  {participant.isMuted && (
-                    <MicOff className="h-4 w-4 text-red-400" />
-                  )}
+                  {participant.isMuted && <MicOff className="h-4 w-4 text-red-400" />}
                 </div>
               </div>
             </div>
@@ -212,12 +198,7 @@ export function LiveKitRoom({
             {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
           </Button>
 
-          <Button
-            variant="destructive"
-            size="icon"
-            className="h-12 w-12 rounded-full"
-            onClick={handleDisconnect}
-          >
+          <Button variant="destructive" size="icon" className="h-12 w-12 rounded-full" onClick={handleDisconnect}>
             <PhoneOff className="h-5 w-5" />
           </Button>
         </div>
@@ -225,7 +206,9 @@ export function LiveKitRoom({
         {/* Participant count */}
         <div className="flex items-center justify-center gap-2 mt-3 text-muted-foreground text-sm">
           <Users className="h-4 w-4" />
-          <span>{allParticipants.length} participant{allParticipants.length !== 1 ? 's' : ''}</span>
+          <span>
+            {allParticipants.length} participant{allParticipants.length !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
     </div>
