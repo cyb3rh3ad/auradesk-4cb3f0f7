@@ -120,14 +120,22 @@ export const useFiles = (bucket: string = 'user-files') => {
 
       if (error) throw error;
 
-      // Update storage usage
+      // Update storage usage in database
       const newUsedBytes = storageUsage.usedBytes + file.size;
       await supabase
         .from('file_storage_usage')
         .upsert({
           user_id: user.id,
           total_bytes: newUsedBytes,
+          updated_at: new Date().toISOString(),
         });
+
+      // Update local state immediately for responsive UI
+      setStorageUsage(prev => ({
+        ...prev,
+        usedBytes: newUsedBytes,
+        usedGB: newUsedBytes / (1024 * 1024 * 1024),
+      }));
 
       toast({
         title: 'Success',
@@ -185,14 +193,22 @@ export const useFiles = (bucket: string = 'user-files') => {
 
       if (error) throw error;
 
-      // Update storage usage
+      // Update storage usage in database
       const newUsedBytes = Math.max(0, storageUsage.usedBytes - fileSize);
       await supabase
         .from('file_storage_usage')
         .upsert({
           user_id: user.id,
           total_bytes: newUsedBytes,
+          updated_at: new Date().toISOString(),
         });
+
+      // Update local state immediately for responsive UI
+      setStorageUsage(prev => ({
+        ...prev,
+        usedBytes: newUsedBytes,
+        usedGB: newUsedBytes / (1024 * 1024 * 1024),
+      }));
 
       toast({
         title: 'Success',
