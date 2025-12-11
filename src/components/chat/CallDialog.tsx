@@ -48,7 +48,14 @@ export const CallDialog = ({
         <VisuallyHidden.Root>
           <DialogTitle>Call with {conversationName}</DialogTitle>
         </VisuallyHidden.Root>
-        <LiveKitRoom roomName={roomName} participantName={userName} onDisconnect={onClose} className="h-full" />
+        <LiveKitRoom 
+          roomName={roomName} 
+          participantName={userName} 
+          onDisconnect={onClose} 
+          className="h-full"
+          initialVideo={initialVideo}
+          initialAudio={true}
+        />
       </DialogContent>
     </Dialog>
   );
