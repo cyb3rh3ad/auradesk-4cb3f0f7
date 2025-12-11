@@ -11,6 +11,9 @@ import {
   Participant,
   ConnectionState,
   createLocalTracks,
+  VideoPresets,
+  RoomOptions,
+  TrackPublication,
 } from "livekit-client";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,6 +25,7 @@ interface ParticipantState {
   isCameraOff: boolean;
   videoTrack?: RemoteTrack | Track;
   audioTrack?: RemoteTrack | Track;
+  screenShareTrack?: RemoteTrack | Track;
 }
 
 interface UseLiveKitReturn {
@@ -51,19 +55,53 @@ export function useLiveKit(): UseLiveKitReturn {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const roomRef = useRef<Room | null>(null);
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  // Attach audio track to audio element for playback
+  const attachAudioTrack = useCallback((participantId: string, track: RemoteTrack | Track) => {
+    if (!track || track.kind !== Track.Kind.Audio) return;
+
+    // Get or create audio element for this participant
+    let audioEl = audioElementsRef.current.get(participantId);
+    if (!audioEl) {
+      audioEl = new Audio();
+      audioEl.autoplay = true;
+      audioElementsRef.current.set(participantId, audioEl);
+    }
+
+    // Attach track to audio element
+    if ('attach' in track) {
+      track.attach(audioEl);
+      console.log(`Audio track attached for participant: ${participantId}`);
+    }
+  }, []);
+
+  // Detach audio track
+  const detachAudioTrack = useCallback((participantId: string, track?: RemoteTrack | Track) => {
+    const audioEl = audioElementsRef.current.get(participantId);
+    if (audioEl && track && 'detach' in track) {
+      track.detach(audioEl);
+    }
+    if (audioEl) {
+      audioEl.srcObject = null;
+      audioElementsRef.current.delete(participantId);
+    }
+  }, []);
 
   const updateParticipantState = useCallback((participant: Participant, isLocal: boolean) => {
-    const audioTrack = participant.getTrackPublication(Track.Source.Microphone);
-    const videoTrack = participant.getTrackPublication(Track.Source.Camera);
+    const audioPublication = participant.getTrackPublication(Track.Source.Microphone);
+    const videoPublication = participant.getTrackPublication(Track.Source.Camera);
+    const screenSharePublication = participant.getTrackPublication(Track.Source.ScreenShare);
 
     const state: ParticipantState = {
       identity: participant.identity,
       name: participant.name || participant.identity,
       isSpeaking: participant.isSpeaking,
-      isMuted: audioTrack?.isMuted ?? true,
-      isCameraOff: !videoTrack?.isSubscribed || videoTrack?.isMuted || !videoTrack?.track,
-      videoTrack: videoTrack?.track ?? undefined,
-      audioTrack: audioTrack?.track ?? undefined,
+      isMuted: !audioPublication?.track || audioPublication.isMuted,
+      isCameraOff: !videoPublication?.track || videoPublication.isMuted,
+      videoTrack: videoPublication?.track ?? undefined,
+      audioTrack: audioPublication?.track ?? undefined,
+      screenShareTrack: screenSharePublication?.track ?? undefined,
     };
 
     if (isLocal) {
@@ -78,11 +116,19 @@ export function useLiveKit(): UseLiveKitReturn {
   const updateRemoteParticipants = useCallback(() => {
     if (!roomRef.current) return;
     const participants: ParticipantState[] = [];
+    
     roomRef.current.remoteParticipants.forEach((participant) => {
-      participants.push(updateParticipantState(participant, false));
+      const state = updateParticipantState(participant, false);
+      participants.push(state);
+      
+      // Ensure audio tracks are attached for remote participants
+      if (state.audioTrack) {
+        attachAudioTrack(participant.identity, state.audioTrack);
+      }
     });
+    
     setRemoteParticipants(participants);
-  }, [updateParticipantState]);
+  }, [updateParticipantState, attachAudioTrack]);
 
   const connect = useCallback(
     async (roomName: string, participantName: string, initialVideo: boolean, initialAudio: boolean) => {
@@ -101,11 +147,26 @@ export function useLiveKit(): UseLiveKitReturn {
 
         const { token, url } = data;
 
-        const newRoom = new Room({
+        console.log("Connecting to LiveKit URL:", url);
+
+        // Room options optimized for better connectivity and quality
+        const roomOptions: RoomOptions = {
           adaptiveStream: true,
           dynacast: true,
+          // Better video quality defaults
           publishDefaults: {
             videoCodec: "vp8",
+            simulcast: true,
+            videoSimulcastLayers: [
+              VideoPresets.h90,
+              VideoPresets.h216,
+              VideoPresets.h540,
+            ],
+            screenShareEncoding: {
+              maxBitrate: 3_000_000,
+              maxFramerate: 30,
+            },
+            screenShareSimulcastLayers: [VideoPresets.h1080],
           },
           videoCaptureDefaults: {
             resolution: { width: 1280, height: 720, frameRate: 30 },
@@ -115,10 +176,22 @@ export function useLiveKit(): UseLiveKitReturn {
             noiseSuppression: true,
             autoGainControl: true,
           },
-        });
+        };
+
+        const newRoom = new Room(roomOptions);
 
         roomRef.current = newRoom;
         setRoom(newRoom);
+
+        // Connection state changes
+        newRoom.on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
+          console.log("Connection state changed:", state);
+          if (state === ConnectionState.Disconnected) {
+            setIsConnected(false);
+          } else if (state === ConnectionState.Connected) {
+            setIsConnected(true);
+          }
+        });
 
         newRoom.on(RoomEvent.Connected, () => {
           console.log("Connected to LiveKit room");
@@ -128,11 +201,25 @@ export function useLiveKit(): UseLiveKitReturn {
           updateRemoteParticipants();
         });
 
-        newRoom.on(RoomEvent.Disconnected, () => {
-          console.log("Disconnected from LiveKit room");
+        newRoom.on(RoomEvent.Disconnected, (reason) => {
+          console.log("Disconnected from LiveKit room, reason:", reason);
           setIsConnected(false);
           setLocalParticipant(null);
           setRemoteParticipants([]);
+          // Clean up all audio elements
+          audioElementsRef.current.forEach((audioEl, id) => {
+            audioEl.srcObject = null;
+          });
+          audioElementsRef.current.clear();
+        });
+
+        newRoom.on(RoomEvent.Reconnecting, () => {
+          console.log("Reconnecting to LiveKit room...");
+        });
+
+        newRoom.on(RoomEvent.Reconnected, () => {
+          console.log("Reconnected to LiveKit room");
+          updateRemoteParticipants();
         });
 
         newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -142,48 +229,108 @@ export function useLiveKit(): UseLiveKitReturn {
 
         newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
           console.log("Participant disconnected:", participant.identity);
+          // Clean up audio element for this participant
+          detachAudioTrack(participant.identity);
           updateRemoteParticipants();
         });
 
-        newRoom.on(RoomEvent.TrackSubscribed, () => {
+        // Track subscribed - critical for receiving audio/video
+        newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+          
+          // Auto-attach audio tracks
+          if (track.kind === Track.Kind.Audio) {
+            attachAudioTrack(participant.identity, track);
+          }
+          
           updateRemoteParticipants();
         });
 
-        newRoom.on(RoomEvent.TrackUnsubscribed, () => {
+        newRoom.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+          console.log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
+          
+          if (track.kind === Track.Kind.Audio) {
+            detachAudioTrack(participant.identity, track);
+          }
+          
           updateRemoteParticipants();
         });
 
-        newRoom.on(RoomEvent.LocalTrackPublished, () => {
+        // Track muted/unmuted
+        newRoom.on(RoomEvent.TrackMuted, (publication, participant) => {
+          console.log(`Track muted: ${publication.source} from ${participant.identity}`);
+          if (participant === newRoom.localParticipant) {
+            updateParticipantState(participant, true);
+          } else {
+            updateRemoteParticipants();
+          }
+        });
+
+        newRoom.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+          console.log(`Track unmuted: ${publication.source} from ${participant.identity}`);
+          if (participant === newRoom.localParticipant) {
+            updateParticipantState(participant, true);
+          } else {
+            updateRemoteParticipants();
+          }
+        });
+
+        newRoom.on(RoomEvent.LocalTrackPublished, (publication) => {
+          console.log("Local track published:", publication.source);
           updateParticipantState(newRoom.localParticipant, true);
+          
+          // Update screen sharing state
+          if (publication.source === Track.Source.ScreenShare) {
+            setIsScreenSharing(true);
+          }
         });
 
-        newRoom.on(RoomEvent.LocalTrackUnpublished, () => {
+        newRoom.on(RoomEvent.LocalTrackUnpublished, (publication) => {
+          console.log("Local track unpublished:", publication.source);
           updateParticipantState(newRoom.localParticipant, true);
+          
+          if (publication.source === Track.Source.ScreenShare) {
+            setIsScreenSharing(false);
+          }
         });
 
-        newRoom.on(RoomEvent.ActiveSpeakersChanged, () => {
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
           updateParticipantState(newRoom.localParticipant, true);
           updateRemoteParticipants();
         });
 
+        // Media device failures
+        newRoom.on(RoomEvent.MediaDevicesError, (error) => {
+          console.error("Media devices error:", error);
+        });
+
+        // Connect to room
         await newRoom.connect(url, token);
 
-        const tracks = await createLocalTracks({
-          audio: initialAudio,
-          video: initialVideo,
-        });
+        // Create and publish local tracks based on initial settings
+        if (initialAudio || initialVideo) {
+          try {
+            const tracks = await createLocalTracks({
+              audio: initialAudio,
+              video: initialVideo ? {
+                resolution: { width: 1280, height: 720, frameRate: 30 },
+              } : false,
+            });
 
-        for (const track of tracks) {
-          await newRoom.localParticipant.publishTrack(track);
-          if (track.kind === Track.Kind.Audio) {
-            setIsMuted(!initialAudio);
-          } else if (track.kind === Track.Kind.Video) {
-            setIsCameraOff(!initialVideo);
+            for (const track of tracks) {
+              await newRoom.localParticipant.publishTrack(track, {
+                simulcast: track.kind === Track.Kind.Video,
+              });
+              console.log(`Published local ${track.kind} track`);
+            }
+          } catch (mediaErr) {
+            console.error("Failed to create local tracks:", mediaErr);
+            // Don't fail the connection, just log the error
           }
         }
 
-        if (!initialAudio) setIsMuted(true);
-        if (!initialVideo) setIsCameraOff(true);
+        setIsMuted(!initialAudio);
+        setIsCameraOff(!initialVideo);
 
         updateParticipantState(newRoom.localParticipant, true);
       } catch (err) {
@@ -192,7 +339,7 @@ export function useLiveKit(): UseLiveKitReturn {
         setIsConnecting(false);
       }
     },
-    [updateParticipantState, updateRemoteParticipants],
+    [updateParticipantState, updateRemoteParticipants, attachAudioTrack, detachAudioTrack],
   );
 
   const disconnect = useCallback(async () => {
@@ -214,6 +361,12 @@ export function useLiveKit(): UseLiveKitReturn {
         }
       }
 
+      // Clean up all audio elements
+      audioElementsRef.current.forEach((audioEl, id) => {
+        audioEl.srcObject = null;
+      });
+      audioElementsRef.current.clear();
+
       // Now disconnect from the room
       roomRef.current.disconnect();
       roomRef.current = null;
@@ -230,69 +383,104 @@ export function useLiveKit(): UseLiveKitReturn {
   const toggleMute = useCallback(async () => {
     if (!roomRef.current) return;
     
-    const audioTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (audioTrack?.track) {
-      if (audioTrack.isMuted) {
-        await audioTrack.unmute();
+    const audioPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.Microphone);
+    
+    if (audioPublication?.track) {
+      if (audioPublication.isMuted) {
+        await audioPublication.unmute();
         setIsMuted(false);
+        console.log("Microphone unmuted");
       } else {
-        await audioTrack.mute();
+        await audioPublication.mute();
         setIsMuted(true);
+        console.log("Microphone muted");
       }
-    } else if (!isMuted) {
+    } else {
       // No audio track exists, try to create one
       try {
         const tracks = await createLocalTracks({ audio: true, video: false });
         for (const track of tracks) {
-          await roomRef.current.localParticipant.publishTrack(track);
+          await roomRef.current!.localParticipant.publishTrack(track);
         }
         setIsMuted(false);
+        console.log("Microphone enabled");
       } catch (err) {
         console.error("Failed to enable microphone:", err);
       }
     }
-  }, [isMuted]);
+    
+    updateParticipantState(roomRef.current.localParticipant, true);
+  }, [updateParticipantState]);
 
   const toggleCamera = useCallback(async () => {
     if (!roomRef.current) return;
     
-    const videoTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
-    if (videoTrack?.track) {
-      if (videoTrack.isMuted) {
-        await videoTrack.unmute();
+    const videoPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+    
+    if (videoPublication?.track) {
+      if (videoPublication.isMuted) {
+        await videoPublication.unmute();
         setIsCameraOff(false);
+        console.log("Camera enabled");
       } else {
-        await videoTrack.mute();
+        await videoPublication.mute();
         setIsCameraOff(true);
+        console.log("Camera disabled");
       }
-    } else if (isCameraOff) {
+    } else {
       // No video track exists, try to create one
       try {
-        const tracks = await createLocalTracks({ audio: false, video: true });
+        const tracks = await createLocalTracks({ 
+          audio: false, 
+          video: { resolution: { width: 1280, height: 720, frameRate: 30 } }
+        });
         for (const track of tracks) {
-          await roomRef.current.localParticipant.publishTrack(track);
+          await roomRef.current!.localParticipant.publishTrack(track, { simulcast: true });
         }
         setIsCameraOff(false);
+        console.log("Camera track created and published");
       } catch (err) {
         console.error("Failed to enable camera:", err);
       }
     }
-  }, [isCameraOff]);
+    
+    updateParticipantState(roomRef.current.localParticipant, true);
+  }, [updateParticipantState]);
 
   const toggleScreenShare = useCallback(async () => {
     if (!roomRef.current) return;
     
-    const screenTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    const screenPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
     
-    if (screenTrack) {
-      await roomRef.current.localParticipant.unpublishTrack(screenTrack.track!);
-      setIsScreenSharing(false);
-    } else {
+    if (screenPublication?.track) {
+      // Stop screen sharing
       try {
-        await roomRef.current.localParticipant.setScreenShareEnabled(true);
+        await roomRef.current.localParticipant.unpublishTrack(screenPublication.track);
+        screenPublication.track.stop();
+        setIsScreenSharing(false);
+        console.log("Screen sharing stopped");
+      } catch (err) {
+        console.error("Failed to stop screen share:", err);
+      }
+    } else {
+      // Start screen sharing with audio
+      try {
+        // Use setScreenShareEnabled with options for audio capture
+        await roomRef.current.localParticipant.setScreenShareEnabled(true, {
+          audio: true, // Capture system audio
+          video: {
+            displaySurface: 'monitor', // Can be 'monitor', 'window', or 'browser'
+          },
+          surfaceSwitching: 'include',
+          selfBrowserSurface: 'include',
+          systemAudio: 'include',
+        });
         setIsScreenSharing(true);
+        console.log("Screen sharing started with audio");
       } catch (err) {
         console.error("Failed to start screen share:", err);
+        // User cancelled or error occurred
+        setIsScreenSharing(false);
       }
     }
   }, []);
