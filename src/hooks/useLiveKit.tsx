@@ -195,14 +195,26 @@ export function useLiveKit(): UseLiveKitReturn {
     [updateParticipantState, updateRemoteParticipants],
   );
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
     if (roomRef.current) {
-      roomRef.current.localParticipant.trackPublications.forEach((publication) => {
+      // First unpublish and stop all local tracks to properly release hardware
+      const localParticipant = roomRef.current.localParticipant;
+      const publications = Array.from(localParticipant.trackPublications.values());
+      
+      for (const publication of publications) {
         if (publication.track) {
+          // Stop the track first to release hardware
           publication.track.stop();
+          // Then unpublish it from the room
+          try {
+            await localParticipant.unpublishTrack(publication.track);
+          } catch (err) {
+            console.warn("Error unpublishing track:", err);
+          }
         }
-      });
+      }
 
+      // Now disconnect from the room
       roomRef.current.disconnect();
       roomRef.current = null;
       setRoom(null);
