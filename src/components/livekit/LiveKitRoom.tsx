@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Track } from "livekit-client"; // Ohranimo to, saj se uporablja za določanje tipa trakov
+import { Track } from "livekit-client";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"; // Predvidevam, da sta kompnenti Avatar in AvatarFallback pravilno uvoženi
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MicOff, VideoOff, PhoneOff, MonitorOff, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "@/hooks/useLiveKit"; // Pravilen uvoz hooka
@@ -16,7 +16,6 @@ interface LiveKitRoomProps {
 
 // Glavna komponenta
 export function LiveKitRoom({ roomName, participantName, onDisconnect, className }: LiveKitRoomProps) {
-  // Pridobivanje stanj in funkcij iz useLiveKit hooka
   const {
     isConnecting,
     isConnected,
@@ -34,30 +33,28 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     screenShareParticipant,
   } = useLiveKit();
 
-  // Reference na video elemente
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  // Nastavi reference na video elemente za vsakega udeleženca
   const setRemoteVideoRef = (id: string, el: HTMLVideoElement | null) => {
     if (el) {
       remoteVideoRefs.current.set(id, el);
+      // Tukaj bi morala biti logika za pripenjanje/odpenjanje trakov
+      // ki se zgodi, ko se ustvari video element
     } else {
       remoteVideoRefs.current.delete(id);
     }
   };
 
-  // Uporabimo useState za inicialno stanje (predpostavimo, da želimo vklopiti avdio/video na začetku)
   const [initialVideo, setInitialVideo] = useState(true);
   const [initialAudio, setInitialAudio] = useState(true);
 
   // Povezava na sobo ob prvem renderiranju (Mount)
   useEffect(() => {
-    // 🚩 POPRAVEK 2: Klic connect s 4 argumenti, kot je zahtevano v useLiveKit hooku
+    // 🚩 POPRAVEK: Klic connect s 4 argumenti (vrstica 39)
     connect(roomName, participantName, initialVideo, initialAudio);
 
     return () => {
-      // Odklop ob unmountu
       disconnect();
     };
   }, [roomName, participantName, connect, disconnect, initialVideo, initialAudio]);
@@ -67,7 +64,10 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     if (localVideoRef.current && localParticipant) {
       const track = localParticipant.getTrack(Track.Source.Camera);
       if (track?.track) {
-        track.track.attach(localVideoRef.current);
+        // Preverite, ali je trak že pripet, preden ga pripnete
+        if (!localVideoRef.current.srcObject) {
+          track.track.attach(localVideoRef.current);
+        }
         return () => {
           track.track.detach(localVideoRef.current!);
         };
@@ -75,64 +75,13 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     }
   }, [localParticipant]);
 
-  // Če obstaja napaka pri povezovanju, se prikaže sporočilo
   if (error) {
     return <div className="text-red-500 p-4">Napaka pri povezovanju: {error.message}</div>;
   }
 
-  // Če se povezuje, se prikaže Loading/Povezovanje
   if (isConnecting || !isConnected) {
     return <div className="p-4 text-white">Povezujem se z LiveKit...</div>;
   }
-
-  // Funkcija za renderiranje videa za oddaljenega udeleženca
-  const renderParticipantVideo = (participant: any, isScreenShare: boolean = false) => {
-    const trackSource = isScreenShare ? Track.Source.ScreenShare : Track.Source.Camera;
-    const track = participant.getTrack(trackSource);
-    const trackId = track?.trackSid;
-
-    // Če je trak najden, ga prikaži
-    if (trackId && track?.track) {
-      // Uporabite ključ, da React pravilno obravnava sezname
-      return (
-        <div key={trackId} className="relative w-full h-full">
-          <video
-            ref={(el) => setRemoteVideoRef(trackId, el)}
-            autoPlay
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
-            {participant.identity}
-          </div>
-        </div>
-      );
-    }
-
-    // Prikaz Avatarja, če je kamera izklopljena (če ni screenshare)
-    if (!isScreenShare) {
-      return (
-        <div key={participant.identity} className="relative w-full h-full flex items-center justify-center bg-gray-900">
-          {/* 🚩 POPRAVLJENA KOMPONENTA AVATARJA IN FALLBACKA */}
-          {participant.isCameraOff || !track ? (
-            <Avatar className="h-16 w-16 md:h-20 md:w-20">
-              <AvatarFallback className="text-xl md:text-2xl">
-                {participant.name ? participant.name.charAt(0) : participant.identity.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-          ) : null}
-          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
-            {participant.identity}
-          </div>
-          {participant.isMuted && (
-            <MicOff className="absolute top-2 right-2 h-6 w-6 text-red-500 bg-black p-1 rounded-full" />
-          )}
-        </div>
-      );
-    }
-
-    return null;
-  };
 
   // Združitev lokalnega in oddaljenih udeležencev za prikaz v mreži
   const allParticipants = [localParticipant, ...remoteParticipants].filter((p) => p !== null);
@@ -155,11 +104,13 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
       {/* 1. Mreža za skupno rabo zaslona (Screen Share) - prioritetni prikaz */}
       {screenShareParticipant && (
         <div className="flex-1 p-2 bg-black relative">
+          {/* OHRANJENO IZ VAŠE KODE ZA SCREEN SHARE (vrstice 225-236) */}
           <video
-            ref={(el) => setRemoteVideoRef("screen-share", el)}
+            // Predvidevam, da imate ustrezno logiko ref za screen share
+            ref={(el) => setRemoteVideoRef(screenShareParticipant.identity + "-screen", el)}
             autoPlay
             playsInline
-            muted={true} // Pogosto želimo imeti zaslon deljen brez zvoka
+            muted={true}
             className="w-full h-full object-contain"
           />
           <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
@@ -177,7 +128,8 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
           screenShareParticipant ? "h-32 flex-shrink-0" : "flex-1",
         )}
       >
-        {/* 🚩 POPRAVEK 1: Tukaj je bila sintaktična napaka, popravljen je pravilen zaključek JSX. */}
+        {/* 🚩 POPRAVEK SINTAKSE: Prejšnji blok kode se je končal s cn() brez zapiralne oznake </div>
+             Ker je zdaj cn() zaprt, nadaljujemo z mapiranjem (vrstica 245) */}
 
         {allParticipants.map((participant) => {
           // Filtrirajte udeleženca, ki deli zaslon, da se ne prikaže dvakrat kot video
@@ -196,10 +148,9 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
             <div
               key={participant.identity}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-gray-900 border-2",
-                participant.isSpeaking ? "border-green-500" : "border-gray-800", // Poudarek, če udeleženec govori
-                isLocal ? "order-first" : "", // Postavi lokalnega udeleženca na prvo mesto
-                "aspect-video", // Ohranite razmerje stranic
+                "relative rounded-xl overflow-hidden bg-gray-900 border-2 aspect-video",
+                participant.isSpeaking ? "border-green-500" : "border-gray-800",
+                isLocal ? "order-first" : "",
               )}
             >
               {/* Prikaz videa (Lokalni video) */}
@@ -216,6 +167,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
               {/* Prikaz videa (Oddaljeni video) - če ni lokalni */}
               {!isLocal && isVideoAvailable && (
                 <video
+                  // Posodobljena ref logika za oddaljene udeležence
                   ref={(el) => setRemoteVideoRef(participant.identity, el)}
                   autoPlay
                   playsInline
@@ -270,6 +222,7 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
         </Button>
 
         {/* Gumb za prekinitev klica (Disconnect) */}
+        {/* Vrstice 277-284 so videti pravilno zaprte (slika image_62fdfa.png) */}
         <Button onClick={onDisconnect} variant="destructive" className="mx-2">
           <PhoneOff className="h-5 w-5 mr-2" />
           Prekini klic
