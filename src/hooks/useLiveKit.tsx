@@ -10,7 +10,7 @@ import {
   LocalTrackPublication,
   Participant,
   ConnectionState,
-  createLocalTracks, // Dodana za boljšo kontrolo nad tracki
+  createLocalTracks,
 } from "livekit-client";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,10 +27,10 @@ interface ParticipantState {
 interface UseLiveKitReturn {
   room: Room | null;
   isConnecting: boolean;
-  // ... ostali vmesnik ostane enak
+  error: string | null;
   localParticipant: ParticipantState | null;
   remoteParticipants: ParticipantState[];
-  connect: (roomName: string, participantName: string, initialVideo: boolean, initialAudio: boolean) => Promise<void>; // Spremenjen vmesnik
+  connect: (roomName: string, participantName: string, initialVideo: boolean, initialAudio: boolean) => Promise<void>;
   disconnect: () => void;
   toggleMute: () => Promise<void>;
   toggleCamera: () => Promise<void>;
@@ -40,10 +40,7 @@ interface UseLiveKitReturn {
   isCameraOff: boolean;
 }
 
-// ... (ParticipantState in UseLiveKitReturn ostanejo enaki) ...
-
 export function useLiveKit(): UseLiveKitReturn {
-  // ... (UseState klici ostanejo enaki) ...
   const [room, setRoom] = useState<Room | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -51,9 +48,9 @@ export function useLiveKit(): UseLiveKitReturn {
   const [localParticipant, setLocalParticipant] = useState<ParticipantState | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<ParticipantState[]>([]);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isMuted, setIsMuted] = useState(false); // Če želite začeti utišani, nastavite na 'true'
-  const [isCameraOff, setIsCameraOff] = useState(false); // Če želite začeti z izklopljeno kamero, nastavite na 'true'
-  const roomRef = useRef<Room | null>(null); // ... (updateParticipantState in updateRemoteParticipants ostanejo enaki) ...
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const roomRef = useRef<Room | null>(null);
 
   const updateParticipantState = useCallback((participant: Participant, isLocal: boolean) => {
     const audioTrack = participant.getTrackPublication(Track.Source.Microphone);
@@ -93,25 +90,22 @@ export function useLiveKit(): UseLiveKitReturn {
       setError(null);
 
       try {
-        // Get token from edge function
         const { data, error: tokenError } = await supabase.functions.invoke("livekit-token", {
           body: { roomName, participantName },
         });
 
         if (tokenError || !data?.token) {
-          // KRITIČNO LOGIRANJE
           console.error("Token error details:", tokenError);
           throw new Error(tokenError?.message || "Failed to get LiveKit token from Supabase Edge Function");
         }
 
-        const { token, url } = data; // URL in token prihajata iz Supabase Edge Function!
-        // Create and connect room
+        const { token, url } = data;
 
         const newRoom = new Room({
           adaptiveStream: true,
-          dynacast: true, // Če initialVideo/Audio nista nastavljena, LiveKit ne bo zahteval hardware-a takoj
+          dynacast: true,
           publishDefaults: {
-            videoCodec: "vp8", // Nastavitev kodeka (VP8 je bolj kompatibilen)
+            videoCodec: "vp8",
           },
           videoCaptureDefaults: {
             resolution: { width: 1280, height: 720, frameRate: 30 },
@@ -124,7 +118,7 @@ export function useLiveKit(): UseLiveKitReturn {
         });
 
         roomRef.current = newRoom;
-        setRoom(newRoom); // ... (Event Handlers ostanejo enaki) ...
+        setRoom(newRoom);
 
         newRoom.on(RoomEvent.Connected, () => {
           console.log("Connected to LiveKit room");
@@ -139,13 +133,44 @@ export function useLiveKit(): UseLiveKitReturn {
           setIsConnected(false);
           setLocalParticipant(null);
           setRemoteParticipants([]);
-        }); // ... (Vsi ostali event handlerji ostanejo enaki) ...
-        // Connect to room
-        await newRoom.connect(url, token); // *** IZBOLJŠANA LOGIKA ZA PRILAGODITEV NA INITIAL STATE ***
+        });
+
+        newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+          console.log("Participant connected:", participant.identity);
+          updateRemoteParticipants();
+        });
+
+        newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
+          console.log("Participant disconnected:", participant.identity);
+          updateRemoteParticipants();
+        });
+
+        newRoom.on(RoomEvent.TrackSubscribed, () => {
+          updateRemoteParticipants();
+        });
+
+        newRoom.on(RoomEvent.TrackUnsubscribed, () => {
+          updateRemoteParticipants();
+        });
+
+        newRoom.on(RoomEvent.LocalTrackPublished, () => {
+          updateParticipantState(newRoom.localParticipant, true);
+        });
+
+        newRoom.on(RoomEvent.LocalTrackUnpublished, () => {
+          updateParticipantState(newRoom.localParticipant, true);
+        });
+
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, () => {
+          updateParticipantState(newRoom.localParticipant, true);
+          updateRemoteParticipants();
+        });
+
+        await newRoom.connect(url, token);
 
         const tracks = await createLocalTracks({
-          audio: initialAudio, // Zahtevaj mikrofon samo, če je 'initialAudio' true
-          video: initialVideo, // Zahtevaj kamero samo, če je 'initialVideo' true
+          audio: initialAudio,
+          video: initialVideo,
         });
 
         for (const track of tracks) {
@@ -155,8 +180,8 @@ export function useLiveKit(): UseLiveKitReturn {
           } else if (track.kind === Track.Kind.Video) {
             setIsCameraOff(!initialVideo);
           }
-        } // Če sta audio/video false, tracki niso ustvarjeni/objavljeni.
-        // Če initialAudio/initialVideo false, moramo nastaviti stanje na izklopljeno
+        }
+
         if (!initialAudio) setIsMuted(true);
         if (!initialVideo) setIsCameraOff(true);
 
@@ -172,10 +197,9 @@ export function useLiveKit(): UseLiveKitReturn {
 
   const disconnect = useCallback(() => {
     if (roomRef.current) {
-      // *** KRITIČNI POPRAVEK: Spuščanje strojne opreme (hardware cleanup) ***
-      roomRef.current.localParticipant.tracks.forEach((publication) => {
+      roomRef.current.localParticipant.trackPublications.forEach((publication) => {
         if (publication.track) {
-          publication.track.stop(); // USTAVI DOSTOP DO KAMERE/MIKROFONA
+          publication.track.stop();
         }
       });
 
@@ -190,16 +214,90 @@ export function useLiveKit(): UseLiveKitReturn {
       setIsCameraOff(false);
     }
   }, []);
-  // ... (ostale funkcije in useEffect cleanup ostanejo enaki) ...
-  // ... (Toggle funkcije ostanejo enake) ...
+
+  const toggleMute = useCallback(async () => {
+    if (!roomRef.current) return;
+    
+    const audioTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.Microphone);
+    if (audioTrack?.track) {
+      if (audioTrack.isMuted) {
+        await audioTrack.unmute();
+        setIsMuted(false);
+      } else {
+        await audioTrack.mute();
+        setIsMuted(true);
+      }
+    } else if (!isMuted) {
+      // No audio track exists, try to create one
+      try {
+        const tracks = await createLocalTracks({ audio: true, video: false });
+        for (const track of tracks) {
+          await roomRef.current.localParticipant.publishTrack(track);
+        }
+        setIsMuted(false);
+      } catch (err) {
+        console.error("Failed to enable microphone:", err);
+      }
+    }
+  }, [isMuted]);
+
+  const toggleCamera = useCallback(async () => {
+    if (!roomRef.current) return;
+    
+    const videoTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+    if (videoTrack?.track) {
+      if (videoTrack.isMuted) {
+        await videoTrack.unmute();
+        setIsCameraOff(false);
+      } else {
+        await videoTrack.mute();
+        setIsCameraOff(true);
+      }
+    } else if (isCameraOff) {
+      // No video track exists, try to create one
+      try {
+        const tracks = await createLocalTracks({ audio: false, video: true });
+        for (const track of tracks) {
+          await roomRef.current.localParticipant.publishTrack(track);
+        }
+        setIsCameraOff(false);
+      } catch (err) {
+        console.error("Failed to enable camera:", err);
+      }
+    }
+  }, [isCameraOff]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (!roomRef.current) return;
+    
+    const screenTrack = roomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+    
+    if (screenTrack) {
+      await roomRef.current.localParticipant.unpublishTrack(screenTrack.track!);
+      setIsScreenSharing(false);
+    } else {
+      try {
+        await roomRef.current.localParticipant.setScreenShareEnabled(true);
+        setIsScreenSharing(true);
+      } catch (err) {
+        console.error("Failed to start screen share:", err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
 
   return {
     room,
-    // ... (vrnjeni objekti ostanejo enaki)
+    isConnecting,
+    error,
     localParticipant,
     remoteParticipants,
-    connect: (roomName, participantName, initialVideo, initialAudio) =>
-      connect(roomName, participantName, initialVideo, initialAudio),
+    connect,
     disconnect,
     toggleMute,
     toggleCamera,

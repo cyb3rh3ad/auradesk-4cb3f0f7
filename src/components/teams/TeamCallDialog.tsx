@@ -49,6 +49,8 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
           participantName={userName}
           onDisconnect={onClose}
           className="h-full"
+          initialVideo={isVideo}
+          initialAudio={true}
         />
       </DialogContent>
     </Dialog>

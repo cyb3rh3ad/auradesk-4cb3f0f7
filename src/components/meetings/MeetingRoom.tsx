@@ -48,6 +48,8 @@ export const MeetingRoom = ({ meetingId, meetingTitle, initialVideo = true, onCl
         participantName={userName}
         onDisconnect={onClose}
         className="flex-1"
+        initialVideo={initialVideo}
+        initialAudio={true}
       />
     </div>
   );
