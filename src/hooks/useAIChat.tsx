@@ -1,16 +1,101 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useAIPreferences } from '@/hooks/useAIPreferences';
+import { useLocalAI } from '@/hooks/useLocalAI';
+import { getModelById } from '@/lib/ai-models';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
 export const useAIChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { preferences } = useAIPreferences();
+  const localAI = useLocalAI();
 
   const sendMessage = useCallback(async (
     messages: Message[],
     onDelta: (chunk: string) => void,
-    onDone: () => void
+    onDone: () => void,
+    modelOverride?: string
+  ) => {
+    const modelId = modelOverride || preferences?.selected_model || 'gemini-flash-lite';
+    const model = getModelById(modelId);
+    const executionMode = preferences?.execution_mode || 'cloud';
+    
+    // Check if we should use local execution
+    if (executionMode === 'local' && model?.supportsLocal && model?.localModelId) {
+      return sendLocalMessage(messages, onDelta, onDone, model.localModelId);
+    }
+    
+    // Use cloud execution
+    return sendCloudMessage(messages, onDelta, onDone, modelId);
+  }, [preferences, localAI]);
+
+  const sendLocalMessage = useCallback(async (
+    messages: Message[],
+    onDelta: (chunk: string) => void,
+    onDone: () => void,
+    localModelId: string
+  ) => {
+    try {
+      setIsLoading(true);
+      
+      // Load model if not already loaded
+      if (localAI.currentModel !== localModelId) {
+        const loaded = await localAI.loadModel(localModelId);
+        if (!loaded) {
+          toast({
+            title: 'Local AI Unavailable',
+            description: 'Falling back to cloud mode',
+            variant: 'destructive',
+          });
+          // Fallback to cloud
+          return sendCloudMessage(messages, onDelta, onDone, 'gemini-flash-lite');
+        }
+      }
+      
+      // Get the last user message
+      const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+      if (!lastUserMessage) {
+        throw new Error('No user message found');
+      }
+      
+      // Build context from previous messages
+      const context = messages.slice(0, -1).map(m => 
+        `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
+      ).join('\n');
+      
+      const prompt = context 
+        ? `${context}\n\nUser: ${lastUserMessage.content}`
+        : lastUserMessage.content;
+      
+      const response = await localAI.generateText(prompt);
+      
+      // Simulate streaming for consistency
+      const words = response.split(' ');
+      for (const word of words) {
+        onDelta(word + ' ');
+        await new Promise(r => setTimeout(r, 20));
+      }
+      
+      onDone();
+    } catch (error) {
+      console.error('Local AI error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate response locally',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [localAI, toast]);
+
+  const sendCloudMessage = useCallback(async (
+    messages: Message[],
+    onDelta: (chunk: string) => void,
+    onDone: () => void,
+    modelId: string
   ) => {
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
     
@@ -23,7 +108,7 @@ export const useAIChat = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, model: modelId }),
       });
 
       if (resp.status === 429) {
@@ -169,6 +254,8 @@ export const useAIChat = () => {
 
   return {
     isLoading,
+    isLocalLoading: localAI.isModelLoading,
+    localLoadingProgress: localAI.loadingProgress,
     sendMessage,
     summarize,
   };
