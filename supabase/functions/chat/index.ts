@@ -6,6 +6,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Model mapping for Lovable AI gateway
+const MODEL_MAP: Record<string, string> = {
+  'gemini-flash-lite': 'google/gemini-2.5-flash-lite',
+  'gemini-flash': 'google/gemini-2.5-flash',
+  'gemini-pro': 'google/gemini-2.5-pro',
+  'gemini-3-pro': 'google/gemini-3-pro-preview',
+  'gemini-image': 'google/gemini-2.5-flash-image-preview',
+  'gpt-5-mini': 'openai/gpt-5-mini',
+  'gpt-5': 'openai/gpt-5',
+};
+
+// Tier access control
+const MODEL_TIERS: Record<string, string> = {
+  'gemini-flash-lite': 'free',
+  'gemini-flash': 'advanced',
+  'gemini-pro': 'professional',
+  'gemini-3-pro': 'professional',
+  'gemini-image': 'professional',
+  'gpt-5-mini': 'advanced',
+  'gpt-5': 'professional',
+};
+
+const TIER_PRIORITY: Record<string, number> = {
+  'free': 1,
+  'advanced': 2,
+  'professional': 3,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +63,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages } = await req.json();
+    const { messages, model: requestedModel } = await req.json();
     
     // Input validation
     const MAX_MESSAGES = 50;
@@ -67,6 +95,41 @@ serve(async (req) => {
       }
     }
 
+    // Get user's subscription plan
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: subscription } = await supabaseAdmin
+      .from('user_subscriptions')
+      .select('plan')
+      .eq('user_id', user.id)
+      .single();
+
+    const userPlan = subscription?.plan || 'free';
+    const userTierLevel = TIER_PRIORITY[userPlan] || 1;
+
+    // Determine which model to use
+    let modelId = requestedModel || 'gemini-flash-lite';
+    
+    // Check if user has access to the requested model
+    const modelTier = MODEL_TIERS[modelId] || 'free';
+    const modelTierLevel = TIER_PRIORITY[modelTier] || 1;
+    
+    if (modelTierLevel > userTierLevel) {
+      // User doesn't have access, fallback to their tier's best model
+      if (userPlan === 'advanced') {
+        modelId = 'gemini-flash';
+      } else {
+        modelId = 'gemini-flash-lite';
+      }
+      console.log(`User tier ${userPlan} doesn't have access to ${requestedModel}, using ${modelId}`);
+    }
+
+    const cloudModelId = MODEL_MAP[modelId] || 'google/gemini-2.5-flash-lite';
+    console.log(`Using model: ${cloudModelId} for user plan: ${userPlan}`);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -79,11 +142,11 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: cloudModelId,
         messages: [
           { 
             role: "system", 
-            content: "You are a helpful AI assistant integrated into a team collaboration platform. You can help with tasks, answer questions, provide suggestions, and assist with problem-solving. Be concise but thorough." 
+            content: "You are a helpful AI assistant integrated into a team collaboration platform called AuraDesk. You can help with tasks, answer questions, provide suggestions, and assist with problem-solving. Be concise but thorough." 
           },
           ...messages,
         ],

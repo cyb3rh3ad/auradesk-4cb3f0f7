@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ExecutionMode } from '@/lib/ai-models';
 
 export interface AIPreferences {
   default_processing_type: 'summary' | 'bullet_points' | 'full' | 'custom';
   custom_instructions: string | null;
   enable_background_assistant: boolean;
+  selected_model: string;
+  execution_mode: ExecutionMode;
 }
 
 export const useAIPreferences = () => {
@@ -26,7 +29,7 @@ export const useAIPreferences = () => {
   const fetchPreferences = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_ai_preferences' as any)
+        .from('user_ai_preferences')
         .select('*')
         .eq('user_id', user?.id)
         .single();
@@ -34,17 +37,25 @@ export const useAIPreferences = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setPreferences(data as unknown as AIPreferences);
+        setPreferences({
+          default_processing_type: data.default_processing_type as AIPreferences['default_processing_type'],
+          custom_instructions: data.custom_instructions,
+          enable_background_assistant: data.enable_background_assistant,
+          selected_model: data.selected_model,
+          execution_mode: data.execution_mode as ExecutionMode,
+        });
       } else {
         // Create default preferences
         const defaultPrefs: AIPreferences = {
           default_processing_type: 'summary',
           custom_instructions: null,
           enable_background_assistant: false,
+          selected_model: 'gemini-flash-lite',
+          execution_mode: 'cloud',
         };
         
         const { error: insertError } = await supabase
-          .from('user_ai_preferences' as any)
+          .from('user_ai_preferences')
           .insert({
             user_id: user?.id,
             ...defaultPrefs,
@@ -63,7 +74,7 @@ export const useAIPreferences = () => {
   const updatePreferences = async (updates: Partial<AIPreferences>) => {
     try {
       const { error } = await supabase
-        .from('user_ai_preferences' as any)
+        .from('user_ai_preferences')
         .update(updates)
         .eq('user_id', user?.id);
 
