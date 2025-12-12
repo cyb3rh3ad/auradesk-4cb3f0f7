@@ -517,11 +517,13 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Microphone</SelectItem>
-                    {audioInputDevices.map(device => (
-                      <SelectItem key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
-                      </SelectItem>
-                    ))}
+                    {audioInputDevices
+                      .filter(device => device.deviceId && device.deviceId !== '')
+                      .map(device => (
+                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 {audioInputDevices.length === 0 && (
@@ -542,11 +544,13 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Camera</SelectItem>
-                    {videoInputDevices.map(device => (
-                      <SelectItem key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
-                      </SelectItem>
-                    ))}
+                    {videoInputDevices
+                      .filter(device => device.deviceId && device.deviceId !== '')
+                      .map(device => (
+                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 {videoInputDevices.length === 0 && (
@@ -567,11 +571,13 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default Speaker</SelectItem>
-                    {audioOutputDevices.map(device => (
-                      <SelectItem key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Speaker ${device.deviceId.slice(0, 8)}`}
-                      </SelectItem>
-                    ))}
+                    {audioOutputDevices
+                      .filter(device => device.deviceId && device.deviceId !== '')
+                      .map(device => (
+                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Speaker ${device.deviceId.slice(0, 8)}`}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 {audioOutputDevices.length === 0 && (
