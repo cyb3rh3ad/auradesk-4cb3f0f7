@@ -31,9 +31,11 @@ interface ParticipantState {
 interface UseLiveKitReturn {
   room: Room | null;
   isConnecting: boolean;
+  isConnected: boolean;
   error: string | null;
   localParticipant: ParticipantState | null;
   remoteParticipants: ParticipantState[];
+  screenShareParticipant: ParticipantState | null;
   connect: (roomName: string, participantName: string, initialVideo: boolean, initialAudio: boolean) => Promise<void>;
   disconnect: () => void;
   toggleMute: () => Promise<void>;
@@ -491,12 +493,18 @@ export function useLiveKit(): UseLiveKitReturn {
     };
   }, [disconnect]);
 
+  // Find screen share participant
+  const screenShareParticipant = remoteParticipants.find(p => p.screenShareTrack) || 
+    (localParticipant?.screenShareTrack ? localParticipant : null);
+
   return {
     room,
     isConnecting,
+    isConnected,
     error,
     localParticipant,
     remoteParticipants,
+    screenShareParticipant,
     connect,
     disconnect,
     toggleMute,

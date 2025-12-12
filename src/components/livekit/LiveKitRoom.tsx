@@ -1,21 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Track } from "livekit-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MicOff, VideoOff, PhoneOff, MonitorOff, Users } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLiveKit } from "@/hooks/useLiveKit"; // Pravilen uvoz hooka
+import { useLiveKit } from "@/hooks/useLiveKit";
 
-// Predpostavljam, da je ta definicija propsov pravilna.
-interface LiveKitRoomProps {
+export interface LiveKitRoomProps {
   roomName: string;
   participantName: string;
   onDisconnect: () => void;
   className?: string;
+  initialVideo?: boolean;
+  initialAudio?: boolean;
 }
 
-// Glavna komponenta
-export function LiveKitRoom({ roomName, participantName, onDisconnect, className }: LiveKitRoomProps) {
+export function LiveKitRoom({ 
+  roomName, 
+  participantName, 
+  onDisconnect, 
+  className,
+  initialVideo = true,
+  initialAudio = true 
+}: LiveKitRoomProps) {
   const {
     isConnecting,
     isConnected,
@@ -34,24 +41,11 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
   } = useLiveKit();
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const screenShareRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  const setRemoteVideoRef = (id: string, el: HTMLVideoElement | null) => {
-    if (el) {
-      remoteVideoRefs.current.set(id, el);
-      // Tukaj bi morala biti logika za pripenjanje/odpenjanje trakov
-      // ki se zgodi, ko se ustvari video element
-    } else {
-      remoteVideoRefs.current.delete(id);
-    }
-  };
-
-  const [initialVideo, setInitialVideo] = useState(true);
-  const [initialAudio, setInitialAudio] = useState(true);
-
-  // Povezava na sobo ob prvem renderiranju (Mount)
+  // Connect on mount
   useEffect(() => {
-    // 🚩 POPRAVEK: Klic connect s 4 argumenti (vrstica 39)
     connect(roomName, participantName, initialVideo, initialAudio);
 
     return () => {
@@ -59,39 +53,80 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
     };
   }, [roomName, participantName, connect, disconnect, initialVideo, initialAudio]);
 
-  // Povezava lokalnega video traku na video element
+  // Attach local video track
   useEffect(() => {
-    if (localVideoRef.current && localParticipant) {
-      const track = localParticipant.getTrack(Track.Source.Camera);
-      if (track?.track) {
-        // Preverite, ali je trak že pripet, preden ga pripnete
-        if (!localVideoRef.current.srcObject) {
-          track.track.attach(localVideoRef.current);
-        }
+    if (localVideoRef.current && localParticipant?.videoTrack) {
+      const track = localParticipant.videoTrack;
+      if ('attach' in track) {
+        track.attach(localVideoRef.current);
         return () => {
-          track.track.detach(localVideoRef.current!);
+          track.detach(localVideoRef.current!);
         };
       }
     }
-  }, [localParticipant]);
+  }, [localParticipant?.videoTrack]);
+
+  // Attach screen share track
+  useEffect(() => {
+    if (screenShareRef.current && screenShareParticipant?.screenShareTrack) {
+      const track = screenShareParticipant.screenShareTrack;
+      if ('attach' in track) {
+        track.attach(screenShareRef.current);
+        return () => {
+          track.detach(screenShareRef.current!);
+        };
+      }
+    }
+  }, [screenShareParticipant?.screenShareTrack]);
+
+  // Attach remote video tracks
+  useEffect(() => {
+    remoteParticipants.forEach((participant) => {
+      const videoEl = remoteVideoRefs.current.get(participant.identity);
+      if (videoEl && participant.videoTrack && 'attach' in participant.videoTrack) {
+        participant.videoTrack.attach(videoEl);
+      }
+    });
+
+    return () => {
+      remoteParticipants.forEach((participant) => {
+        const videoEl = remoteVideoRefs.current.get(participant.identity);
+        if (videoEl && participant.videoTrack && 'detach' in participant.videoTrack) {
+          participant.videoTrack.detach(videoEl);
+        }
+      });
+    };
+  }, [remoteParticipants]);
+
+  const setRemoteVideoRef = (id: string, el: HTMLVideoElement | null) => {
+    if (el) {
+      remoteVideoRefs.current.set(id, el);
+    } else {
+      remoteVideoRefs.current.delete(id);
+    }
+  };
 
   if (error) {
-    return <div className="text-red-500 p-4">Napaka pri povezovanju: {error.message}</div>;
+    return (
+      <div className="flex items-center justify-center h-full bg-background text-destructive p-4">
+        <p>Connection error: {error}</p>
+      </div>
+    );
   }
 
   if (isConnecting || !isConnected) {
-    return <div className="p-4 text-white">Povezujem se z LiveKit...</div>;
+    return (
+      <div className="flex items-center justify-center h-full bg-background text-foreground p-4">
+        <p>Connecting to call...</p>
+      </div>
+    );
   }
 
-  // Združitev lokalnega in oddaljenih udeležencev za prikaz v mreži
-  const allParticipants = [localParticipant, ...remoteParticipants].filter((p) => p !== null);
-
-  // Izračun števila stolpcev v mreži (za preprost prikaz)
+  const allParticipants = [localParticipant, ...remoteParticipants].filter(Boolean);
   const numParticipants = allParticipants.length;
-  let gridCols;
-  if (numParticipants <= 1) {
-    gridCols = "grid-cols-1";
-  } else if (numParticipants === 2) {
+  
+  let gridCols = "grid-cols-1";
+  if (numParticipants === 2) {
     gridCols = "md:grid-cols-2 grid-cols-1";
   } else if (numParticipants <= 4) {
     gridCols = "md:grid-cols-2 grid-cols-1";
@@ -101,73 +136,59 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
-      {/* 1. Mreža za skupno rabo zaslona (Screen Share) - prioritetni prikaz */}
+      {/* Screen share display */}
       {screenShareParticipant && (
-        <div className="flex-1 p-2 bg-black relative">
-          {/* OHRANJENO IZ VAŠE KODE ZA SCREEN SHARE (vrstice 225-236) */}
+        <div className="flex-1 p-2 bg-muted relative min-h-0">
           <video
-            // Predvidevam, da imate ustrezno logiko ref za screen share
-            ref={(el) => setRemoteVideoRef(screenShareParticipant.identity + "-screen", el)}
+            ref={screenShareRef}
             autoPlay
             playsInline
-            muted={true}
+            muted
             className="w-full h-full object-contain"
           />
-          <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
-            {screenShareParticipant.name || screenShareParticipant.identity} deli zaslon
+          <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm">
+            {screenShareParticipant.name} is sharing screen
           </div>
         </div>
       )}
 
-      {/* 2. Mreža udeležencev (Participants Grid) */}
+      {/* Participants grid */}
       <div
         className={cn(
           "p-4 grid gap-4",
           gridCols,
-          // Določitev velikosti mreže glede na to, ali je deljenje zaslona aktivno
-          screenShareParticipant ? "h-32 flex-shrink-0" : "flex-1",
+          screenShareParticipant ? "h-32 flex-shrink-0" : "flex-1"
         )}
       >
-        {/* 🚩 POPRAVEK SINTAKSE: Prejšnji blok kode se je končal s cn() brez zapiralne oznake </div>
-             Ker je zdaj cn() zaprt, nadaljujemo z mapiranjem (vrstica 245) */}
-
         {allParticipants.map((participant) => {
-          // Filtrirajte udeleženca, ki deli zaslon, da se ne prikaže dvakrat kot video
-          if (screenShareParticipant && participant.identity === screenShareParticipant.identity) {
-            return null;
-          }
-
+          if (!participant) return null;
+          
           const isLocal = participant.identity === localParticipant?.identity;
-          const videoTrack = participant.getTrack(Track.Source.Camera);
-          const isVideoAvailable = videoTrack && !videoTrack.isMuted;
-          const isParticipantCameraOff = isLocal ? isCameraOff : !isVideoAvailable;
-          const isParticipantMuted = isLocal ? isMuted : participant.isMuted;
-          const participantName = isLocal ? "Vi (Jaz)" : participant.name || participant.identity;
+          const hasVideo = participant.videoTrack && !participant.isCameraOff;
+          const displayName = isLocal ? "You" : participant.name || participant.identity;
 
           return (
             <div
               key={participant.identity}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-gray-900 border-2 aspect-video",
-                participant.isSpeaking ? "border-green-500" : "border-gray-800",
-                isLocal ? "order-first" : "",
+                "relative rounded-xl overflow-hidden bg-muted border-2 aspect-video",
+                participant.isSpeaking ? "border-green-500" : "border-border",
+                isLocal && "order-first"
               )}
             >
-              {/* Prikaz videa (Lokalni video) */}
-              {isLocal && isVideoAvailable && (
+              {/* Video display */}
+              {isLocal && hasVideo && (
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
-                  muted // Lokalni video mora biti mutiran
+                  muted
                   className="w-full h-full object-cover"
                 />
               )}
 
-              {/* Prikaz videa (Oddaljeni video) - če ni lokalni */}
-              {!isLocal && isVideoAvailable && (
+              {!isLocal && hasVideo && (
                 <video
-                  // Posodobljena ref logika za oddaljene udeležence
                   ref={(el) => setRemoteVideoRef(participant.identity, el)}
                   autoPlay
                   playsInline
@@ -175,57 +196,64 @@ export function LiveKitRoom({ roomName, participantName, onDisconnect, className
                 />
               )}
 
-              {/* Prikaz Avatarja, če je kamera izklopljena */}
-              {isParticipantCameraOff && (
-                <div className="absolute inset-0 flex items-center justify-center">
+              {/* Avatar when camera off */}
+              {!hasVideo && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
                   <Avatar className="h-16 w-16 md:h-20 md:w-20">
-                    <AvatarFallback className="text-xl md:text-2xl">{participantName.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="text-xl md:text-2xl">
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                 </div>
               )}
 
-              {/* Statusna vrstica */}
-              <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded text-white text-sm">
-                {participantName}
+              {/* Name label */}
+              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm">
+                {displayName}
               </div>
 
-              {/* Ikone za status (Mute/Video Off) */}
-              {isParticipantMuted && (
-                <MicOff className="absolute top-2 right-2 h-6 w-6 text-red-500 bg-black p-1 rounded-full" />
-              )}
-              {isParticipantCameraOff && (
-                <VideoOff className="absolute top-2 right-10 h-6 w-6 text-red-500 bg-black p-1 rounded-full" />
-              )}
+              {/* Status icons */}
+              <div className="absolute top-2 right-2 flex gap-1">
+                {participant.isMuted && (
+                  <MicOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+                )}
+                {participant.isCameraOff && (
+                  <VideoOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* 3. Kontrole (Controls) */}
-      <div className="flex justify-center p-4 bg-gray-800 border-t border-gray-700">
-        {/* Toggle Mute */}
-        <Button onClick={toggleMute} variant="secondary" className="mx-2">
-          {isMuted ? <MicOff className="h-5 w-5" /> : <i className="h-5 w-5" />}
-          {!isMuted && "Mute"}
+      {/* Controls */}
+      <div className="flex justify-center gap-2 p-4 bg-muted border-t border-border">
+        <Button 
+          onClick={toggleMute} 
+          variant={isMuted ? "destructive" : "secondary"}
+          size="icon"
+        >
+          {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
 
-        {/* Toggle Camera */}
-        <Button onClick={toggleCamera} variant="secondary" className="mx-2">
-          {isCameraOff ? <VideoOff className="h-5 w-5" /> : <i className="h-5 w-5" />}
-          {!isCameraOff && "Kamera"}
+        <Button 
+          onClick={toggleCamera} 
+          variant={isCameraOff ? "destructive" : "secondary"}
+          size="icon"
+        >
+          {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
         </Button>
 
-        {/* Toggle Screen Share */}
-        <Button onClick={toggleScreenShare} variant="secondary" className="mx-2">
-          {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <i className="h-5 w-5" />}
-          {isScreenSharing ? "Ustavi deljenje" : "Deli zaslon"}
+        <Button 
+          onClick={toggleScreenShare} 
+          variant={isScreenSharing ? "default" : "secondary"}
+          size="icon"
+        >
+          {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
         </Button>
 
-        {/* Gumb za prekinitev klica (Disconnect) */}
-        {/* Vrstice 277-284 so videti pravilno zaprte (slika image_62fdfa.png) */}
-        <Button onClick={onDisconnect} variant="destructive" className="mx-2">
-          <PhoneOff className="h-5 w-5 mr-2" />
-          Prekini klic
+        <Button onClick={onDisconnect} variant="destructive" size="icon">
+          <PhoneOff className="h-5 w-5" />
         </Button>
       </div>
     </div>
