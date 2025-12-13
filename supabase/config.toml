@@ -1,1 +1,34 @@
 project_id = "jtbxuiyhuyvqvdkqqioo"
+
+[functions.chat]
+verify_jwt = true
+
+[functions.summarize]
+verify_jwt = true
+
+[functions.process-transcript]
+verify_jwt = true
+
+[functions.ai-assistant]
+verify_jwt = true
+
+[functions.livekit-token]
+verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.initialize-owner]
+verify_jwt = false
+
+[functions.activate-free-subscription]
+verify_jwt = true
+
+[functions.validate-promo-code]
+verify_jwt = true
