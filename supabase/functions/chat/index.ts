@@ -128,11 +128,33 @@ serve(async (req) => {
     }
 
     const cloudModelId = MODEL_MAP[modelId] || 'google/gemini-2.5-flash-lite';
-    console.log(`Using model: ${cloudModelId} for user plan: ${userPlan}`);
+    const isImageGeneration = modelId === 'gemini-image';
+    console.log(`Using model: ${cloudModelId} for user plan: ${userPlan}, isImageGen: ${isImageGeneration}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Build the request body based on whether it's image generation or text
+    const requestBody: any = {
+      model: cloudModelId,
+      messages: [
+        { 
+          role: "system", 
+          content: isImageGeneration 
+            ? "You are an AI image generator. Generate images based on user prompts."
+            : "You are a helpful AI assistant integrated into a team collaboration platform called AuraDesk. You can help with tasks, answer questions, provide suggestions, and assist with problem-solving. Be concise but thorough." 
+        },
+        ...messages,
+      ],
+    };
+
+    // Add modalities for image generation
+    if (isImageGeneration) {
+      requestBody.modalities = ["image", "text"];
+    } else {
+      requestBody.stream = true;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -141,17 +163,7 @@ serve(async (req) => {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: cloudModelId,
-        messages: [
-          { 
-            role: "system", 
-            content: "You are a helpful AI assistant integrated into a team collaboration platform called AuraDesk. You can help with tasks, answer questions, provide suggestions, and assist with problem-solving. Be concise but thorough." 
-          },
-          ...messages,
-        ],
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -169,12 +181,22 @@ serve(async (req) => {
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
+      return new Response(JSON.stringify({ error: "AI service error", details: errorText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // For image generation, return JSON response
+    if (isImageGeneration) {
+      const data = await response.json();
+      console.log("Image generation response:", JSON.stringify(data));
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // For text, return streaming response
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });

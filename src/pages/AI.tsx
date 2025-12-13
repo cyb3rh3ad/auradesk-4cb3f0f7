@@ -201,7 +201,26 @@ const AI = () => {
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   }`}>
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                    {message.content.includes('![Generated Image]') ? (
+                      <div className="space-y-2">
+                        {message.content.split('\n\n').map((part, i) => {
+                          const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);
+                          if (imgMatch) {
+                            return (
+                              <img 
+                                key={i}
+                                src={imgMatch[1]} 
+                                alt="Generated" 
+                                className="rounded-lg max-w-full h-auto"
+                              />
+                            );
+                          }
+                          return part ? <p key={i} className="text-sm whitespace-pre-wrap break-words">{part}</p> : null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                    )}
                     <p className={`text-xs mt-1 ${
                       message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
                     }`}>

@@ -99,6 +99,7 @@ export const useAIChat = () => {
     modelId: string
   ) => {
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+    const isImageGeneration = modelId === 'gemini-image';
     
     try {
       setIsLoading(true);
@@ -144,10 +145,43 @@ export const useAIChat = () => {
         return;
       }
 
-      if (!resp.ok || !resp.body) {
+      if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({}));
         console.error('Chat response error:', resp.status, errorData);
-        throw new Error(errorData.error || 'Failed to start stream');
+        throw new Error(errorData.error || 'Failed to communicate with AI');
+      }
+
+      // Handle image generation response (non-streaming JSON)
+      if (isImageGeneration) {
+        const data = await resp.json();
+        console.log('Image generation response:', data);
+        
+        const imageContent = data.choices?.[0]?.message?.content || '';
+        const images = data.choices?.[0]?.message?.images || [];
+        
+        // Build response with images
+        let response = imageContent;
+        if (images.length > 0) {
+          for (const img of images) {
+            if (img.image_url?.url) {
+              response += `\n\n![Generated Image](${img.image_url.url})`;
+            }
+          }
+        }
+        
+        if (response) {
+          onDelta(response);
+        } else {
+          onDelta('Image generation completed, but no image was returned.');
+        }
+        onDone();
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle streaming text response
+      if (!resp.body) {
+        throw new Error('No response body');
       }
 
       const reader = resp.body.getReader();
