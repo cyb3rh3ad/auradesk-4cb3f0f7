@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useLocalAI } from '@/hooks/useLocalAI';
 import { getModelById } from '@/lib/ai-models';
+import { supabase } from '@/integrations/supabase/client';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
@@ -102,11 +103,23 @@ export const useAIChat = () => {
     try {
       setIsLoading(true);
       
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to use the AI assistant',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages, model: modelId }),
       });
@@ -132,7 +145,9 @@ export const useAIChat = () => {
       }
 
       if (!resp.ok || !resp.body) {
-        throw new Error('Failed to start stream');
+        const errorData = await resp.json().catch(() => ({}));
+        console.error('Chat response error:', resp.status, errorData);
+        throw new Error(errorData.error || 'Failed to start stream');
       }
 
       const reader = resp.body.getReader();
@@ -192,7 +207,7 @@ export const useAIChat = () => {
       console.error('Chat error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to communicate with AI',
+        description: error instanceof Error ? error.message : 'Failed to communicate with AI',
         variant: 'destructive',
       });
     } finally {
@@ -206,11 +221,22 @@ export const useAIChat = () => {
     try {
       setIsLoading(true);
       
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to use the summarization feature',
+          variant: 'destructive',
+        });
+        return '';
+      }
+      
       const resp = await fetch(SUMMARIZE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ text }),
       });
