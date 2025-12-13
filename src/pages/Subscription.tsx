@@ -45,8 +45,9 @@ const Subscription = () => {
       period: "/month",
       description: "Perfect for getting started",
       features: [
+        "2 AI language models",
+        "30 AI tokens per week",
         "45-minute meetings",
-        "15 AI tokens per week",
         "100GB file storage",
         "Basic support"
       ],
@@ -61,11 +62,12 @@ const Subscription = () => {
       period: "/month",
       description: "For growing teams",
       features: [
+        "5 AI language models",
+        "50 AI tokens per week",
+        "Local AI execution",
         "90-minute meetings",
-        "20 AI tokens per week",
         "1TB file storage",
-        "Priority support",
-        "Advanced analytics"
+        "Priority support"
       ],
       icon: Zap,
       plan: "advanced" as const,
@@ -79,12 +81,13 @@ const Subscription = () => {
       period: "/month",
       description: "For power users",
       features: [
-        "Unlimited meetings",
+        "9 AI language models",
         "Unlimited AI tokens",
+        "Local AI execution",
+        "Image generation",
+        "Unlimited meetings",
         "10TB file storage",
-        "24/7 premium support",
-        "Advanced analytics",
-        "API access"
+        "24/7 premium support"
       ],
       icon: Crown,
       plan: "professional" as const,
