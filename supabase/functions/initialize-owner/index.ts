@@ -6,6 +6,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const decodeJwt = (authHeader: string): { id?: string; email?: string } => {
+  const token = authHeader.replace("Bearer ", "").trim();
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid JWT format");
+  }
+
+  // Convert URL-safe base64 to standard base64
+  let payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  while (payload.length % 4 !== 0) {
+    payload += "=";
+  }
+
+  const decoded = atob(payload);
+  const data = JSON.parse(decoded);
+  return { id: data.sub as string | undefined, email: data.email as string | undefined };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,18 +44,18 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    // Use anon key with auth header for user authentication
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    let userId: string | undefined;
+    let email: string | undefined;
 
-    const { data: userData, error: userError } = await authClient.auth.getUser();
-    
-    if (userError || !userData.user) {
-      console.log("Auth error:", userError?.message || "No user found");
+    try {
+      const decoded = decodeJwt(authHeader);
+      userId = decoded.id;
+      email = decoded.email;
+      console.log("JWT decoded", { userId, emailPresent: !!email });
+    } catch (e) {
+      console.log("JWT decode failed", { error: e instanceof Error ? e.message : String(e) });
       return new Response(JSON.stringify({ 
         success: false, 
         error: "Invalid token" 
@@ -47,13 +65,24 @@ serve(async (req) => {
       });
     }
 
-    const user = userData.user;
+    if (!userId || !email) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Invalid token" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
+    const user = { id: userId, email };
     console.log("Authenticated user:", user.id);
 
-    // Use service role key for database operations
-    const supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
+    const supabaseClient = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      { auth: { persistSession: false } }
+    );
 
     // Check if there are any owners
     const { data: existingOwners, error: ownersError } = await supabaseClient

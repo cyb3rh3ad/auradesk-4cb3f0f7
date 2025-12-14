@@ -12,6 +12,24 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
+const decodeJwt = (authHeader: string): { id?: string; email?: string } => {
+  const token = authHeader.replace("Bearer ", "").trim();
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid JWT format");
+  }
+
+  // Convert URL-safe base64 to standard base64
+  let payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  while (payload.length % 4 !== 0) {
+    payload += "=";
+  }
+
+  const decoded = atob(payload);
+  const data = JSON.parse(decoded);
+  return { id: data.sub as string | undefined, email: data.email as string | undefined };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,22 +50,24 @@ serve(async (req) => {
     if (!authHeader) throw new Error("No authorization header provided");
     logStep("Authorization header found");
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
+    let userId: string | undefined;
+    let email: string | undefined;
 
-    logStep("Authenticating user with header");
-    const { data: userData, error: userError } = await authClient.auth.getUser();
-    if (userError || !userData.user) {
-      logStep("Auth error details", { message: userError?.message, status: (userError as any)?.status });
-      throw new Error(`Authentication error: ${userError?.message || "User not authenticated"}`);
+    try {
+      const decoded = decodeJwt(authHeader);
+      userId = decoded.id;
+      email = decoded.email;
+      logStep("JWT decoded", { userId, emailPresent: !!email });
+    } catch (e) {
+      logStep("JWT decode failed", { error: e instanceof Error ? e.message : String(e) });
+      throw new Error("Authentication error: Auth session missing!");
     }
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+
+    if (!userId || !email) {
+      throw new Error("Authentication error: Auth session missing!");
+    }
+
+    const user = { id: userId, email };
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
