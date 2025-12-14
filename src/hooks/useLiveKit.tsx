@@ -888,57 +888,29 @@ export function useLiveKit(): UseLiveKitReturn {
   }, [updateParticipantState]);
 
   const toggleCamera = useCallback(async () => {
-    console.log("[LiveKit] toggleCamera called");
-    
     if (!roomRef.current) {
       console.warn("[LiveKit] toggleCamera: No room reference");
       return;
     }
 
-    if (roomRef.current.state !== ConnectionState.Connected) {
-      console.warn("[LiveKit] toggleCamera: Room not connected, state:", roomRef.current.state);
-      return;
+    const localParticipant = roomRef.current.localParticipant;
+
+    try {
+      const enable = isCameraOff;
+      console.log("[LiveKit] toggleCamera: setting camera enabled:", enable);
+
+      // Use LiveKit's high-level helper to manage camera tracks
+      await localParticipant.setCameraEnabled(enable);
+
+      setIsCameraOff(!enable);
+      console.log("[LiveKit] Camera state updated. isCameraOff=", !enable);
+    } catch (err) {
+      console.error("[LiveKit] Failed to toggle camera:", err);
+      setMediaError("Failed to access camera. Please check permissions.");
     }
-    
-    const videoPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
-    console.log("[LiveKit] toggleCamera: Current video publication:", videoPublication ? "exists" : "none");
-    
-    if (videoPublication?.track) {
-      try {
-        if (videoPublication.isMuted) {
-          await videoPublication.unmute();
-          setIsCameraOff(false);
-          console.log("[LiveKit] Camera unmuted");
-        } else {
-          await videoPublication.mute();
-          setIsCameraOff(true);
-          console.log("[LiveKit] Camera muted");
-        }
-      } catch (err) {
-        console.error("[LiveKit] Error toggling camera mute:", err);
-      }
-    } else {
-      // No video track exists yet, create and publish one
-      console.log("[LiveKit] No video track, creating new one...");
-      try {
-        const tracks = await createLocalTracks({ 
-          audio: false, 
-          video: { resolution: { width: 1280, height: 720, frameRate: 30 } }
-        });
-        console.log("[LiveKit] Created video tracks:", tracks.length);
-        for (const track of tracks) {
-          await roomRef.current!.localParticipant.publishTrack(track, { simulcast: true });
-          console.log("[LiveKit] Published video track");
-        }
-        setIsCameraOff(false);
-      } catch (err) {
-        console.error("[LiveKit] Failed to create/publish camera track:", err);
-        setMediaError("Failed to access camera. Please check permissions.");
-      }
-    }
-    
-    updateParticipantState(roomRef.current.localParticipant, true);
-  }, [updateParticipantState]);
+
+    updateParticipantState(localParticipant, true);
+  }, [isCameraOff, updateParticipantState]);
 
   const toggleScreenShare = useCallback(async () => {
     if (!roomRef.current) return;
