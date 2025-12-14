@@ -503,77 +503,23 @@ export function useLiveKit(): UseLiveKitReturn {
       setIsReconnecting(true);
     });
 
-    newRoom.on(RoomEvent.Reconnected, async () => {
+    newRoom.on(RoomEvent.Reconnected, () => {
       addDebugEvent("EVENT", "RoomEvent.Reconnected - LiveKit auto-reconnect succeeded");
       console.log("[LiveKit] Reconnected");
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
 
-      // EMERGENCY CUT & REPUBLISH PROTOCOL
-      // On reconnect, immediately cut audio/video and republish fresh for stability
-      // Audio first (immediate), then video after 2s delay
-      addDebugEvent("EMERGENCY", "Initiating emergency cut & republish protocol");
+      // Let LiveKit handle track recovery; we just refresh our state + remote audio
+      setError(null);
+      setMediaError(null);
 
-      try {
-        const localP = newRoom.localParticipant;
-
-        // Step 1: Cut and republish AUDIO immediately
-        const audioPublication = localP.getTrackPublication(Track.Source.Microphone);
-        if (audioPublication?.track) {
-          addDebugEvent("CUT", "Cutting audio track...");
-          audioPublication.track.stop();
-          await localP.unpublishTrack(audioPublication.track);
-        }
-
-        // Republish audio immediately
-        addDebugEvent("REPUBLISH", "Republishing audio track...");
-        const audioTracks = await createLocalTracks({ audio: true, video: false });
-        for (const track of audioTracks) {
-          await localP.publishTrack(track);
-        }
-        addDebugEvent("REPUBLISH", "Audio track republished successfully");
-        updateParticipantState(localP, true);
-
-        // Step 2: Cut and republish VIDEO after 2s delay
-        const videoPublication = localP.getTrackPublication(Track.Source.Camera);
-        if (videoPublication?.track) {
-          addDebugEvent("CUT", "Cutting video track...");
-          videoPublication.track.stop();
-          await localP.unpublishTrack(videoPublication.track);
-        }
-
-        // Wait 2s then republish video
-        setTimeout(async () => {
-          try {
-            if (newRoom.state !== 'connected') return;
-            
-            addDebugEvent("REPUBLISH", "Republishing video track after 2s delay...");
-            const videoTracks = await createLocalTracks({ 
-              audio: false, 
-              video: { resolution: { width: 1280, height: 720, frameRate: 30 } }
-            });
-            for (const track of videoTracks) {
-              await localP.publishTrack(track, { simulcast: true });
-            }
-            addDebugEvent("REPUBLISH", "Video track republished successfully");
-            updateParticipantState(localP, true);
-          } catch (videoErr) {
-            console.warn("[LiveKit] Error republishing video:", videoErr);
-          }
-        }, 2000);
-
-      } catch (err) {
-        console.warn("[LiveKit] Emergency republish error:", err);
-        addDebugEvent("ERROR", `Emergency republish failed: ${err}`);
-      }
-
-      // CRITICAL: Force reattach all remote audio after reconnect
-      // This fixes the one-way audio issue where you can talk but can't hear others
-      addDebugEvent("REATTACH", "Force reattaching all remote audio tracks...");
-      forceReattachAllRemoteAudio();
-      
-      // Re-sync remote participants
+      // Re-sync participants
+      updateParticipantState(newRoom.localParticipant, true);
       updateRemoteParticipants();
+
+      // Ensure all remote audio is attached after reconnect
+      addDebugEvent("REATTACH", "Force reattaching all remote audio tracks after reconnect");
+      forceReattachAllRemoteAudio();
     });
 
     newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
