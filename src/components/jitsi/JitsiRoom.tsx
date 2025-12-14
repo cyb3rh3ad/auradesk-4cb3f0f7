@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PhoneOff, Loader2 } from "lucide-react";
+import { PhoneOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface JitsiRoomProps {
@@ -150,15 +150,6 @@ export const JitsiRoom = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Connecting to call...</p>
-          </div>
-        </div>
-      )}
-      
       <div ref={jitsiContainerRef} className="flex-1 w-full" />
       
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
