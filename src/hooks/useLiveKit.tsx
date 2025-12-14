@@ -409,6 +409,11 @@ export function useLiveKit(): UseLiveKitReturn {
       console.log("[LiveKit] Connection state:", state);
       if (state === ConnectionState.Disconnected) {
         setIsConnected(false);
+        // If we didn't explicitly hang up, try a controlled reconnect
+        if (connectionParamsRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          console.log("[LiveKit] Unexpected disconnect, scheduling reconnect...");
+          performReconnect();
+        }
       } else if (state === ConnectionState.Connected) {
         setIsConnected(true);
         setIsReconnecting(false);
@@ -548,6 +553,15 @@ export function useLiveKit(): UseLiveKitReturn {
       setError(null);
       setMediaError(null);
       reconnectAttemptsRef.current = 0;
+
+      // Avoid duplicate connections if a room is already active
+      if (roomRef.current &&
+        (roomRef.current.state === ConnectionState.Connected ||
+          roomRef.current.state === ConnectionState.Connecting)) {
+        console.log("[LiveKit] Already connected/connecting, skipping connect() call");
+        setIsConnecting(false);
+        return;
+      }
 
       // Store connection params for reconnection
       connectionParamsRef.current = { roomName, participantName, initialVideo, initialAudio };
