@@ -73,17 +73,20 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* GPU acceleration for smooth animations */
+  /* GPU acceleration for smooth animations - preloaded on page load */
   .gpu-accelerated,
   [data-framer-motion],
   .animate-fade-in,
   .animate-scale-in,
-  .animate-slide-in-right {
+  .animate-slide-in-right,
+  [data-state="open"],
+  [data-state="closed"] {
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -97,9 +100,23 @@
     text-rendering: optimizeLegibility;
   }
   
+  /* Force GPU layer for all interactive elements */
+  button, a, [role="button"], [role="tab"], [role="menuitem"], [role="option"] {
+    transform-origin: center center;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
   /* Optimize paint performance */
-  main, .page-content {
+  main, aside, nav, header, .page-content {
     contain: layout style paint;
+    transform: translateZ(0);
+  }
+  
+  /* Dropdown and popover preloading */
+  [data-radix-popper-content-wrapper] {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
   }
 }
 
