@@ -77,6 +77,30 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* GPU acceleration for smooth animations */
+  .gpu-accelerated,
+  [data-framer-motion],
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-in-right {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, opacity;
+  }
+  
+  /* Preload animation states to prevent jank */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Optimize paint performance */
+  main, .page-content {
+    contain: layout style paint;
+  }
 }
 
 @layer utilities {
