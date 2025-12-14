@@ -77,6 +77,9 @@ export const useAIChatSessions = () => {
   const createSession = async (initialTitle?: string): Promise<string | null> => {
     if (!user) return null;
 
+    // Immediately clear messages and set a temp session for instant feedback
+    setMessages([]);
+    
     const { data, error } = await supabase
       .from('ai_chat_sessions')
       .insert({ user_id: user.id, title: initialTitle || 'New Chat' })
@@ -90,7 +93,6 @@ export const useAIChatSessions = () => {
 
     setSessions(prev => [data, ...prev]);
     setCurrentSessionId(data.id);
-    setMessages([]);
     return data.id;
   };
 
