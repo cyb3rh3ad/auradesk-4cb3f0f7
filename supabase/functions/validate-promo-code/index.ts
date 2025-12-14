@@ -15,13 +15,15 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
 
   if (!authHeader) {
+    console.log("No authorization header provided");
     return new Response(JSON.stringify({ error: "No authorization header" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 401,
     });
   }
 
-  const supabaseClient = createClient(
+  // Use user client for auth check
+  const supabaseUserClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
     {
@@ -33,21 +35,36 @@ serve(async (req) => {
     },
   );
 
+  // Use service role client for database operations (bypasses RLS)
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
   try {
-    const { data, error: userError } = await supabaseClient.auth.getUser();
+    const { data, error: userError } = await supabaseUserClient.auth.getUser();
     const user = data.user;
-    if (userError || !user) throw new Error("User not authenticated");
+    if (userError || !user) {
+      console.log("User auth error:", userError?.message);
+      throw new Error("User not authenticated");
+    }
+    
+    console.log("Validating promo code for user:", user.id);
 
     const { code } = await req.json();
     if (!code) throw new Error("Promo code is required");
+    
+    console.log("Looking for promo code:", code.toUpperCase());
 
-    // Check if promo code exists and is valid
-    const { data: promoCode, error: promoError } = await supabaseClient
+    // Check if promo code exists and is valid (use admin client to bypass RLS)
+    const { data: promoCode, error: promoError } = await supabaseAdmin
       .from('promo_codes')
       .select('*')
       .eq('code', code.toUpperCase())
       .eq('active', true)
       .single();
+
+    console.log("Promo code query result:", { promoCode, promoError: promoError?.message });
 
     if (promoError || !promoCode) {
       return new Response(JSON.stringify({ valid: false, message: "Invalid promo code" }), {
@@ -58,6 +75,7 @@ serve(async (req) => {
 
     // Check if expired
     if (promoCode.expires_at && new Date(promoCode.expires_at) < new Date()) {
+      console.log("Promo code expired");
       return new Response(JSON.stringify({ valid: false, message: "Promo code has expired" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -66,14 +84,15 @@ serve(async (req) => {
 
     // Check if max uses reached
     if (promoCode.max_uses && promoCode.current_uses >= promoCode.max_uses) {
+      console.log("Promo code max uses reached");
       return new Response(JSON.stringify({ valid: false, message: "Promo code has reached maximum uses" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    // Check if user already used this code
-    const { data: usage } = await supabaseClient
+    // Check if user already used this code (use admin client)
+    const { data: usage } = await supabaseAdmin
       .from('promo_code_usage')
       .select('*')
       .eq('promo_code_id', promoCode.id)
@@ -81,6 +100,7 @@ serve(async (req) => {
       .single();
 
     if (usage) {
+      console.log("User already used this promo code");
       return new Response(JSON.stringify({ valid: false, message: "You have already used this promo code" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -97,10 +117,13 @@ serve(async (req) => {
 
     try {
       stripeCoupon = await stripe.coupons.retrieve(couponId);
+      console.log("Found existing Stripe coupon:", couponId);
     } catch {
       // Create coupon if it doesn't exist
       // For 100% off, use 'forever' duration as it's essentially free
       const isFullDiscount = promoCode.discount_percent === 100;
+      
+      console.log("Creating new Stripe coupon:", couponId, { isFullDiscount });
       
       stripeCoupon = await stripe.coupons.create({
         id: couponId,
@@ -112,6 +135,8 @@ serve(async (req) => {
           : `${promoCode.discount_percent}% off for ${promoCode.duration_months} months`,
       });
     }
+
+    console.log("Promo code validated successfully");
 
     return new Response(JSON.stringify({
       valid: true,
@@ -127,6 +152,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("Error validating promo code:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

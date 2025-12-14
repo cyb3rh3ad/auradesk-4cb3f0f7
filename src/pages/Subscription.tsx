@@ -194,8 +194,8 @@ const Subscription = () => {
           </Card>
         )}
 
-        {/* Promo Code Section */}
-        {!subscribed && (
+        {/* Promo Code Section - show for everyone who isn't on a paid plan or has free plan */}
+        {(plan === 'free' || !subscribed) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
