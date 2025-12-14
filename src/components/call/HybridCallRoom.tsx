@@ -1,4 +1,4 @@
-import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
+import { DailyRoom } from "@/components/daily/DailyRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,8 +11,8 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - Uses LiveKit SFU for reliable, scalable calls
- * Supports up to 30+ participants with proper host controls
+ * HybridCallRoom - Now uses Daily.co for maximum stability
+ * Daily handles all WebRTC complexity internally
  */
 export function HybridCallRoom({
   roomName,
@@ -24,7 +24,7 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <LiveKitRoom
+    <DailyRoom
       roomName={roomName}
       participantName={participantName}
       onDisconnect={onDisconnect}
