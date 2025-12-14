@@ -12,13 +12,23 @@ export const OwnerInitializer = () => {
 
     const initializeOwner = async () => {
       try {
+        // Get current session to ensure we have a valid token
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          console.log('No active session, skipping owner initialization');
+          return;
+        }
+
         const { data, error } = await supabase.functions.invoke('initialize-owner');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Owner initialization error:', error);
+          return;
+        }
         
         if (data?.isOwner && data?.message === "You are now the owner!") {
           toast.success('Welcome! You are now the owner with Professional plan access.');
-          // Refresh the page to update subscription status
+          // Refresh subscription status
           setTimeout(() => window.location.reload(), 1500);
         }
       } catch (error) {
@@ -28,7 +38,9 @@ export const OwnerInitializer = () => {
       }
     };
 
-    initializeOwner();
+    // Small delay to ensure session is fully established
+    const timer = setTimeout(initializeOwner, 500);
+    return () => clearTimeout(timer);
   }, [user, checked]);
 
   return null;
