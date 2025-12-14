@@ -43,6 +43,13 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const setupCompleteRef = useRef(false);
+  const ringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+
+  // Keep a ref in sync with activeCall so realtime handlers can see latest value
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   // Get user profile
   const getUserProfile = async (userId: string) => {
@@ -103,6 +110,12 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
               return;
             }
             
+            // If we're already in an active call, ignore new invitations
+            if (activeCallRef.current) {
+              console.log('Ignoring call invitation - already in active call');
+              return;
+            }
+            
             // Don't show if call is older than 30 seconds
             if (Date.now() - payload.timestamp > 30000) {
               console.log('Ignoring old call invitation');
@@ -137,9 +150,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
           .on('broadcast', { event: 'call-accepted' }, () => {
             console.log('Call accepted - stopping ring');
             // Stop ringing when call is accepted
-            if ((window as any).__callRingInterval) {
-              clearInterval((window as any).__callRingInterval);
-              (window as any).__callRingInterval = null;
+            if (ringIntervalRef.current) {
+              clearInterval(ringIntervalRef.current);
+              ringIntervalRef.current = null;
             }
           })
           .subscribe((status) => {
@@ -168,6 +181,12 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       });
       channelsRef.current.clear();
       setupCompleteRef.current = false;
+
+      // Ensure any pending ring interval is cleared
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+      }
     };
   }, [user?.id]); // Only re-run when user changes
 
@@ -240,10 +259,16 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Keep ringing - send invitation every 3 seconds for 30 seconds
     let ringCount = 0;
-    const ringInterval = setInterval(async () => {
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+    }
+    ringIntervalRef.current = setInterval(async () => {
       ringCount++;
       if (ringCount >= 10) {
-        clearInterval(ringInterval);
+        if (ringIntervalRef.current) {
+          clearInterval(ringIntervalRef.current);
+          ringIntervalRef.current = null;
+        }
         return;
       }
       
@@ -257,17 +282,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('Ring', ringCount);
       }
     }, 3000);
-
-    // Store interval to clear when call ends
-    (window as any).__callRingInterval = ringInterval;
   }, [user]);
 
   // End current call
   const endCurrentCall = useCallback(() => {
-    // Clear the ringing interval
-    if ((window as any).__callRingInterval) {
-      clearInterval((window as any).__callRingInterval);
-      (window as any).__callRingInterval = null;
+    // Clear the ringing interval if it exists
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
     }
 
     if (activeCall) {
