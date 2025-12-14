@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
+import { HybridCallRoom } from "@/components/call/HybridCallRoom";
 
 interface MeetingRoomProps {
   meetingId: string;
@@ -42,14 +42,15 @@ export const MeetingRoom = ({ meetingId, meetingTitle, initialVideo = true, onCl
         <h3 className="font-semibold">{meetingTitle}</h3>
       </div>
 
-      {/* LiveKit Room */}
-      <LiveKitRoom
+      {/* Hybrid Room - uses WebRTC for small groups, LiveKit for larger */}
+      <HybridCallRoom
         roomName={roomName}
         participantName={userName}
         onDisconnect={onClose}
         className="flex-1"
         initialVideo={initialVideo}
         initialAudio={true}
+        isHost={true}
       />
     </div>
   );
