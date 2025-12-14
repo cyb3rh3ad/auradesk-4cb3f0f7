@@ -183,6 +183,31 @@ export function useLiveKit(): UseLiveKitReturn {
     return state;
   }, []);
 
+  // Force reattach all remote audio - useful after reconnects
+  const forceReattachAllRemoteAudio = useCallback(() => {
+    if (!roomRef.current) return;
+    
+    console.log("[LiveKit] Force reattaching all remote audio...");
+    
+    // First, clear all existing audio elements to prevent ghost audio
+    audioElementsRef.current.forEach((audioEl, participantId) => {
+      audioEl.pause();
+      audioEl.srcObject = null;
+      audioEl.remove();
+      console.log(`[LiveKit] Cleared audio element for: ${participantId}`);
+    });
+    audioElementsRef.current.clear();
+    
+    // Now reattach all remote audio tracks fresh
+    roomRef.current.remoteParticipants.forEach((participant) => {
+      const audioPublication = participant.getTrackPublication(Track.Source.Microphone);
+      if (audioPublication?.track) {
+        attachAudioTrack(participant.identity, audioPublication.track);
+        console.log(`[LiveKit] Reattached audio for: ${participant.identity}`);
+      }
+    });
+  }, [attachAudioTrack]);
+
   const updateRemoteParticipants = useCallback(() => {
     if (!roomRef.current) return;
     const participants: ParticipantState[] = [];
@@ -191,7 +216,8 @@ export function useLiveKit(): UseLiveKitReturn {
       const state = updateParticipantState(participant, false);
       participants.push(state);
       
-      if (state.audioTrack) {
+      // Only attach if we don't already have an audio element for this participant
+      if (state.audioTrack && !audioElementsRef.current.has(participant.identity)) {
         attachAudioTrack(participant.identity, state.audioTrack);
       }
     });
@@ -460,6 +486,16 @@ export function useLiveKit(): UseLiveKitReturn {
       setError(`Disconnected: ${reason || "Connection lost"}`);
       setLocalParticipant(null);
       setRemoteParticipants([]);
+      
+      // CRITICAL: Immediately clear all audio elements to prevent ghost audio
+      addDebugEvent("CLEANUP", "Clearing all audio elements on disconnect...");
+      audioElementsRef.current.forEach((audioEl, participantId) => {
+        audioEl.pause();
+        audioEl.srcObject = null;
+        audioEl.remove();
+        console.log(`[LiveKit] Cleared ghost audio for: ${participantId}`);
+      });
+      audioElementsRef.current.clear();
     });
 
     newRoom.on(RoomEvent.Reconnecting, () => {
@@ -531,6 +567,11 @@ export function useLiveKit(): UseLiveKitReturn {
         addDebugEvent("ERROR", `Emergency republish failed: ${err}`);
       }
 
+      // CRITICAL: Force reattach all remote audio after reconnect
+      // This fixes the one-way audio issue where you can talk but can't hear others
+      addDebugEvent("REATTACH", "Force reattaching all remote audio tracks...");
+      forceReattachAllRemoteAudio();
+      
       // Re-sync remote participants
       updateRemoteParticipants();
     });
@@ -719,7 +760,7 @@ export function useLiveKit(): UseLiveKitReturn {
     newRoom.on(RoomEvent.SignalConnected, () => {
       console.log("[LiveKit] Signal connection established");
     });
-  }, [updateParticipantState, updateRemoteParticipants, attachAudioTrack, detachAudioTrack, performReconnect]);
+  }, [updateParticipantState, updateRemoteParticipants, attachAudioTrack, detachAudioTrack, performReconnect, forceReattachAllRemoteAudio, addDebugEvent]);
 
   const connect = useCallback(
     async (roomName: string, participantName: string, initialVideo: boolean, initialAudio: boolean) => {
