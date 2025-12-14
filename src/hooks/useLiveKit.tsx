@@ -635,12 +635,6 @@ export function useLiveKit(): UseLiveKitReturn {
         }
       }
 
-      audioElementsRef.current.forEach((audioEl) => {
-        audioEl.srcObject = null;
-        audioEl.remove();
-      });
-      audioElementsRef.current.clear();
-
       try {
         roomRef.current.disconnect();
       } catch (err) {
@@ -657,6 +651,14 @@ export function useLiveKit(): UseLiveKitReturn {
       setIsCameraOff(false);
       setConnectionQuality(null);
     }
+
+    // Always ensure all audio elements are removed, even if the room was already cleared
+    audioElementsRef.current.forEach((audioEl) => {
+      audioEl.srcObject = null;
+      audioEl.pause();
+      audioEl.remove();
+    });
+    audioElementsRef.current.clear();
     
     connectionParamsRef.current = null;
   }, [clearTimers]);

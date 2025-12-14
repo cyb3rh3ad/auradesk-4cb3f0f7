@@ -233,21 +233,21 @@ export function LiveKitRoom({
     }
   }, [remoteParticipants]);
 
-  const handleDisconnect = useCallback(() => {
+  const handleDisconnect = useCallback(async () => {
     // Stop recording if active
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsRecording(false);
     }
-    disconnect();
+    await disconnect();
     onDisconnect();
   }, [disconnect, onDisconnect]);
-
+ 
   const handleReconnect = useCallback(() => {
     console.log("User requested reconnect to room:", roomName);
     reconnect();
   }, [reconnect]);
-
+ 
   const handleEndCallForAll = useCallback(async () => {
     if (channelRef.current && isHost) {
       await channelRef.current.send({
@@ -256,7 +256,7 @@ export function LiveKitRoom({
         payload: {},
       });
     }
-    handleDisconnect();
+    await handleDisconnect();
   }, [isHost, handleDisconnect]);
 
   const handleKickParticipant = async (participantId: string) => {
