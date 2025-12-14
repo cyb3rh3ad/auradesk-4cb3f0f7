@@ -1,4 +1,4 @@
-import { DailyRoom } from "@/components/daily/DailyRoom";
+import { JitsiRoom } from "@/components/jitsi/JitsiRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,11 +11,10 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - Now uses Daily.co for all calls
+ * HybridCallRoom - Now uses Jitsi Meet for all calls
  *
- * Daily.co is a highly reliable, managed video infrastructure
- * that handles all the complexity of WebRTC, TURN servers, and
- * network traversal. No more connection issues!
+ * Jitsi Meet is completely free, open-source, and supports
+ * up to 75 participants with no API key required.
  */
 export function HybridCallRoom({
   roomName,
@@ -27,14 +26,12 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <DailyRoom
-      roomName={roomName}
-      participantName={participantName}
-      onDisconnect={onDisconnect}
-      className={className}
-      initialVideo={initialVideo}
-      initialAudio={initialAudio}
-      isHost={isHost}
+    <JitsiRoom
+      roomId={roomName}
+      userName={participantName}
+      isVideoCall={initialVideo}
+      onLeave={onDisconnect}
+      isInitiator={isHost}
     />
   );
 }
