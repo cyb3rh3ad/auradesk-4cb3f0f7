@@ -526,15 +526,19 @@ export function useLiveKit(): UseLiveKitReturn {
                 stats.forEach((report) => {
                   if (report.type === 'inbound-rtp') {
                     const packetsLost = report.packetsLost || 0;
+                    const packetsReceived = report.packetsReceived || 1;
                     const jitter = report.jitter || 0;
+                    const lossRate = packetsLost / (packetsReceived + packetsLost);
                     
-                    // If jitter > 100ms or packet loss detected, engage extra buffers
-                    if (jitter > 0.1 || packetsLost > 0) {
-                      const newBuffer = Math.min(currentBuffer + 0.25, 1.5); // Add 250ms, max 1.5s
+                    // Only engage backup if REAL instability:
+                    // - Jitter > 150ms (actual network problems)
+                    // - OR packet loss > 5% (significant loss)
+                    if (jitter > 0.15 || lossRate > 0.05) {
+                      const newBuffer = Math.min(currentBuffer + 0.25, 1.5);
                       if (newBuffer > currentBuffer && 'playoutDelayHint' in receiver) {
                         receiver.playoutDelayHint = newBuffer;
                         currentBuffer = newBuffer;
-                        addDebugEvent("CAP+", `Engaged backup: ${newBuffer}s (jitter: ${(jitter*1000).toFixed(0)}ms)`);
+                        addDebugEvent("CAP+", `Backup engaged: ${newBuffer}s (jitter: ${(jitter*1000).toFixed(0)}ms, loss: ${(lossRate*100).toFixed(1)}%)`);
                       }
                     }
                   }
