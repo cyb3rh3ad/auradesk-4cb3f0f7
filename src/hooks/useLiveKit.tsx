@@ -431,15 +431,10 @@ export function useLiveKit(): UseLiveKitReturn {
       const stateStr = String(state);
       setConnectionState(stateStr);
       addDebugEvent("STATE", stateStr);
-      
+
       if (state === ConnectionState.Disconnected) {
         setIsConnected(false);
-        addDebugEvent("DISCONNECT", "Unexpected disconnect detected");
-        // If we didn't explicitly hang up, try a controlled reconnect
-        if (connectionParamsRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          addDebugEvent("RECONNECT", `Scheduling reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS}`);
-          performReconnect();
-        }
+        addDebugEvent("DISCONNECT", "Disconnected from room (no auto-reconnect from app logic)");
       } else if (state === ConnectionState.Connected) {
         setIsConnected(true);
         setIsReconnecting(false);
@@ -468,12 +463,12 @@ export function useLiveKit(): UseLiveKitReturn {
     });
 
     newRoom.on(RoomEvent.Reconnecting, () => {
-      addDebugEvent("EVENT", "RoomEvent.Reconnecting - automatic reconnect starting");
+      addDebugEvent("EVENT", "RoomEvent.Reconnecting - LiveKit auto-reconnect starting");
       setIsReconnecting(true);
     });
 
     newRoom.on(RoomEvent.Reconnected, () => {
-      addDebugEvent("EVENT", "RoomEvent.Reconnected - automatic reconnect succeeded");
+      addDebugEvent("EVENT", "RoomEvent.Reconnected - LiveKit auto-reconnect succeeded");
       console.log("[LiveKit] Reconnected");
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
