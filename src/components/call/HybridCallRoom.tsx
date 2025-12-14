@@ -1,4 +1,4 @@
-import { JitsiRoom } from "@/components/jitsi/JitsiRoom";
+import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,10 +11,8 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - Now uses Jitsi Meet for all calls
- *
- * Jitsi Meet is completely free, open-source, and supports
- * up to 75 participants with no API key required.
+ * HybridCallRoom - Uses LiveKit SFU for reliable, scalable calls
+ * Supports up to 30+ participants with proper host controls
  */
 export function HybridCallRoom({
   roomName,
@@ -26,12 +24,14 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <JitsiRoom
-      roomId={roomName}
-      userName={participantName}
-      isVideoCall={initialVideo}
-      onLeave={onDisconnect}
-      isInitiator={isHost}
+    <LiveKitRoom
+      roomName={roomName}
+      participantName={participantName}
+      onDisconnect={onDisconnect}
+      className={className}
+      initialVideo={initialVideo}
+      initialAudio={initialAudio}
+      isHost={isHost}
     />
   );
 }
