@@ -66,27 +66,39 @@ export function useLiveKit(): UseLiveKitReturn {
     // Get or create audio element for this participant
     let audioEl = audioElementsRef.current.get(participantId);
     if (!audioEl) {
-      audioEl = new Audio();
+      audioEl = document.createElement('audio');
       audioEl.autoplay = true;
+      audioEl.setAttribute('playsinline', 'true');
+      // Ensure audio plays immediately
+      audioEl.volume = 1.0;
+      document.body.appendChild(audioEl);
       audioElementsRef.current.set(participantId, audioEl);
+      console.log(`Created audio element for participant: ${participantId}`);
     }
 
     // Attach track to audio element
     if ('attach' in track) {
       track.attach(audioEl);
-      console.log(`Audio track attached for participant: ${participantId}`);
+      // Force play in case autoplay is blocked
+      audioEl.play().catch(err => {
+        console.warn(`Audio autoplay blocked for ${participantId}, will play on user interaction:`, err);
+      });
+      console.log(`Audio track attached and playing for participant: ${participantId}`);
     }
   }, []);
 
   // Detach audio track
   const detachAudioTrack = useCallback((participantId: string, track?: RemoteTrack | Track) => {
     const audioEl = audioElementsRef.current.get(participantId);
-    if (audioEl && track && 'detach' in track) {
-      track.detach(audioEl);
-    }
     if (audioEl) {
+      if (track && 'detach' in track) {
+        track.detach(audioEl);
+      }
+      audioEl.pause();
       audioEl.srcObject = null;
+      audioEl.remove();
       audioElementsRef.current.delete(participantId);
+      console.log(`Audio element removed for participant: ${participantId}`);
     }
   }, []);
 
@@ -238,11 +250,14 @@ export function useLiveKit(): UseLiveKitReturn {
 
         // Track subscribed - critical for receiving audio/video
         newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-          console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+          console.log(`Track subscribed: ${track.kind} from ${participant.identity}, source: ${publication.source}`);
           
-          // Auto-attach audio tracks
+          // Auto-attach audio tracks immediately
           if (track.kind === Track.Kind.Audio) {
-            attachAudioTrack(participant.identity, track);
+            // Small delay to ensure track is fully ready
+            setTimeout(() => {
+              attachAudioTrack(participant.identity, track);
+            }, 100);
           }
           
           updateRemoteParticipants();
@@ -256,6 +271,12 @@ export function useLiveKit(): UseLiveKitReturn {
           }
           
           updateRemoteParticipants();
+        });
+
+        // Track published by remote participant - prepare for subscription
+        newRoom.on(RoomEvent.TrackPublished, (publication, participant) => {
+          console.log(`Remote track published: ${publication.source} from ${participant.identity}`);
+          // Track will be auto-subscribed, then TrackSubscribed fires
         });
 
         // Track muted/unmuted
@@ -296,7 +317,9 @@ export function useLiveKit(): UseLiveKitReturn {
           }
         });
 
-        newRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
+          console.log("Active speakers changed:", speakers.map(s => s.identity));
+          // Update speaking states for all participants
           updateParticipantState(newRoom.localParticipant, true);
           updateRemoteParticipants();
         });

@@ -408,8 +408,10 @@ export function LiveKitRoom({
             <div
               key={participant.identity}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-muted border-2 aspect-video group",
-                participant.isSpeaking ? "border-green-500" : "border-border",
+                "relative rounded-xl overflow-hidden bg-muted aspect-video group transition-all duration-200",
+                participant.isSpeaking 
+                  ? "border-[3px] border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
+                  : "border-2 border-border",
                 isLocal && "order-first"
               )}
             >
