@@ -32,6 +32,7 @@ interface UseLiveKitReturn {
   room: Room | null;
   isConnecting: boolean;
   isConnected: boolean;
+  isReconnecting: boolean;
   error: string | null;
   mediaError: string | null;
   localParticipant: ParticipantState | null;
@@ -53,6 +54,7 @@ export function useLiveKit(): UseLiveKitReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [localParticipant, setLocalParticipant] = useState<ParticipantState | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<ParticipantState[]>([]);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -165,10 +167,13 @@ export function useLiveKit(): UseLiveKitReturn {
 
         console.log("Connecting to LiveKit URL:", url);
 
-        // Room options optimized for better connectivity and quality
+        // Room options optimized for stability and quality
         const roomOptions: RoomOptions = {
           adaptiveStream: true,
           dynacast: true,
+          // Reconnection settings for stability
+          disconnectOnPageLeave: true,
+          stopLocalTrackOnUnpublish: true,
           // Better video quality defaults
           publishDefaults: {
             videoCodec: "vp8",
@@ -231,10 +236,12 @@ export function useLiveKit(): UseLiveKitReturn {
 
         newRoom.on(RoomEvent.Reconnecting, () => {
           console.log("Reconnecting to LiveKit room...");
+          setIsReconnecting(true);
         });
 
         newRoom.on(RoomEvent.Reconnected, () => {
           console.log("Reconnected to LiveKit room");
+          setIsReconnecting(false);
           updateRemoteParticipants();
         });
 
@@ -567,6 +574,7 @@ export function useLiveKit(): UseLiveKitReturn {
     room,
     isConnecting,
     isConnected,
+    isReconnecting,
     error,
     mediaError,
     localParticipant,

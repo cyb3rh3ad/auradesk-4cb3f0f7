@@ -52,6 +52,7 @@ export function LiveKitRoom({
     room,
     isConnecting,
     isConnected,
+    isReconnecting,
     error,
     mediaError,
     localParticipant,
@@ -81,6 +82,7 @@ export function LiveKitRoom({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const attachedTracksRef = useRef<Set<string>>(new Set()); // Track which videos are already attached
   const [transcript, setTranscript] = useState<string>("");
   const [isRecording, setIsRecording] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -166,32 +168,60 @@ export function LiveKitRoom({
     }
   }, [screenShareParticipant?.screenShareTrack]);
 
-  // Attach remote video tracks
+  // Attach remote video tracks - only attach if not already attached to prevent flickering
   useEffect(() => {
     remoteParticipants.forEach((participant) => {
       const videoEl = remoteVideoRefs.current.get(participant.identity);
+      const trackId = participant.videoTrack ? `${participant.identity}-video` : null;
+      
       if (videoEl && participant.videoTrack && 'attach' in participant.videoTrack) {
-        participant.videoTrack.attach(videoEl);
+        // Only attach if not already attached
+        if (trackId && !attachedTracksRef.current.has(trackId)) {
+          participant.videoTrack.attach(videoEl);
+          attachedTracksRef.current.add(trackId);
+          console.log(`Attached video for ${participant.identity}`);
+        }
+      } else if (trackId && attachedTracksRef.current.has(trackId)) {
+        // Track was removed, clean up
+        attachedTracksRef.current.delete(trackId);
       }
     });
 
-    return () => {
-      remoteParticipants.forEach((participant) => {
-        const videoEl = remoteVideoRefs.current.get(participant.identity);
-        if (videoEl && participant.videoTrack && 'detach' in participant.videoTrack) {
+    // Clean up tracks for participants that left
+    const currentIdentities = new Set(remoteParticipants.map(p => p.identity));
+    attachedTracksRef.current.forEach((trackId) => {
+      const identity = trackId.replace('-video', '');
+      if (!currentIdentities.has(identity)) {
+        const videoEl = remoteVideoRefs.current.get(identity);
+        const participant = remoteParticipants.find(p => p.identity === identity);
+        if (videoEl && participant?.videoTrack && 'detach' in participant.videoTrack) {
           participant.videoTrack.detach(videoEl);
         }
-      });
-    };
+        attachedTracksRef.current.delete(trackId);
+      }
+    });
   }, [remoteParticipants]);
 
-  const setRemoteVideoRef = (id: string, el: HTMLVideoElement | null) => {
+  const setRemoteVideoRef = useCallback((id: string, el: HTMLVideoElement | null) => {
     if (el) {
       remoteVideoRefs.current.set(id, el);
+      // If we have a participant with this id and a track, attach it
+      const participant = remoteParticipants.find(p => p.identity === id);
+      if (participant?.videoTrack && 'attach' in participant.videoTrack) {
+        const trackId = `${id}-video`;
+        if (!attachedTracksRef.current.has(trackId)) {
+          participant.videoTrack.attach(el);
+          attachedTracksRef.current.add(trackId);
+          console.log(`Attached video on ref set for ${id}`);
+        }
+      }
     } else {
+      // Element removed, clean up
+      const trackId = `${id}-video`;
+      attachedTracksRef.current.delete(trackId);
       remoteVideoRefs.current.delete(id);
     }
-  };
+  }, [remoteParticipants]);
 
   const handleDisconnect = useCallback(() => {
     // Stop recording if active
@@ -385,6 +415,16 @@ export function LiveKitRoom({
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
+      {/* Reconnecting overlay */}
+      {isReconnecting && (
+        <div className="absolute inset-0 z-50 bg-background/80 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Reconnecting...</p>
+          </div>
+        </div>
+      )}
+
       {/* Screen share display */}
       {screenShareParticipant && (
         <div className="flex-1 p-2 bg-muted relative min-h-0">
