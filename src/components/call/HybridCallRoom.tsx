@@ -1,4 +1,4 @@
-import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
+import { WebRTCRoom } from "@/components/webrtc/WebRTCRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,10 +11,12 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - now simplified to use LiveKit exclusively for all calls.
+ * HybridCallRoom
  *
- * WebRTC peer-to-peer can be unreliable behind strict firewalls, so
- * all calls go through the LiveKit SFU for maximum stability.
+ * For maximum consistency and to avoid LiveKit-related issues,
+ * all calls now use the plain WebRTC implementation only.
+ * This uses our perfected negotiation + presence-based signaling
+ * and avoids splitting users across different backends.
  */
 export function HybridCallRoom({
   roomName,
@@ -26,7 +28,7 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <LiveKitRoom
+    <WebRTCRoom
       roomName={roomName}
       participantName={participantName}
       onDisconnect={onDisconnect}
