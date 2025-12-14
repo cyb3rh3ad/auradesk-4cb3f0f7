@@ -467,11 +467,32 @@ export function useLiveKit(): UseLiveKitReturn {
       setIsReconnecting(true);
     });
 
-    newRoom.on(RoomEvent.Reconnected, () => {
+    newRoom.on(RoomEvent.Reconnected, async () => {
       addDebugEvent("EVENT", "RoomEvent.Reconnected - LiveKit auto-reconnect succeeded");
       console.log("[LiveKit] Reconnected");
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
+
+      // Refresh local participant state
+      updateParticipantState(newRoom.localParticipant, true);
+
+      // Ensure microphone track still exists after reconnection to avoid one-way audio
+      try {
+        const audioPublication = newRoom.localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (!audioPublication?.track) {
+          addDebugEvent("RECOVER", "No local mic track after reconnect - recreating");
+          const tracks = await createLocalTracks({ audio: true, video: false });
+          for (const track of tracks) {
+            await newRoom.localParticipant.publishTrack(track);
+          }
+          addDebugEvent("RECOVER", "Local mic track republished after reconnect");
+          updateParticipantState(newRoom.localParticipant, true);
+        }
+      } catch (err) {
+        console.warn("[LiveKit] Error ensuring mic after reconnect:", err);
+      }
+
+      // Re-sync remote participants and reattach audio elements if needed
       updateRemoteParticipants();
     });
 
