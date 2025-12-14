@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles } from 'lucide-react';
 import googleLogo from '@/assets/google-g-logo.png';
+import { MfaVerification } from '@/components/auth/MfaVerification';
 
 const Auth = () => {
-  const { signUp, signIn, signInWithGoogle } = useAuth();
+  const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -32,19 +33,22 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signIn(loginEmail, loginPassword, rememberMe);
+    const result = await signIn(loginEmail, loginPassword, rememberMe);
     
-    if (error) {
+    if (result.error) {
       toast({
         title: "Login failed",
-        description: error.message,
+        description: result.error.message,
         variant: "destructive",
       });
+      setLoading(false);
+    } else if (result.mfaRequired) {
+      // MFA required - the component will show MFA verification
+      setLoading(false);
     } else {
       navigate('/dashboard');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -93,6 +97,31 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  const handleMfaSuccess = () => {
+    navigate('/dashboard');
+  };
+
+  const handleMfaCancel = () => {
+    clearMfaState();
+  };
+
+  // Show MFA verification screen if required
+  if (mfaRequired && mfaFactorId) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
+        
+        <MfaVerification
+          factorId={mfaFactorId}
+          onSuccess={handleMfaSuccess}
+          onCancel={handleMfaCancel}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background">
