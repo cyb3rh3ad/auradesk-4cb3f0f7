@@ -528,17 +528,40 @@ export function useLiveKit(): UseLiveKitReturn {
                     const packetsLost = report.packetsLost || 0;
                     const packetsReceived = report.packetsReceived || 1;
                     const jitter = report.jitter || 0;
+
                     const lossRate = packetsLost / (packetsReceived + packetsLost);
-                    
-                    // Only engage backup if REAL instability:
-                    // - Jitter > 150ms (actual network problems)
-                    // - OR packet loss > 5% (significant loss)
-                    if (jitter > 0.15 || lossRate > 0.05) {
-                      const newBuffer = Math.min(currentBuffer + 0.25, 1.5);
-                      if (newBuffer > currentBuffer && 'playoutDelayHint' in receiver) {
+                    const jitterMs = jitter * 1000;
+
+                    // Multi-capacitor logic:
+                    // CAP+1: mild issues -> small increment
+                    // CAP+2: medium issues -> medium increment
+                    // CAP+3: severe issues -> strong increment
+                    let increment = 0;
+                    let level = '';
+
+                    if (jitterMs > 400 || lossRate > 0.15) {
+                      // Severe instability
+                      increment = 0.4; // 400ms
+                      level = 'CAP+3';
+                    } else if (jitterMs > 250 || lossRate > 0.08) {
+                      // Medium instability
+                      increment = 0.25; // 250ms
+                      level = 'CAP+2';
+                    } else if (jitterMs > 150 || lossRate > 0.05) {
+                      // Mild instability
+                      increment = 0.15; // 150ms
+                      level = 'CAP+1';
+                    }
+
+                    if (increment > 0 && 'playoutDelayHint' in receiver) {
+                      const newBuffer = Math.min(currentBuffer + increment, 1.75); // allow up to ~1s + 0.75s backup
+                      if (newBuffer > currentBuffer) {
                         receiver.playoutDelayHint = newBuffer;
                         currentBuffer = newBuffer;
-                        addDebugEvent("CAP+", `Backup engaged: ${newBuffer}s (jitter: ${(jitter*1000).toFixed(0)}ms, loss: ${(lossRate*100).toFixed(1)}%)`);
+                        addDebugEvent(
+                          level,
+                          `${level}: buffer=${newBuffer.toFixed(2)}s (jitter=${jitterMs.toFixed(0)}ms, loss=${(lossRate * 100).toFixed(1)}%)`
+                        );
                       }
                     }
                   }
