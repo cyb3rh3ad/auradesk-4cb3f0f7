@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Track } from "livekit-client";
+import { Track, ConnectionQuality } from "livekit-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, MoreVertical, UserX, Volume2, VolumeX, Loader2 
+  Sparkles, MoreVertical, UserX, Volume2, VolumeX, Loader2, Wifi, WifiOff, Signal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "@/hooks/useLiveKit";
@@ -66,6 +66,8 @@ export function LiveKitRoom({
     isMuted,
     isCameraOff,
     screenShareParticipant,
+    connectionQuality,
+    reconnect,
   } = useLiveKit();
 
   // Show toast when media error occurs
@@ -243,9 +245,8 @@ export function LiveKitRoom({
 
   const handleReconnect = useCallback(() => {
     console.log("User requested reconnect to room:", roomName);
-    disconnect();
-    connect(roomName, participantName, initialVideo, initialAudio);
-  }, [disconnect, connect, roomName, participantName, initialVideo, initialAudio]);
+    reconnect();
+  }, [reconnect]);
 
   const handleEndCallForAll = useCallback(async () => {
     if (channelRef.current && isHost) {
@@ -440,6 +441,40 @@ export function LiveKitRoom({
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
+      {/* Connection quality indicator */}
+      <div className="absolute top-4 right-4 z-40 flex items-center gap-2 bg-background/70 rounded-full px-3 py-1.5">
+        {connectionQuality === ConnectionQuality.Excellent && (
+          <>
+            <Signal className="h-4 w-4 text-green-500" />
+            <span className="text-xs text-green-500">Excellent</span>
+          </>
+        )}
+        {connectionQuality === ConnectionQuality.Good && (
+          <>
+            <Signal className="h-4 w-4 text-yellow-500" />
+            <span className="text-xs text-yellow-500">Good</span>
+          </>
+        )}
+        {connectionQuality === ConnectionQuality.Poor && (
+          <>
+            <WifiOff className="h-4 w-4 text-orange-500" />
+            <span className="text-xs text-orange-500">Poor</span>
+          </>
+        )}
+        {connectionQuality === ConnectionQuality.Lost && (
+          <>
+            <WifiOff className="h-4 w-4 text-red-500" />
+            <span className="text-xs text-red-500">Lost</span>
+          </>
+        )}
+        {(!connectionQuality || connectionQuality === ConnectionQuality.Unknown) && (
+          <>
+            <Wifi className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Connecting...</span>
+          </>
+        )}
+      </div>
+
       {/* Reconnecting overlay */}
       {isReconnecting && (
         <div className="absolute inset-0 z-50 bg-background/80 flex items-center justify-center">
