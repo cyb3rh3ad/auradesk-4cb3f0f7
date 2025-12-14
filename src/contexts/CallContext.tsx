@@ -44,14 +44,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const setupCompleteRef = useRef(false);
   const ringIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const activeCallRef = useRef<ActiveCall | null>(null);
 
-  // Keep a ref in sync with activeCall so realtime handlers can see latest value
-  useEffect(() => {
-    activeCallRef.current = activeCall;
-  }, [activeCall]);
-
-  // Get user profile
+  // Helper: get user profile for display name/avatar
   const getUserProfile = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
@@ -61,14 +55,13 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     return data;
   };
 
-  // Listen for incoming calls
+  // Listen for incoming calls on all conversations this user is part of
   useEffect(() => {
     if (!user) return;
 
     let mounted = true;
 
     const setupCallListeners = async () => {
-      // Get all conversations the user is part of
       const { data: memberships, error } = await supabase
         .from('conversation_members')
         .select('conversation_id')
@@ -85,7 +78,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
       for (const membership of memberships) {
         const channelName = `call-invite:${membership.conversation_id}`;
-        
+
         // Skip if already listening
         if (channelsRef.current.has(channelName)) {
           console.log('Already listening to channel:', channelName);
@@ -103,27 +96,26 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         channel
           .on('broadcast', { event: 'call-invitation' }, ({ payload }) => {
             console.log('Received call invitation:', payload);
-            
-            // Don't show invitation if it's from yourself
+
+            // Ignore own invitations
             if (payload.callerId === user.id) {
               console.log('Ignoring own call invitation');
               return;
             }
-            
-            // If we're already in an active call, ignore new invitations
-            if (activeCallRef.current) {
+
+            // If already in an active call, ignore new invitations
+            if (activeCall) {
               console.log('Ignoring call invitation - already in active call');
               return;
             }
-            
-            // Don't show if call is older than 30 seconds
+
+            // Ignore stale invitations (> 30s old)
             if (Date.now() - payload.timestamp > 30000) {
               console.log('Ignoring old call invitation');
               return;
             }
 
             if (mounted) {
-              console.log('Setting incoming call state');
               setIncomingCall({
                 callerId: payload.callerId,
                 callerName: payload.callerName,
@@ -137,29 +129,37 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
           })
           .on('broadcast', { event: 'call-cancelled' }, ({ payload }) => {
             console.log('Call cancelled:', payload);
-            if (mounted && payload.callerId !== user.id) {
-              setIncomingCall(null);
+            if (!mounted) return;
+
+            if (payload.callerId !== user.id) {
+              setIncomingCall(current =>
+                current && current.conversationId === payload.conversationId ? null : current,
+              );
             }
           })
-          .on('broadcast', { event: 'call-ended' }, () => {
-            console.log('Call ended signal received');
-            if (mounted) {
-              setIncomingCall(null);
-            }
+          .on('broadcast', { event: 'call-ended' }, ({ payload }) => {
+            console.log('Call ended signal received:', payload);
+            if (!mounted) return;
+
+            // Close incoming dialog if it was for this conversation
+            setIncomingCall(current =>
+              current && current.conversationId === payload?.conversationId ? null : current,
+            );
+
+            // If we are in an active call for this conversation, end it
+            setActiveCall(current =>
+              current && current.conversationId === payload?.conversationId ? null : current,
+            );
           })
           .on('broadcast', { event: 'call-accepted' }, () => {
             console.log('Call accepted - stopping ring');
-            // Stop ringing when call is accepted
             if (ringIntervalRef.current) {
               clearInterval(ringIntervalRef.current);
               ringIntervalRef.current = null;
             }
           })
-          .subscribe((status) => {
+          .subscribe(status => {
             console.log(`Channel ${channelName} subscription status:`, status);
-            if (status === 'SUBSCRIBED') {
-              console.log(`Successfully subscribed to ${channelName}`);
-            }
           });
 
         channelsRef.current.set(channelName, channel);
@@ -171,10 +171,10 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
     setupCallListeners();
 
-    // Cleanup on unmount
     return () => {
       mounted = false;
       console.log('Cleaning up call channels');
+
       channelsRef.current.forEach((channel, name) => {
         console.log('Removing channel:', name);
         supabase.removeChannel(channel);
@@ -182,111 +182,106 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       channelsRef.current.clear();
       setupCompleteRef.current = false;
 
-      // Ensure any pending ring interval is cleared
       if (ringIntervalRef.current) {
         clearInterval(ringIntervalRef.current);
         ringIntervalRef.current = null;
       }
     };
-  }, [user?.id]); // Only re-run when user changes
+  }, [user?.id, activeCall]);
 
-  // Start a call
-  const startCall = useCallback(async (
-    conversationId: string, 
-    conversationName: string, 
-    isVideo: boolean
-  ) => {
-    if (!user) return;
+  // Start a call (we immediately join the room as caller)
+  const startCall = useCallback(
+    async (conversationId: string, conversationName: string, isVideo: boolean) => {
+      if (!user) return;
 
-    console.log('Starting call for conversation:', conversationId);
+      console.log('Starting call for conversation:', conversationId);
 
-    // Get caller profile
-    const profile = await getUserProfile(user.id);
-    const callerName = profile?.full_name || profile?.email || 'Unknown';
+      // Join call immediately as caller
+      setActiveCall({ conversationId, conversationName, isVideo, isCaller: true });
 
-    // Set active call first (as caller)
-    setActiveCall({ conversationId, conversationName, isVideo, isCaller: true });
+      const profile = await getUserProfile(user.id);
+      const callerName = profile?.full_name || profile?.email || 'Unknown';
 
-    // Get or create channel for this conversation
-    const channelName = `call-invite:${conversationId}`;
-    let channel = channelsRef.current.get(channelName);
-    
-    if (!channel) {
-      console.log('Creating new channel for sending:', channelName);
-      channel = supabase.channel(channelName, {
-        config: {
-          broadcast: { self: false },
-        },
-      });
-      channelsRef.current.set(channelName, channel);
-    }
+      const channelName = `call-invite:${conversationId}`;
+      let channel = channelsRef.current.get(channelName);
 
-    // Wait for subscription to be ready
-    await new Promise<void>((resolve) => {
-      const status = (channel as any).state;
-      if (status === 'joined') {
-        resolve();
-      } else {
-        channel!.subscribe((status) => {
-          console.log('Sender channel status:', status);
-          if (status === 'SUBSCRIBED') {
-            resolve();
-          }
+      if (!channel) {
+        console.log('Creating new channel for sending:', channelName);
+        channel = supabase.channel(channelName, {
+          config: {
+            broadcast: { self: false },
+          },
         });
+        channelsRef.current.set(channelName, channel);
       }
-    });
 
-    // Small delay to ensure receivers are ready
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const invitation = {
-      callerId: user.id,
-      callerName,
-      callerAvatar: profile?.avatar_url,
-      conversationId,
-      conversationName,
-      isVideo,
-      timestamp: Date.now(),
-    };
-
-    // Send initial invitation
-    const result = await channel.send({
-      type: 'broadcast',
-      event: 'call-invitation',
-      payload: invitation,
-    });
-    console.log('Sent call invitation, result:', result);
-
-    // Keep ringing - send invitation every 3 seconds for 30 seconds
-    let ringCount = 0;
-    if (ringIntervalRef.current) {
-      clearInterval(ringIntervalRef.current);
-    }
-    ringIntervalRef.current = setInterval(async () => {
-      ringCount++;
-      if (ringCount >= 10) {
-        if (ringIntervalRef.current) {
-          clearInterval(ringIntervalRef.current);
-          ringIntervalRef.current = null;
+      // Wait for subscription
+      await new Promise<void>(resolve => {
+        const status = (channel as any).state;
+        if (status === 'joined') {
+          resolve();
+        } else {
+          channel!.subscribe(status => {
+            console.log('Sender channel status:', status);
+            if (status === 'SUBSCRIBED') {
+              resolve();
+            }
+          });
         }
-        return;
-      }
-      
-      const ch = channelsRef.current.get(channelName);
-      if (ch) {
-        await ch.send({
-          type: 'broadcast',
-          event: 'call-invitation',
-          payload: { ...invitation, timestamp: Date.now() },
-        });
-        console.log('Ring', ringCount);
-      }
-    }, 3000);
-  }, [user]);
+      });
 
-  // End current call
+      // Small delay so receivers are ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const invitation = {
+        callerId: user.id,
+        callerName,
+        callerAvatar: profile?.avatar_url,
+        conversationId,
+        conversationName,
+        isVideo,
+        timestamp: Date.now(),
+      };
+
+      // Initial invitation
+      const result = await channel.send({
+        type: 'broadcast',
+        event: 'call-invitation',
+        payload: invitation,
+      });
+      console.log('Sent call invitation, result:', result);
+
+      // Re-send invitation every 3s for up to 30s
+      let ringCount = 0;
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+      }
+      ringIntervalRef.current = setInterval(async () => {
+        ringCount++;
+        if (ringCount >= 10) {
+          if (ringIntervalRef.current) {
+            clearInterval(ringIntervalRef.current);
+            ringIntervalRef.current = null;
+          }
+          return;
+        }
+
+        const ch = channelsRef.current.get(channelName);
+        if (ch) {
+          await ch.send({
+            type: 'broadcast',
+            event: 'call-invitation',
+            payload: { ...invitation, timestamp: Date.now() },
+          });
+          console.log('Ring', ringCount);
+        }
+      }, 3000);
+    },
+    [user],
+  );
+
+  // End current call (for everyone in this conversation)
   const endCurrentCall = useCallback(() => {
-    // Clear the ringing interval if it exists
     if (ringIntervalRef.current) {
       clearInterval(ringIntervalRef.current);
       ringIntervalRef.current = null;
@@ -295,44 +290,44 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     if (activeCall) {
       const channelName = `call-invite:${activeCall.conversationId}`;
       const channel = channelsRef.current.get(channelName);
-      
+
       if (channel) {
         channel.send({
           type: 'broadcast',
           event: 'call-ended',
-          payload: {},
+          payload: { conversationId: activeCall.conversationId },
         });
       }
     }
+
     setActiveCall(null);
     setIncomingCall(null);
   }, [activeCall]);
 
-  // Accept incoming call
+  // Accept incoming call (we only join when user clicks Accept)
   const handleAcceptCall = useCallback(() => {
-    if (incomingCall) {
-      // Notify caller that call was accepted
-      const channelName = `call-invite:${incomingCall.conversationId}`;
-      const channel = channelsRef.current.get(channelName);
-      if (channel) {
-        channel.send({
-          type: 'broadcast',
-          event: 'call-accepted',
-          payload: {},
-        });
-      }
+    if (!incomingCall) return;
 
-      setActiveCall({
-        conversationId: incomingCall.conversationId,
-        conversationName: incomingCall.conversationName,
-        isVideo: incomingCall.isVideo,
-        isCaller: false, // This user is receiving the call, not initiating
+    const channelName = `call-invite:${incomingCall.conversationId}`;
+    const channel = channelsRef.current.get(channelName);
+
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'call-accepted',
+        payload: { conversationId: incomingCall.conversationId },
       });
-      setIncomingCall(null);
     }
+
+    setActiveCall({
+      conversationId: incomingCall.conversationId,
+      conversationName: incomingCall.conversationName,
+      isVideo: incomingCall.isVideo,
+      isCaller: false,
+    });
+    setIncomingCall(null);
   }, [incomingCall]);
 
-  // Decline incoming call
   const handleDeclineCall = useCallback(() => {
     setIncomingCall(null);
   }, []);
@@ -341,7 +336,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     <CallContext.Provider value={{ startCall, endCurrentCall, activeCall }}>
       {children}
 
-      {/* Incoming Call Dialog */}
+      {/* Incoming Call Dialog - only visible when we have an invite and are not already in a call */}
       <IncomingCallDialog
         open={!!incomingCall && !activeCall}
         callerName={incomingCall?.callerName || ''}
@@ -351,7 +346,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         onDecline={handleDeclineCall}
       />
 
-      {/* Active Call Dialog */}
+      {/* Active Call Dialog - joins LiveKit room */}
       {activeCall && (
         <CallDialog
           open={!!activeCall}
