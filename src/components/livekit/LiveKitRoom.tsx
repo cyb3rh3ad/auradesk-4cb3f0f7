@@ -53,6 +53,7 @@ export function LiveKitRoom({
     isConnecting,
     isConnected,
     error,
+    mediaError,
     localParticipant,
     remoteParticipants,
     connect,
@@ -65,6 +66,17 @@ export function LiveKitRoom({
     isCameraOff,
     screenShareParticipant,
   } = useLiveKit();
+
+  // Show toast when media error occurs
+  useEffect(() => {
+    if (mediaError) {
+      toast({
+        title: "Media Access Error",
+        description: mediaError,
+        variant: "destructive",
+      });
+    }
+  }, [mediaError, toast]);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
