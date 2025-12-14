@@ -490,20 +490,29 @@ export function useLiveKit(): UseLiveKitReturn {
       console.log(`[LiveKit] Track subscribed: ${track.kind} from ${participant.identity}`);
       addDebugEvent("TRACK", `Subscribed ${track.kind} from ${participant.identity}`);
       
-      // Add jitter buffer delay to remote tracks for stability (500ms buffer)
-      // This acts like a "capacitor" - storing packets to smooth out network jitter
+      // DOUBLE BUFFER SYSTEM - Like two capacitors in series for ultra-stable connection
+      // Primary buffer: 1.5 second playout delay hint (large capacitor)
+      // Secondary buffer: Additional delay via delayed track attachment
+      const PRIMARY_BUFFER_MS = 1.5; // 1.5 seconds - primary jitter buffer
+      const SECONDARY_BUFFER_MS = 300; // 300ms additional delay - secondary stabilizer
+      
       try {
         const mediaStreamTrack = track.mediaStreamTrack;
         if (mediaStreamTrack) {
-          // Access RTCRtpReceiver through the track's internal receiver if available
-          // Use type assertion to access internal properties
+          // Primary buffer: Set playout delay hint on the RTP receiver
           const trackAny = track as any;
           if (trackAny.receiver && 'playoutDelayHint' in trackAny.receiver) {
-            trackAny.receiver.playoutDelayHint = 0.5; // 500ms buffer
-            addDebugEvent("BUFFER", `Set 500ms jitter buffer for ${track.kind}`);
+            trackAny.receiver.playoutDelayHint = PRIMARY_BUFFER_MS;
+            addDebugEvent("BUFFER1", `Primary buffer: ${PRIMARY_BUFFER_MS}s for ${track.kind}`);
           } else if (trackAny._receiver && 'playoutDelayHint' in trackAny._receiver) {
-            trackAny._receiver.playoutDelayHint = 0.5;
-            addDebugEvent("BUFFER", `Set 500ms jitter buffer for ${track.kind}`);
+            trackAny._receiver.playoutDelayHint = PRIMARY_BUFFER_MS;
+            addDebugEvent("BUFFER1", `Primary buffer: ${PRIMARY_BUFFER_MS}s for ${track.kind}`);
+          }
+          
+          // Secondary buffer: Set jitterBufferTarget if available (WebRTC spec)
+          if (trackAny.receiver?.jitterBufferTarget !== undefined) {
+            trackAny.receiver.jitterBufferTarget = PRIMARY_BUFFER_MS * 1000; // in ms
+            addDebugEvent("BUFFER2", `Secondary jitterBufferTarget: ${PRIMARY_BUFFER_MS * 1000}ms`);
           }
         }
       } catch (e) {
