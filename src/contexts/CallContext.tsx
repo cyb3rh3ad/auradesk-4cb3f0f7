@@ -44,6 +44,12 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
   const setupCompleteRef = useRef(false);
   const ringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+
+  // Keep ref in sync so handlers inside channel callbacks can access latest value
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   // Helper: get user profile for display name/avatar
   const getUserProfile = async (userId: string) => {
@@ -104,7 +110,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             // If already in an active call, ignore new invitations
-            if (activeCall) {
+            if (activeCallRef.current) {
               console.log('Ignoring call invitation - already in active call');
               return;
             }
@@ -187,7 +193,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         ringIntervalRef.current = null;
       }
     };
-  }, [user?.id, activeCall]);
+  }, [user?.id]); // Only depend on user.id - NOT activeCall
 
   // Start a call (we immediately join the room as caller)
   const startCall = useCallback(
