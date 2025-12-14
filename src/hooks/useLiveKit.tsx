@@ -473,26 +473,65 @@ export function useLiveKit(): UseLiveKitReturn {
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
 
-      // Refresh local participant state
-      updateParticipantState(newRoom.localParticipant, true);
+      // EMERGENCY CUT & REPUBLISH PROTOCOL
+      // On reconnect, immediately cut audio/video and republish fresh for stability
+      // Audio first (immediate), then video after 2s delay
+      addDebugEvent("EMERGENCY", "Initiating emergency cut & republish protocol");
 
-      // Ensure microphone track still exists after reconnection to avoid one-way audio
       try {
-        const audioPublication = newRoom.localParticipant.getTrackPublication(Track.Source.Microphone);
-        if (!audioPublication?.track) {
-          addDebugEvent("RECOVER", "No local mic track after reconnect - recreating");
-          const tracks = await createLocalTracks({ audio: true, video: false });
-          for (const track of tracks) {
-            await newRoom.localParticipant.publishTrack(track);
-          }
-          addDebugEvent("RECOVER", "Local mic track republished after reconnect");
-          updateParticipantState(newRoom.localParticipant, true);
+        const localP = newRoom.localParticipant;
+
+        // Step 1: Cut and republish AUDIO immediately
+        const audioPublication = localP.getTrackPublication(Track.Source.Microphone);
+        if (audioPublication?.track) {
+          addDebugEvent("CUT", "Cutting audio track...");
+          audioPublication.track.stop();
+          await localP.unpublishTrack(audioPublication.track);
         }
+
+        // Republish audio immediately
+        addDebugEvent("REPUBLISH", "Republishing audio track...");
+        const audioTracks = await createLocalTracks({ audio: true, video: false });
+        for (const track of audioTracks) {
+          await localP.publishTrack(track);
+        }
+        addDebugEvent("REPUBLISH", "Audio track republished successfully");
+        updateParticipantState(localP, true);
+
+        // Step 2: Cut and republish VIDEO after 2s delay
+        const videoPublication = localP.getTrackPublication(Track.Source.Camera);
+        if (videoPublication?.track) {
+          addDebugEvent("CUT", "Cutting video track...");
+          videoPublication.track.stop();
+          await localP.unpublishTrack(videoPublication.track);
+        }
+
+        // Wait 2s then republish video
+        setTimeout(async () => {
+          try {
+            if (newRoom.state !== 'connected') return;
+            
+            addDebugEvent("REPUBLISH", "Republishing video track after 2s delay...");
+            const videoTracks = await createLocalTracks({ 
+              audio: false, 
+              video: { resolution: { width: 1280, height: 720, frameRate: 30 } }
+            });
+            for (const track of videoTracks) {
+              await localP.publishTrack(track, { simulcast: true });
+            }
+            addDebugEvent("REPUBLISH", "Video track republished successfully");
+            updateParticipantState(localP, true);
+          } catch (videoErr) {
+            console.warn("[LiveKit] Error republishing video:", videoErr);
+          }
+        }, 2000);
+
       } catch (err) {
-        console.warn("[LiveKit] Error ensuring mic after reconnect:", err);
+        console.warn("[LiveKit] Emergency republish error:", err);
+        addDebugEvent("ERROR", `Emergency republish failed: ${err}`);
       }
 
-      // Re-sync remote participants and reattach audio elements if needed
+      // Re-sync remote participants
       updateRemoteParticipants();
     });
 
@@ -698,6 +737,12 @@ export function useLiveKit(): UseLiveKitReturn {
         return;
       }
 
+      // PRE-CONNECTION BUFFER: "Charge the capacitors" - 2 second delay before connecting
+      // This allows the system to stabilize before media starts flowing
+      addDebugEvent("CHARGE", "Charging capacitors... 2s buffer before connection");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      addDebugEvent("CHARGE", "Capacitors charged - proceeding with connection");
+
       // Store connection params for reconnection
       connectionParamsRef.current = { roomName, participantName, initialVideo, initialAudio };
 
@@ -761,7 +806,7 @@ export function useLiveKit(): UseLiveKitReturn {
         setIsConnecting(false);
       }
     },
-    [getToken, setupRoomEventHandlers, publishLocalTracks, updateParticipantState, scheduleTokenRefresh, startHealthCheck, performReconnect],
+    [getToken, setupRoomEventHandlers, publishLocalTracks, updateParticipantState, scheduleTokenRefresh, startHealthCheck, performReconnect, addDebugEvent],
   );
 
   const disconnect = useCallback(async () => {
