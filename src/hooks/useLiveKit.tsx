@@ -490,33 +490,67 @@ export function useLiveKit(): UseLiveKitReturn {
       console.log(`[LiveKit] Track subscribed: ${track.kind} from ${participant.identity}`);
       addDebugEvent("TRACK", `Subscribed ${track.kind} from ${participant.identity}`);
       
-      // DOUBLE BUFFER SYSTEM - Like two capacitors in series for ultra-stable connection
-      // Primary buffer: 1.5 second playout delay hint (large capacitor)
-      // Secondary buffer: Additional delay via delayed track attachment
-      const PRIMARY_BUFFER_MS = 1.5; // 1.5 seconds - primary jitter buffer
-      const SECONDARY_BUFFER_MS = 300; // 300ms additional delay - secondary stabilizer
+      // MULTI-CAPACITOR BUFFER SYSTEM
+      // Primary: 1.0s base buffer
+      // Secondary layers kick in during instability
+      const BASE_BUFFER = 1.0; // 1 second primary capacitor
       
       try {
-        const mediaStreamTrack = track.mediaStreamTrack;
-        if (mediaStreamTrack) {
-          // Primary buffer: Set playout delay hint on the RTP receiver
-          const trackAny = track as any;
-          if (trackAny.receiver && 'playoutDelayHint' in trackAny.receiver) {
-            trackAny.receiver.playoutDelayHint = PRIMARY_BUFFER_MS;
-            addDebugEvent("BUFFER1", `Primary buffer: ${PRIMARY_BUFFER_MS}s for ${track.kind}`);
-          } else if (trackAny._receiver && 'playoutDelayHint' in trackAny._receiver) {
-            trackAny._receiver.playoutDelayHint = PRIMARY_BUFFER_MS;
-            addDebugEvent("BUFFER1", `Primary buffer: ${PRIMARY_BUFFER_MS}s for ${track.kind}`);
+        const trackAny = track as any;
+        const receiver = trackAny.receiver || trackAny._receiver;
+        
+        if (receiver) {
+          // Set primary buffer
+          if ('playoutDelayHint' in receiver) {
+            receiver.playoutDelayHint = BASE_BUFFER;
+            addDebugEvent("CAP1", `Primary: ${BASE_BUFFER}s buffer`);
           }
           
-          // Secondary buffer: Set jitterBufferTarget if available (WebRTC spec)
-          if (trackAny.receiver?.jitterBufferTarget !== undefined) {
-            trackAny.receiver.jitterBufferTarget = PRIMARY_BUFFER_MS * 1000; // in ms
-            addDebugEvent("BUFFER2", `Secondary jitterBufferTarget: ${PRIMARY_BUFFER_MS * 1000}ms`);
+          // Set jitter buffer target as secondary capacitor
+          if (receiver.jitterBufferTarget !== undefined) {
+            receiver.jitterBufferTarget = 750; // 750ms secondary
+            addDebugEvent("CAP2", `Secondary: 750ms jitter target`);
           }
+          
+          // Adaptive buffer - monitor and increase if quality drops
+          let currentBuffer = BASE_BUFFER;
+          const adaptiveCheck = setInterval(() => {
+            if (!receiver || !newRoom || newRoom.state !== 'connected') {
+              clearInterval(adaptiveCheck);
+              return;
+            }
+            
+            try {
+              // Check if we need to engage backup capacitors
+              receiver.getStats?.().then((stats: RTCStatsReport) => {
+                stats.forEach((report) => {
+                  if (report.type === 'inbound-rtp') {
+                    const packetsLost = report.packetsLost || 0;
+                    const jitter = report.jitter || 0;
+                    
+                    // If jitter > 100ms or packet loss detected, engage extra buffers
+                    if (jitter > 0.1 || packetsLost > 0) {
+                      const newBuffer = Math.min(currentBuffer + 0.25, 1.5); // Add 250ms, max 1.5s
+                      if (newBuffer > currentBuffer && 'playoutDelayHint' in receiver) {
+                        receiver.playoutDelayHint = newBuffer;
+                        currentBuffer = newBuffer;
+                        addDebugEvent("CAP+", `Engaged backup: ${newBuffer}s (jitter: ${(jitter*1000).toFixed(0)}ms)`);
+                      }
+                    }
+                  }
+                });
+              });
+            } catch (e) {
+              // Stats not available, keep current buffer
+            }
+          }, 2000); // Check every 2 seconds
+          
+          // Store interval for cleanup
+          if (!trackAny._adaptiveIntervals) trackAny._adaptiveIntervals = [];
+          trackAny._adaptiveIntervals.push(adaptiveCheck);
         }
       } catch (e) {
-        console.log("[LiveKit] Could not set playout delay hint:", e);
+        console.log("[LiveKit] Buffer setup error:", e);
       }
       
       if (track.kind === Track.Kind.Audio) {
