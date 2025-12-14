@@ -227,6 +227,7 @@ export const TeamChat = ({ team, onBack }: TeamChatProps) => {
         isVideo={callIsVideo}
         open={callDialogOpen}
         onClose={() => setCallDialogOpen(false)}
+        isHost={true}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Sparkles, Menu, X, Crown, Shield } from "lucide-react";
+import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Menu, X, Crown, Shield } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -95,7 +95,6 @@ export const Sidebar = () => {
       
       <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 group hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden">
         <img src={auradeskLogo} alt="AuraDesk" className="w-full h-full object-cover rounded-xl" />
-        <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
       
       <nav className="relative flex-1 flex flex-col items-center space-y-2 w-full px-3">
