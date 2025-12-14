@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronUp, Sparkles, Cpu, Cloud, Lock, Image, Brain, Check } from 'lucide-react';
 import { AI_MODELS, getAvailableModels, type AIModel, type SubscriptionPlan } from '@/lib/ai-models';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface AIModelSelectorProps {
   selectedModel: string;
@@ -32,24 +31,10 @@ export const AIModelSelector = ({
   disabled,
 }: AIModelSelectorProps) => {
   const [open, setOpen] = useState(false);
-  const [displayModel, setDisplayModel] = useState(selectedModel);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   
   const availableModels = getAvailableModels(subscriptionPlan);
-  const currentModel = AI_MODELS.find(m => m.id === displayModel) || AI_MODELS[0];
+  const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
   const canUseLocal = subscriptionPlan !== 'free';
-
-  // Smooth transition when model changes
-  useEffect(() => {
-    if (selectedModel !== displayModel) {
-      setIsTransitioning(true);
-      const timer = setTimeout(() => {
-        setDisplayModel(selectedModel);
-        setIsTransitioning(false);
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedModel, displayModel]);
 
   const getProviderColor = (provider: string) => {
     switch (provider) {
@@ -85,28 +70,11 @@ export const AIModelSelector = ({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className={cn(
-            "gap-2 h-9 transition-all duration-200",
-            isTransitioning && "scale-[0.98] opacity-80"
-          )}
+          className="gap-2 h-9"
           disabled={disabled}
         >
-          <Sparkles className={cn(
-            "h-4 w-4 transition-transform duration-200",
-            isTransitioning && "rotate-180"
-          )} />
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={displayModel}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.15 }}
-              className="max-w-[120px] truncate"
-            >
-              {currentModel.name}
-            </motion.span>
-          </AnimatePresence>
+          <Sparkles className="h-4 w-4" />
+          <span className="max-w-[120px] truncate">{currentModel.name}</span>
           {executionMode === 'local' && <Cpu className="h-3 w-3 text-muted-foreground" />}
           {executionMode === 'cloud' && <Cloud className="h-3 w-3 text-muted-foreground" />}
           <ChevronUp className={cn(
