@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Team } from '@/hooks/useTeams';
-import { LiveKitRoom } from '@/components/livekit/LiveKitRoom';
+import { HybridCallRoom } from '@/components/call/HybridCallRoom';
 
 interface TeamCallDialogProps {
   team: Team;
@@ -45,7 +45,7 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose, isHost = false }:
         <VisuallyHidden.Root>
           <DialogTitle>Team Call - {team.name}</DialogTitle>
         </VisuallyHidden.Root>
-        <LiveKitRoom
+        <HybridCallRoom
           roomName={roomName}
           participantName={userName}
           onDisconnect={onClose}

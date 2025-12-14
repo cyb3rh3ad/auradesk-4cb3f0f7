@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
-import { LiveKitRoom } from "@/components/livekit/LiveKitRoom";
+import { HybridCallRoom } from "@/components/call/HybridCallRoom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +48,7 @@ export const CallDialog = ({
         <VisuallyHidden.Root>
           <DialogTitle>Call with {conversationName}</DialogTitle>
         </VisuallyHidden.Root>
-        <LiveKitRoom 
+        <HybridCallRoom 
           roomName={roomName} 
           participantName={userName} 
           onDisconnect={onClose} 
@@ -56,6 +56,7 @@ export const CallDialog = ({
           initialVideo={initialVideo}
           initialAudio={true}
           isHost={isCaller}
+          forceMode="webrtc"
         />
       </DialogContent>
     </Dialog>

@@ -33,11 +33,12 @@ const ICE_SERVERS: RTCConfiguration = {
   iceCandidatePoolSize: 10,
 };
 
-export const useWebRTC = (meetingId: string | null, userName: string) => {
+export const useWebRTC = (roomId: string | null, userName: string) => {
   const { user } = useAuth();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
 
@@ -193,15 +194,16 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
 
   const joinRoom = useCallback(
     async (video: boolean = true, audio: boolean = true) => {
-      if (!meetingId || !user) return;
+      if (!roomId || !user) return;
       setIsConnecting(true);
+      setError(null);
       const stream = await initializeMedia(video, audio);
       if (!stream) {
         setIsConnecting(false);
         return;
       }
 
-      const channel = supabase.channel(`meeting-${meetingId}`);
+      const channel = supabase.channel(`webrtc-room-${roomId}`);
       channel
         .on("broadcast", { event: "user-joined" }, ({ payload }) => {
           if (payload.userId !== user.id) {
@@ -222,16 +224,35 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
         .on("broadcast", { event: "ice-candidate" }, ({ payload }) => {
           if (payload.to === user.id) handleIceCandidate(payload.from, payload.candidate);
         })
-        .on("broadcast", { event: "call-answered" }, () => setCallStatus("IN_CALL"))
+        .on("broadcast", { event: "call-answered" }, () => {
+          setCallStatus("IN_CALL");
+          setIsConnected(true);
+        })
+        .on("broadcast", { event: "user-left" }, ({ payload }) => {
+          if (payload.userId !== user.id) {
+            // Remove the participant who left
+            const pc = peerConnections.current.get(payload.userId);
+            if (pc) {
+              pc.close();
+              peerConnections.current.delete(payload.userId);
+            }
+            setParticipants(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(payload.userId);
+              return newMap;
+            });
+          }
+        })
         .subscribe(async (status) => {
           if (status === "SUBSCRIBED") {
             channel.send({ type: "broadcast", event: "user-joined", payload: { userId: user.id, userName } });
             setIsConnecting(false);
+            setIsConnected(true);
           }
         });
       channelRef.current = channel;
     },
-    [meetingId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate],
+    [roomId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate],
   );
 
   const leaveRoom = useCallback(() => {
@@ -249,6 +270,7 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     }
     setParticipants(new Map());
     setCallStatus("IDLE");
+    setIsConnected(false);
   }, [user]);
 
   const toggleAudio = useCallback((muted: boolean) => {
@@ -271,5 +293,5 @@ export const useWebRTC = (meetingId: string | null, userName: string) => {
     return () => leaveRoom();
   }, [leaveRoom]);
 
-  return { localStream, participants, isConnecting, error, callStatus, joinRoom, leaveRoom, toggleAudio, toggleVideo };
+  return { localStream, participants, isConnecting, isConnected, error, callStatus, joinRoom, leaveRoom, toggleAudio, toggleVideo };
 };
