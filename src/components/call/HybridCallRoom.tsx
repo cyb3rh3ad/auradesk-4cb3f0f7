@@ -1,4 +1,4 @@
-import { WebRTCRoom } from "@/components/webrtc/WebRTCRoom";
+import { DailyRoom } from "@/components/daily/DailyRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,12 +11,11 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom
+ * HybridCallRoom - Now uses Daily.co for all calls
  *
- * For maximum consistency and to avoid LiveKit-related issues,
- * all calls now use the plain WebRTC implementation only.
- * This uses our perfected negotiation + presence-based signaling
- * and avoids splitting users across different backends.
+ * Daily.co is a highly reliable, managed video infrastructure
+ * that handles all the complexity of WebRTC, TURN servers, and
+ * network traversal. No more connection issues!
  */
 export function HybridCallRoom({
   roomName,
@@ -28,7 +27,7 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <WebRTCRoom
+    <DailyRoom
       roomName={roomName}
       participantName={participantName}
       onDisconnect={onDisconnect}
