@@ -26,6 +26,12 @@ interface ParticipantState {
   connectionQuality?: ConnectionQuality;
 }
 
+interface DebugEvent {
+  time: string;
+  type: string;
+  message: string;
+}
+
 interface UseLiveKitReturn {
   room: Room | null;
   isConnecting: boolean;
@@ -46,6 +52,9 @@ interface UseLiveKitReturn {
   isCameraOff: boolean;
   connectionQuality: ConnectionQuality | null;
   reconnect: () => Promise<void>;
+  debugEvents: DebugEvent[];
+  reconnectAttempts: number;
+  connectionState: string;
 }
 
 // Connection configuration for reliability
@@ -67,6 +76,8 @@ export function useLiveKit(): UseLiveKitReturn {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality | null>(null);
+  const [debugEvents, setDebugEvents] = useState<DebugEvent[]>([]);
+  const [connectionState, setConnectionState] = useState<string>("disconnected");
   
   const roomRef = useRef<Room | null>(null);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -82,6 +93,17 @@ export function useLiveKit(): UseLiveKitReturn {
   const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tokenExpiryRef = useRef<number | null>(null);
   const tokenRefreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add debug event with timestamp
+  const addDebugEvent = useCallback((type: string, message: string) => {
+    const event: DebugEvent = {
+      time: new Date().toLocaleTimeString(),
+      type,
+      message,
+    };
+    console.log(`[LiveKit Debug] ${type}: ${message}`);
+    setDebugEvents(prev => [...prev.slice(-19), event]); // Keep last 20 events
+  }, []);
 
   // Clear all timers
   const clearTimers = useCallback(() => {
@@ -406,23 +428,28 @@ export function useLiveKit(): UseLiveKitReturn {
   // Setup room event handlers
   const setupRoomEventHandlers = useCallback((newRoom: Room, initialVideo: boolean, initialAudio: boolean) => {
     newRoom.on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
-      console.log("[LiveKit] Connection state:", state);
+      const stateStr = String(state);
+      setConnectionState(stateStr);
+      addDebugEvent("STATE", stateStr);
+      
       if (state === ConnectionState.Disconnected) {
         setIsConnected(false);
+        addDebugEvent("DISCONNECT", "Unexpected disconnect detected");
         // If we didn't explicitly hang up, try a controlled reconnect
         if (connectionParamsRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          console.log("[LiveKit] Unexpected disconnect, scheduling reconnect...");
+          addDebugEvent("RECONNECT", `Scheduling reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS}`);
           performReconnect();
         }
       } else if (state === ConnectionState.Connected) {
         setIsConnected(true);
         setIsReconnecting(false);
         reconnectAttemptsRef.current = 0;
+        addDebugEvent("CONNECTED", "Successfully connected");
       }
     });
 
     newRoom.on(RoomEvent.Connected, () => {
-      console.log("[LiveKit] Connected");
+      addDebugEvent("EVENT", "RoomEvent.Connected fired");
       setIsConnected(true);
       setIsConnecting(false);
       setIsReconnecting(false);
@@ -431,7 +458,7 @@ export function useLiveKit(): UseLiveKitReturn {
     });
 
     newRoom.on(RoomEvent.Disconnected, (reason) => {
-      console.log("[LiveKit] Disconnected, reason:", reason);
+      addDebugEvent("EVENT", `RoomEvent.Disconnected - reason: ${reason || "unknown"}`);
       setIsConnected(false);
       setIsConnecting(false);
       setIsReconnecting(false);
@@ -441,11 +468,12 @@ export function useLiveKit(): UseLiveKitReturn {
     });
 
     newRoom.on(RoomEvent.Reconnecting, () => {
-      console.log("[LiveKit] Reconnecting (automatic)...");
+      addDebugEvent("EVENT", "RoomEvent.Reconnecting - automatic reconnect starting");
       setIsReconnecting(true);
     });
 
     newRoom.on(RoomEvent.Reconnected, () => {
+      addDebugEvent("EVENT", "RoomEvent.Reconnected - automatic reconnect succeeded");
       console.log("[LiveKit] Reconnected");
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
@@ -817,5 +845,8 @@ export function useLiveKit(): UseLiveKitReturn {
     isCameraOff,
     connectionQuality,
     reconnect,
+    debugEvents,
+    reconnectAttempts: reconnectAttemptsRef.current,
+    connectionState,
   };
 }
