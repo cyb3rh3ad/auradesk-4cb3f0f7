@@ -11,9 +11,10 @@ interface TeamCallDialogProps {
   isVideo: boolean;
   open: boolean;
   onClose: () => void;
+  isHost?: boolean;
 }
 
-export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogProps) => {
+export const TeamCallDialog = ({ team, isVideo, open, onClose, isHost = false }: TeamCallDialogProps) => {
   const { user } = useAuth();
   const [userName, setUserName] = useState<string>('User');
 
@@ -51,6 +52,7 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose }: TeamCallDialogP
           className="h-full"
           initialVideo={isVideo}
           initialAudio={true}
+          isHost={isHost}
         />
       </DialogContent>
     </Dialog>

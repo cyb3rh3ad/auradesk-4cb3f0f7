@@ -55,6 +55,7 @@ export const CallDialog = ({
           className="h-full"
           initialVideo={initialVideo}
           initialAudio={true}
+          isHost={isCaller}
         />
       </DialogContent>
     </Dialog>

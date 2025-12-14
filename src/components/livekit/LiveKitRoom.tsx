@@ -1,10 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Track } from "livekit-client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff } from "lucide-react";
+import { 
+  Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
+  Sparkles, MoreVertical, UserX, Volume2, VolumeX, Loader2 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "@/hooks/useLiveKit";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface LiveKitRoomProps {
   roomName: string;
@@ -13,6 +35,7 @@ export interface LiveKitRoomProps {
   className?: string;
   initialVideo?: boolean;
   initialAudio?: boolean;
+  isHost?: boolean;
 }
 
 export function LiveKitRoom({ 
@@ -21,9 +44,12 @@ export function LiveKitRoom({
   onDisconnect, 
   className,
   initialVideo = true,
-  initialAudio = true 
+  initialAudio = true,
+  isHost = false,
 }: LiveKitRoomProps) {
+  const { toast } = useToast();
   const {
+    room,
     isConnecting,
     isConnected,
     error,
@@ -43,6 +69,55 @@ export function LiveKitRoom({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const [transcript, setTranscript] = useState<string>("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
+  const [kickDialogOpen, setKickDialogOpen] = useState(false);
+  const [participantToKick, setParticipantToKick] = useState<string | null>(null);
+
+  // Set up real-time channel for call events
+  useEffect(() => {
+    if (!roomName) return;
+
+    const channel = supabase.channel(`call-control-${roomName}`);
+    
+    channel
+      .on('broadcast', { event: 'call-ended' }, () => {
+        toast({
+          title: "Call Ended",
+          description: "The host has ended the call",
+        });
+        handleDisconnect();
+      })
+      .on('broadcast', { event: 'participant-kicked' }, (payload: any) => {
+        if (payload.payload?.participantId === localParticipant?.identity) {
+          toast({
+            title: "Removed from Call",
+            description: "You have been removed from this call by the host",
+            variant: "destructive",
+          });
+          handleDisconnect();
+        }
+      })
+      .on('broadcast', { event: 'participant-muted' }, (payload: any) => {
+        if (payload.payload?.participantId === localParticipant?.identity) {
+          toggleMute();
+          toast({
+            title: "Muted by Host",
+            description: "The host has muted your microphone",
+          });
+        }
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [roomName, localParticipant?.identity]);
 
   // Connect on mount
   useEffect(() => {
@@ -106,6 +181,167 @@ export function LiveKitRoom({
     }
   };
 
+  const handleDisconnect = useCallback(() => {
+    // Stop recording if active
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+    disconnect();
+    onDisconnect();
+  }, [disconnect, onDisconnect]);
+
+  const handleEndCallForAll = useCallback(async () => {
+    if (channelRef.current && isHost) {
+      await channelRef.current.send({
+        type: 'broadcast',
+        event: 'call-ended',
+        payload: {},
+      });
+    }
+    handleDisconnect();
+  }, [isHost, handleDisconnect]);
+
+  const handleKickParticipant = async (participantId: string) => {
+    if (channelRef.current && isHost) {
+      await channelRef.current.send({
+        type: 'broadcast',
+        event: 'participant-kicked',
+        payload: { participantId },
+      });
+      toast({
+        title: "Participant Removed",
+        description: "The participant has been removed from the call",
+      });
+    }
+    setKickDialogOpen(false);
+    setParticipantToKick(null);
+  };
+
+  const handleMuteParticipant = async (participantId: string) => {
+    if (channelRef.current && isHost) {
+      await channelRef.current.send({
+        type: 'broadcast',
+        event: 'participant-muted',
+        payload: { participantId },
+      });
+      toast({
+        title: "Participant Muted",
+        description: "The participant has been muted",
+      });
+    }
+  };
+
+  // AI Transcription
+  const toggleAITranscription = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Not Supported",
+        description: "Speech recognition is not supported in this browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setTranscript(prev => prev + finalTranscript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        if (isRecording) {
+          recognition.start();
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecording(true);
+      toast({
+        title: "AI Recording Started",
+        description: "The meeting is now being transcribed",
+      });
+    }
+  }, [isRecording, toast]);
+
+  const handleSummarize = async () => {
+    if (!transcript.trim()) {
+      toast({
+        title: "No Transcript",
+        description: "Start AI transcription first to generate a summary",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSummarizing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ text: transcript }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to summarize");
+      }
+
+      const data = await response.json();
+      toast({
+        title: "Summary Generated",
+        description: data.summary.slice(0, 100) + "...",
+      });
+    } catch (err) {
+      console.error("Summarization error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to generate summary",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-full bg-background text-destructive p-4">
@@ -116,7 +352,8 @@ export function LiveKitRoom({
 
   if (isConnecting || !isConnected) {
     return (
-      <div className="flex items-center justify-center h-full bg-background text-foreground p-4">
+      <div className="flex flex-col items-center justify-center h-full bg-background text-foreground p-4 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p>Connecting to call...</p>
       </div>
     );
@@ -171,7 +408,7 @@ export function LiveKitRoom({
             <div
               key={participant.identity}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-muted border-2 aspect-video",
+                "relative rounded-xl overflow-hidden bg-muted border-2 aspect-video group",
                 participant.isSpeaking ? "border-green-500" : "border-border",
                 isLocal && "order-first"
               )}
@@ -208,8 +445,11 @@ export function LiveKitRoom({
               )}
 
               {/* Name label */}
-              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm">
+              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm flex items-center gap-2">
                 {displayName}
+                {isHost && isLocal && (
+                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Host</span>
+                )}
               </div>
 
               {/* Status icons */}
@@ -221,13 +461,52 @@ export function LiveKitRoom({
                   <VideoOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
                 )}
               </div>
+
+              {/* Host controls for remote participants */}
+              {isHost && !isLocal && (
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleMuteParticipant(participant.identity)}>
+                        {participant.isMuted ? (
+                          <><Volume2 className="h-4 w-4 mr-2" /> Unmute</>
+                        ) : (
+                          <><VolumeX className="h-4 w-4 mr-2" /> Mute</>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => {
+                          setParticipantToKick(participant.identity);
+                          setKickDialogOpen(true);
+                        }}
+                      >
+                        <UserX className="h-4 w-4 mr-2" /> Remove from call
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
+      {/* Transcript display */}
+      {isRecording && transcript && (
+        <div className="mx-4 mb-2 p-3 bg-muted/50 rounded-lg max-h-24 overflow-y-auto">
+          <p className="text-sm text-muted-foreground">{transcript.slice(-200)}</p>
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="flex justify-center gap-2 p-4 bg-muted border-t border-border">
+      <div className="flex justify-center gap-2 p-4 bg-muted border-t border-border flex-wrap">
         <Button 
           onClick={toggleMute} 
           variant={isMuted ? "destructive" : "secondary"}
@@ -252,10 +531,62 @@ export function LiveKitRoom({
           {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
         </Button>
 
-        <Button onClick={onDisconnect} variant="destructive" size="icon">
-          <PhoneOff className="h-5 w-5" />
+        <Button 
+          onClick={toggleAITranscription} 
+          variant={isRecording ? "default" : "secondary"}
+          size="icon"
+          title="AI Transcription"
+        >
+          <Sparkles className={cn("h-5 w-5", isRecording && "text-yellow-400")} />
         </Button>
+
+        {isRecording && (
+          <Button 
+            onClick={handleSummarize} 
+            variant="outline"
+            size="sm"
+            disabled={isSummarizing}
+            className="gap-2"
+          >
+            {isSummarizing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Summarize"
+            )}
+          </Button>
+        )}
+
+        {isHost ? (
+          <Button onClick={handleEndCallForAll} variant="destructive" size="icon" title="End call for all">
+            <PhoneOff className="h-5 w-5" />
+          </Button>
+        ) : (
+          <Button onClick={handleDisconnect} variant="destructive" size="icon">
+            <PhoneOff className="h-5 w-5" />
+          </Button>
+        )}
       </div>
+
+      {/* Kick confirmation dialog */}
+      <AlertDialog open={kickDialogOpen} onOpenChange={setKickDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Participant</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this participant from the call? They will not be able to rejoin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => participantToKick && handleKickParticipant(participantToKick)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
