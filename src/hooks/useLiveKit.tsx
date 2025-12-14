@@ -888,33 +888,52 @@ export function useLiveKit(): UseLiveKitReturn {
   }, [updateParticipantState]);
 
   const toggleCamera = useCallback(async () => {
-    if (!roomRef.current) return;
+    console.log("[LiveKit] toggleCamera called");
+    
+    if (!roomRef.current) {
+      console.warn("[LiveKit] toggleCamera: No room reference");
+      return;
+    }
+
+    if (roomRef.current.state !== ConnectionState.Connected) {
+      console.warn("[LiveKit] toggleCamera: Room not connected, state:", roomRef.current.state);
+      return;
+    }
     
     const videoPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+    console.log("[LiveKit] toggleCamera: Current video publication:", videoPublication ? "exists" : "none");
     
     if (videoPublication?.track) {
-      if (videoPublication.isMuted) {
-        await videoPublication.unmute();
-        setIsCameraOff(false);
-        console.log("[LiveKit] Camera enabled");
-      } else {
-        await videoPublication.mute();
-        setIsCameraOff(true);
-        console.log("[LiveKit] Camera disabled");
+      try {
+        if (videoPublication.isMuted) {
+          await videoPublication.unmute();
+          setIsCameraOff(false);
+          console.log("[LiveKit] Camera unmuted");
+        } else {
+          await videoPublication.mute();
+          setIsCameraOff(true);
+          console.log("[LiveKit] Camera muted");
+        }
+      } catch (err) {
+        console.error("[LiveKit] Error toggling camera mute:", err);
       }
     } else {
+      // No video track exists yet, create and publish one
+      console.log("[LiveKit] No video track, creating new one...");
       try {
         const tracks = await createLocalTracks({ 
           audio: false, 
           video: { resolution: { width: 1280, height: 720, frameRate: 30 } }
         });
+        console.log("[LiveKit] Created video tracks:", tracks.length);
         for (const track of tracks) {
           await roomRef.current!.localParticipant.publishTrack(track, { simulcast: true });
+          console.log("[LiveKit] Published video track");
         }
         setIsCameraOff(false);
-        console.log("[LiveKit] Camera track created and published");
       } catch (err) {
-        console.error("[LiveKit] Failed to enable camera:", err);
+        console.error("[LiveKit] Failed to create/publish camera track:", err);
+        setMediaError("Failed to access camera. Please check permissions.");
       }
     }
     
