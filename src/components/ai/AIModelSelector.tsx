@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -83,91 +84,130 @@ export const AIModelSelector = ({
           )} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-72 max-h-[400px] overflow-y-auto">
+      <DropdownMenuContent align="start" side="top" className="w-72 max-h-[400px] overflow-y-auto gpu-accelerated">
         {/* Execution Mode Toggle */}
-        <div className="p-2 border-b">
+        <motion.div 
+          className="p-2 border-b"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+        >
           <p className="text-xs text-muted-foreground mb-2">Execution Mode</p>
           <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={executionMode === 'cloud' ? 'default' : 'outline'}
-              className="flex-1 h-8 text-xs"
-              onClick={() => onModeChange('cloud')}
-            >
-              <Cloud className="h-3 w-3 mr-1" />
-              Cloud
-            </Button>
-            <Button
-              size="sm"
-              variant={executionMode === 'local' ? 'default' : 'outline'}
-              className="flex-1 h-8 text-xs"
-              disabled={!canUseLocal}
-              onClick={() => canUseLocal && onModeChange('local')}
-            >
-              <Cpu className="h-3 w-3 mr-1" />
-              Local
-              {!canUseLocal && <Lock className="h-3 w-3 ml-1" />}
-            </Button>
+            <motion.div className="flex-1" whileTap={{ scale: 0.98 }}>
+              <Button
+                size="sm"
+                variant={executionMode === 'cloud' ? 'default' : 'outline'}
+                className="w-full h-8 text-xs transition-all duration-200"
+                onClick={() => onModeChange('cloud')}
+              >
+                <Cloud className="h-3 w-3 mr-1" />
+                Cloud
+              </Button>
+            </motion.div>
+            <motion.div className="flex-1" whileTap={{ scale: canUseLocal ? 0.98 : 1 }}>
+              <Button
+                size="sm"
+                variant={executionMode === 'local' ? 'default' : 'outline'}
+                className="w-full h-8 text-xs transition-all duration-200"
+                disabled={!canUseLocal}
+                onClick={() => canUseLocal && onModeChange('local')}
+              >
+                <Cpu className="h-3 w-3 mr-1" />
+                Local
+                {!canUseLocal && <Lock className="h-3 w-3 ml-1" />}
+              </Button>
+            </motion.div>
           </div>
           {!canUseLocal && (
             <p className="text-xs text-muted-foreground mt-1">
               Upgrade to Advanced for local execution
             </p>
           )}
-        </div>
+        </motion.div>
 
         <DropdownMenuSeparator />
 
         {/* Model Selection */}
-        {Object.entries(groupedModels).map(([provider, models]) => (
-          <div key={provider}>
+        {Object.entries(groupedModels).map(([provider, models], providerIndex) => (
+          <motion.div 
+            key={provider}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 0.15, 
+              delay: providerIndex * 0.03,
+              ease: [0.4, 0, 0.2, 1] 
+            }}
+          >
             <DropdownMenuLabel className={cn("text-xs capitalize", getProviderColor(provider))}>
               {provider}
             </DropdownMenuLabel>
-            {models.map(model => {
+            {models.map((model, modelIndex) => {
               const available = isModelAvailable(model);
               const showLocalOnly = executionMode === 'local' && !model.supportsLocal;
               
               return (
-                <DropdownMenuItem
+                <motion.div
                   key={model.id}
-                  disabled={!available || showLocalOnly}
-                  className={cn(
-                    "flex items-center justify-between cursor-pointer transition-colors duration-150",
-                    selectedModel === model.id && "bg-accent"
-                  )}
-                  onClick={() => {
-                    if (available && !showLocalOnly) {
-                      onModelChange(model.id);
-                      setOpen(false);
-                    }
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ 
+                    duration: 0.12, 
+                    delay: (providerIndex * 0.03) + (modelIndex * 0.02),
+                    ease: [0.4, 0, 0.2, 1]
                   }}
+                  whileHover={{ x: available && !showLocalOnly ? 2 : 0 }}
+                  whileTap={{ scale: available && !showLocalOnly ? 0.98 : 1 }}
                 >
-                  <div className="flex items-center gap-2">
-                    {selectedModel === model.id && (
-                      <Check className="h-3 w-3 text-primary" />
+                  <DropdownMenuItem
+                    disabled={!available || showLocalOnly}
+                    className={cn(
+                      "flex items-center justify-between cursor-pointer transition-all duration-150",
+                      selectedModel === model.id && "bg-accent"
                     )}
-                    <span className={cn("text-sm", !available && "text-muted-foreground")}>
-                      {model.name}
-                    </span>
-                    <div className="flex gap-1">
-                      {model.capabilities.includes('image') && (
-                        <Image className="h-3 w-3 text-pink-500" />
-                      )}
-                      {model.capabilities.includes('reasoning') && (
-                        <Brain className="h-3 w-3 text-yellow-500" />
-                      )}
+                    onClick={() => {
+                      if (available && !showLocalOnly) {
+                        onModelChange(model.id);
+                        setOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AnimatePresence mode="wait">
+                        {selectedModel === model.id && (
+                          <motion.div
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <Check className="h-3 w-3 text-primary" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <span className={cn("text-sm", !available && "text-muted-foreground")}>
+                        {model.name}
+                      </span>
+                      <div className="flex gap-1">
+                        {model.capabilities.includes('image') && (
+                          <Image className="h-3 w-3 text-pink-500" />
+                        )}
+                        {model.capabilities.includes('reasoning') && (
+                          <Brain className="h-3 w-3 text-yellow-500" />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!available && <Lock className="h-3 w-3" />}
-                    {showLocalOnly && <span className="text-xs text-muted-foreground">Cloud only</span>}
-                    {getTierBadge(model.tier)}
-                  </div>
-                </DropdownMenuItem>
+                    <div className="flex items-center gap-1">
+                      {!available && <Lock className="h-3 w-3" />}
+                      {showLocalOnly && <span className="text-xs text-muted-foreground">Cloud only</span>}
+                      {getTierBadge(model.tier)}
+                    </div>
+                  </DropdownMenuItem>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         ))}
 
         <DropdownMenuSeparator />
