@@ -90,6 +90,7 @@ export function LiveKitRoom({
   const channelRef = useRef<any>(null);
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [participantToKick, setParticipantToKick] = useState<string | null>(null);
+  const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
 
   // Set up real-time channel for call events
   useEffect(() => {
@@ -141,6 +142,13 @@ export function LiveKitRoom({
       disconnect();
     };
   }, [roomName, participantName, connect, disconnect, initialVideo, initialAudio]);
+
+  // Track if we've ever successfully connected to improve UX on disconnects
+  useEffect(() => {
+    if (isConnected) {
+      setHasConnectedOnce(true);
+    }
+  }, [isConnected]);
 
   // Attach local video track
   useEffect(() => {
@@ -232,6 +240,12 @@ export function LiveKitRoom({
     disconnect();
     onDisconnect();
   }, [disconnect, onDisconnect]);
+
+  const handleReconnect = useCallback(() => {
+    console.log("User requested reconnect to room:", roomName);
+    disconnect();
+    connect(roomName, participantName, initialVideo, initialAudio);
+  }, [disconnect, connect, roomName, participantName, initialVideo, initialAudio]);
 
   const handleEndCallForAll = useCallback(async () => {
     if (channelRef.current && isHost) {
@@ -384,19 +398,30 @@ export function LiveKitRoom({
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full bg-background text-destructive p-4">
-        <p>Connection error: {error}</p>
-      </div>
-    );
-  }
+  if (!isConnected) {
+    // Initial connect or reconnect states
+    if (isConnecting || !hasConnectedOnce) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full bg-background text-foreground p-4 gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p>Connecting to call...</p>
+        </div>
+      );
+    }
 
-  if (isConnecting || !isConnected) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-background text-foreground p-4 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p>Connecting to call...</p>
+        <p className="text-lg font-medium">
+          {error ? `Connection lost: ${error}` : "Connection lost. You can try reconnecting."}
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={handleReconnect} variant="default">
+            Reconnect
+          </Button>
+          <Button onClick={handleDisconnect} variant="outline">
+            Leave call
+          </Button>
+        </div>
       </div>
     );
   }

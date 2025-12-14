@@ -172,7 +172,7 @@ export function useLiveKit(): UseLiveKitReturn {
           adaptiveStream: true,
           dynacast: true,
           // Reconnection settings for stability
-          disconnectOnPageLeave: true,
+          disconnectOnPageLeave: false,
           stopLocalTrackOnUnpublish: true,
           // Better video quality defaults
           publishDefaults: {
@@ -225,10 +225,14 @@ export function useLiveKit(): UseLiveKitReturn {
         newRoom.on(RoomEvent.Disconnected, (reason) => {
           console.log("Disconnected from LiveKit room, reason:", reason);
           setIsConnected(false);
+          setIsConnecting(false);
+          setIsReconnecting(false);
+          const message = reason ? String(reason) : "Connection lost. Please try reconnecting.";
+          setError(`Disconnected: ${message}`);
           setLocalParticipant(null);
           setRemoteParticipants([]);
           // Clean up all audio elements
-          audioElementsRef.current.forEach((audioEl, id) => {
+          audioElementsRef.current.forEach((audioEl) => {
             audioEl.srcObject = null;
           });
           audioElementsRef.current.clear();
