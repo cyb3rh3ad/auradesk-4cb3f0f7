@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, MoreVertical, UserX, Volume2, VolumeX, Loader2, Wifi, WifiOff, Signal
+  Sparkles, MoreVertical, UserX, Volume2, VolumeX, Loader2, Wifi, WifiOff, Signal,
+  Bug, X, ChevronDown, ChevronUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "@/hooks/useLiveKit";
@@ -68,6 +69,9 @@ export function LiveKitRoom({
     screenShareParticipant,
     connectionQuality,
     reconnect,
+    debugEvents,
+    reconnectAttempts,
+    connectionState,
   } = useLiveKit();
 
   // Show toast when media error occurs
@@ -93,6 +97,7 @@ export function LiveKitRoom({
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [participantToKick, setParticipantToKick] = useState<string | null>(null);
   const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   // Set up real-time channel for call events
   useEffect(() => {
@@ -441,6 +446,71 @@ export function LiveKitRoom({
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
+      {/* Debug toggle button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 left-4 z-40 h-8 w-8 bg-background/70 hover:bg-background/90"
+        onClick={() => setShowDebugPanel(!showDebugPanel)}
+        title="Toggle debug panel"
+      >
+        <Bug className="h-4 w-4" />
+      </Button>
+
+      {/* Debug panel */}
+      {showDebugPanel && (
+        <div className="absolute top-14 left-4 z-50 w-80 max-h-64 bg-background/95 border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50">
+            <span className="text-xs font-medium">LiveKit Debug</span>
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setShowDebugPanel(false)}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="px-3 py-2 border-b border-border text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">State:</span>
+              <span className={cn(
+                "font-mono",
+                connectionState === "connected" ? "text-green-500" : 
+                connectionState === "disconnected" ? "text-red-500" : "text-yellow-500"
+              )}>{connectionState}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quality:</span>
+              <span className="font-mono">{connectionQuality ?? "unknown"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Reconnects:</span>
+              <span className="font-mono">{reconnectAttempts}/5</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Participants:</span>
+              <span className="font-mono">{allParticipants.length}</span>
+            </div>
+          </div>
+          <div className="max-h-32 overflow-y-auto">
+            {debugEvents.length === 0 ? (
+              <p className="text-xs text-muted-foreground p-3">No events yet...</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {[...debugEvents].reverse().map((event, i) => (
+                  <div key={i} className="px-3 py-1.5 text-xs">
+                    <span className="text-muted-foreground">{event.time}</span>
+                    <span className={cn(
+                      "ml-2 font-medium",
+                      event.type === "CONNECTED" ? "text-green-500" :
+                      event.type === "DISCONNECT" ? "text-red-500" :
+                      event.type === "RECONNECT" ? "text-yellow-500" : "text-foreground"
+                    )}>[{event.type}]</span>
+                    <span className="ml-1 text-muted-foreground">{event.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Connection quality indicator */}
       <div className="absolute top-4 right-4 z-40 flex items-center gap-2 bg-background/70 rounded-full px-3 py-1.5">
         {connectionQuality === ConnectionQuality.Excellent && (
