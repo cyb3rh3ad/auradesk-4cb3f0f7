@@ -110,8 +110,8 @@ serve(async (req) => {
             enable_screenshare: true,
             // Enable recording (optional)
             enable_recording: "cloud",
-            // Max participants
-            max_participants: 50,
+            // Max participants (free tier limit)
+            max_participants: 4,
             // Auto-join with audio/video
             start_audio_off: false,
             start_video_off: false,
