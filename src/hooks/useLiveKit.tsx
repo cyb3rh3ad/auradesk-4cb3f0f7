@@ -33,6 +33,7 @@ interface UseLiveKitReturn {
   isConnecting: boolean;
   isConnected: boolean;
   error: string | null;
+  mediaError: string | null;
   localParticipant: ParticipantState | null;
   remoteParticipants: ParticipantState[];
   screenShareParticipant: ParticipantState | null;
@@ -51,6 +52,7 @@ export function useLiveKit(): UseLiveKitReturn {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [localParticipant, setLocalParticipant] = useState<ParticipantState | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<ParticipantState[]>([]);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -331,10 +333,36 @@ export function useLiveKit(): UseLiveKitReturn {
 
         // Connect to room
         await newRoom.connect(url, token);
+        console.log("Connected to LiveKit room, now creating local tracks...");
 
         // Create and publish local tracks based on initial settings
+        // Request permissions explicitly for better browser compatibility
         if (initialAudio || initialVideo) {
           try {
+            // First, request permission explicitly
+            console.log(`Requesting media: audio=${initialAudio}, video=${initialVideo}`);
+            
+            const constraints: MediaStreamConstraints = {
+              audio: initialAudio ? {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              } : false,
+              video: initialVideo ? {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+              } : false,
+            };
+
+            // Pre-request permission to ensure browser grants access
+            const testStream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log("Media permission granted, got tracks:", testStream.getTracks().map(t => t.kind));
+            
+            // Stop the test stream immediately
+            testStream.getTracks().forEach(track => track.stop());
+
+            // Now create LiveKit tracks
             const tracks = await createLocalTracks({
               audio: initialAudio,
               video: initialVideo ? {
@@ -342,14 +370,29 @@ export function useLiveKit(): UseLiveKitReturn {
               } : false,
             });
 
+            console.log("Created local tracks:", tracks.map(t => t.kind));
+
             for (const track of tracks) {
               await newRoom.localParticipant.publishTrack(track, {
                 simulcast: track.kind === Track.Kind.Video,
               });
-              console.log(`Published local ${track.kind} track`);
+              console.log(`Published local ${track.kind} track successfully`);
             }
-          } catch (mediaErr) {
+          } catch (mediaErr: any) {
             console.error("Failed to create local tracks:", mediaErr);
+            // Show more specific error
+            let errorMessage = "Failed to access microphone/camera";
+            if (mediaErr.name === 'NotAllowedError') {
+              errorMessage = "Camera/microphone permission denied. Please allow access in your browser settings.";
+            } else if (mediaErr.name === 'NotFoundError') {
+              errorMessage = "No camera or microphone found on this device.";
+            } else if (mediaErr.name === 'NotReadableError') {
+              errorMessage = "Camera or microphone is already in use by another application.";
+            } else if (mediaErr.name === 'OverconstrainedError') {
+              errorMessage = "Camera/microphone doesn't support the required settings.";
+            }
+            setMediaError(errorMessage);
+            console.error("Media error:", errorMessage);
             // Don't fail the connection, just log the error
           }
         }
@@ -525,6 +568,7 @@ export function useLiveKit(): UseLiveKitReturn {
     isConnecting,
     isConnected,
     error,
+    mediaError,
     localParticipant,
     remoteParticipants,
     screenShareParticipant,
