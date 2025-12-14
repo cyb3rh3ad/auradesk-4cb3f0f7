@@ -56,6 +56,7 @@ export const CallDialog = ({
           initialVideo={initialVideo}
           initialAudio={true}
           isHost={isCaller}
+          forceMode="webrtc"
         />
       </DialogContent>
     </Dialog>
