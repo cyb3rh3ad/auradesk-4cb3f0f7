@@ -488,6 +488,27 @@ export function useLiveKit(): UseLiveKitReturn {
 
     newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       console.log(`[LiveKit] Track subscribed: ${track.kind} from ${participant.identity}`);
+      addDebugEvent("TRACK", `Subscribed ${track.kind} from ${participant.identity}`);
+      
+      // Add jitter buffer delay to remote tracks for stability (500ms buffer)
+      // This acts like a "capacitor" - storing packets to smooth out network jitter
+      try {
+        const mediaStreamTrack = track.mediaStreamTrack;
+        if (mediaStreamTrack) {
+          // Access RTCRtpReceiver through the track's internal receiver if available
+          // Use type assertion to access internal properties
+          const trackAny = track as any;
+          if (trackAny.receiver && 'playoutDelayHint' in trackAny.receiver) {
+            trackAny.receiver.playoutDelayHint = 0.5; // 500ms buffer
+            addDebugEvent("BUFFER", `Set 500ms jitter buffer for ${track.kind}`);
+          } else if (trackAny._receiver && 'playoutDelayHint' in trackAny._receiver) {
+            trackAny._receiver.playoutDelayHint = 0.5;
+            addDebugEvent("BUFFER", `Set 500ms jitter buffer for ${track.kind}`);
+          }
+        }
+      } catch (e) {
+        console.log("[LiveKit] Could not set playout delay hint:", e);
+      }
       
       if (track.kind === Track.Kind.Audio) {
         setTimeout(() => {
