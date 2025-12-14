@@ -400,14 +400,6 @@ export function useLiveKit(): UseLiveKitReturn {
         console.warn("[LiveKit] Poor connection quality detected");
         setConnectionQuality(quality);
       }
-      
-      // Detect silent disconnection
-      if (state === ConnectionState.Disconnected) {
-        console.warn("[LiveKit] Detected disconnected state during health check");
-        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          performReconnect();
-        }
-      }
     }, CONNECTION_HEALTH_CHECK_INTERVAL);
   }, [performReconnect]);
 
@@ -437,18 +429,10 @@ export function useLiveKit(): UseLiveKitReturn {
       console.log("[LiveKit] Disconnected, reason:", reason);
       setIsConnected(false);
       setIsConnecting(false);
-      
-      // Attempt automatic reconnection if not manual disconnect
-      const isClientInitiated = reason && String(reason).includes('CLIENT');
-      if (!isClientInitiated && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-        console.log("[LiveKit] Will attempt automatic reconnection");
-        performReconnect();
-      } else if (!isClientInitiated) {
-        setError(`Disconnected: ${reason || "Connection lost"}`);
-        setIsReconnecting(false);
-        setLocalParticipant(null);
-        setRemoteParticipants([]);
-      }
+      setIsReconnecting(false);
+      setError(`Disconnected: ${reason || "Connection lost"}`);
+      setLocalParticipant(null);
+      setRemoteParticipants([]);
     });
 
     newRoom.on(RoomEvent.Reconnecting, () => {
@@ -626,11 +610,6 @@ export function useLiveKit(): UseLiveKitReturn {
         console.error("[LiveKit] Connection error:", err);
         setError(err instanceof Error ? err.message : "Failed to connect");
         setIsConnecting(false);
-        
-        // Attempt reconnection
-        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          performReconnect();
-        }
       }
     },
     [getToken, setupRoomEventHandlers, publishLocalTracks, updateParticipantState, scheduleTokenRefresh, startHealthCheck, performReconnect],
@@ -687,10 +666,12 @@ export function useLiveKit(): UseLiveKitReturn {
       console.error("[LiveKit] No connection params for manual reconnect");
       return;
     }
-    
-    reconnectAttemptsRef.current = 0;
-    await performReconnect();
-  }, [performReconnect]);
+
+    const { roomName, participantName, initialVideo, initialAudio } = connectionParamsRef.current;
+
+    await disconnect();
+    await connect(roomName, participantName, initialVideo, initialAudio);
+  }, [disconnect, connect]);
 
   const toggleMute = useCallback(async () => {
     if (!roomRef.current) return;
