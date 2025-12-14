@@ -449,7 +449,7 @@ export function useLiveKit(): UseLiveKitReturn {
         setConnectionQuality(quality);
       }
     }, CONNECTION_HEALTH_CHECK_INTERVAL);
-  }, [performReconnect]);
+  }, []);
 
   // Setup room event handlers
   const setupRoomEventHandlers = useCallback((newRoom: Room, initialVideo: boolean, initialAudio: boolean) => {
@@ -536,103 +536,14 @@ export function useLiveKit(): UseLiveKitReturn {
     newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       console.log(`[LiveKit] Track subscribed: ${track.kind} from ${participant.identity}`);
       addDebugEvent("TRACK", `Subscribed ${track.kind} from ${participant.identity}`);
-      
-      // MULTI-CAPACITOR BUFFER SYSTEM
-      // Primary: 1.0s base buffer
-      // Secondary layers kick in during instability
-      const BASE_BUFFER = 1.0; // 1 second primary capacitor
-      
-      try {
-        const trackAny = track as any;
-        const receiver = trackAny.receiver || trackAny._receiver;
-        
-        if (receiver) {
-          // Set primary buffer
-          if ('playoutDelayHint' in receiver) {
-            receiver.playoutDelayHint = BASE_BUFFER;
-            addDebugEvent("CAP1", `Primary: ${BASE_BUFFER}s buffer`);
-          }
-          
-          // Set jitter buffer target as secondary capacitor
-          if (receiver.jitterBufferTarget !== undefined) {
-            receiver.jitterBufferTarget = 750; // 750ms secondary
-            addDebugEvent("CAP2", `Secondary: 750ms jitter target`);
-          }
-          
-          // Adaptive buffer - monitor and increase if quality drops
-          let currentBuffer = BASE_BUFFER;
-          const adaptiveCheck = setInterval(() => {
-            if (!receiver || !newRoom || newRoom.state !== 'connected') {
-              clearInterval(adaptiveCheck);
-              return;
-            }
-            
-            try {
-              // Check if we need to engage backup capacitors
-              receiver.getStats?.().then((stats: RTCStatsReport) => {
-                stats.forEach((report) => {
-                  if (report.type === 'inbound-rtp') {
-                    const packetsLost = report.packetsLost || 0;
-                    const packetsReceived = report.packetsReceived || 1;
-                    const jitter = report.jitter || 0;
 
-                    const lossRate = packetsLost / (packetsReceived + packetsLost);
-                    const jitterMs = jitter * 1000;
-
-                    // Multi-capacitor logic:
-                    // CAP+1: mild issues -> small increment
-                    // CAP+2: medium issues -> medium increment
-                    // CAP+3: severe issues -> strong increment
-                    let increment = 0;
-                    let level = '';
-
-                    if (jitterMs > 400 || lossRate > 0.15) {
-                      // Severe instability
-                      increment = 0.4; // 400ms
-                      level = 'CAP+3';
-                    } else if (jitterMs > 250 || lossRate > 0.08) {
-                      // Medium instability
-                      increment = 0.25; // 250ms
-                      level = 'CAP+2';
-                    } else if (jitterMs > 150 || lossRate > 0.05) {
-                      // Mild instability
-                      increment = 0.15; // 150ms
-                      level = 'CAP+1';
-                    }
-
-                    if (increment > 0 && 'playoutDelayHint' in receiver) {
-                      const newBuffer = Math.min(currentBuffer + increment, 1.75); // allow up to ~1s + 0.75s backup
-                      if (newBuffer > currentBuffer) {
-                        receiver.playoutDelayHint = newBuffer;
-                        currentBuffer = newBuffer;
-                        addDebugEvent(
-                          level,
-                          `${level}: buffer=${newBuffer.toFixed(2)}s (jitter=${jitterMs.toFixed(0)}ms, loss=${(lossRate * 100).toFixed(1)}%)`
-                        );
-                      }
-                    }
-                  }
-                });
-              });
-            } catch (e) {
-              // Stats not available, keep current buffer
-            }
-          }, 2000); // Check every 2 seconds
-          
-          // Store interval for cleanup
-          if (!trackAny._adaptiveIntervals) trackAny._adaptiveIntervals = [];
-          trackAny._adaptiveIntervals.push(adaptiveCheck);
-        }
-      } catch (e) {
-        console.log("[LiveKit] Buffer setup error:", e);
-      }
-      
+      // Let LiveKit manage jitter and buffering internally; we only attach media
       if (track.kind === Track.Kind.Audio) {
         setTimeout(() => {
           attachAudioTrack(participant.identity, track);
         }, 100);
       }
-      
+
       updateRemoteParticipants();
     });
 
@@ -723,12 +634,6 @@ export function useLiveKit(): UseLiveKitReturn {
         setIsConnecting(false);
         return;
       }
-
-      // PRE-CONNECTION BUFFER: "Charge the capacitors" - 2 second delay before connecting
-      // This allows the system to stabilize before media starts flowing
-      addDebugEvent("CHARGE", "Charging capacitors... 2s buffer before connection");
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      addDebugEvent("CHARGE", "Capacitors charged - proceeding with connection");
 
       // Store connection params for reconnection
       connectionParamsRef.current = { roomName, participantName, initialVideo, initialAudio };
@@ -857,35 +762,29 @@ export function useLiveKit(): UseLiveKitReturn {
   }, [disconnect, connect]);
 
   const toggleMute = useCallback(async () => {
-    if (!roomRef.current) return;
-    
-    const audioPublication = roomRef.current.localParticipant.getTrackPublication(Track.Source.Microphone);
-    
-    if (audioPublication?.track) {
-      if (audioPublication.isMuted) {
-        await audioPublication.unmute();
-        setIsMuted(false);
-        console.log("[LiveKit] Microphone unmuted");
-      } else {
-        await audioPublication.mute();
-        setIsMuted(true);
-        console.log("[LiveKit] Microphone muted");
-      }
-    } else {
-      try {
-        const tracks = await createLocalTracks({ audio: true, video: false });
-        for (const track of tracks) {
-          await roomRef.current!.localParticipant.publishTrack(track);
-        }
-        setIsMuted(false);
-        console.log("[LiveKit] Microphone enabled");
-      } catch (err) {
-        console.error("[LiveKit] Failed to enable microphone:", err);
-      }
+    if (!roomRef.current) {
+      console.warn("[LiveKit] toggleMute: No room reference");
+      return;
     }
-    
-    updateParticipantState(roomRef.current.localParticipant, true);
-  }, [updateParticipantState]);
+
+    const localParticipant = roomRef.current.localParticipant;
+
+    try {
+      const enable = isMuted;
+      console.log("[LiveKit] toggleMute: setting microphone enabled:", enable);
+
+      // Use LiveKit helper to manage microphone tracks
+      await localParticipant.setMicrophoneEnabled(enable);
+
+      setIsMuted(!enable);
+      console.log("[LiveKit] Microphone state updated. isMuted=", !enable);
+    } catch (err) {
+      console.error("[LiveKit] Failed to toggle microphone:", err);
+      setMediaError("Failed to access microphone. Please check permissions.");
+    }
+
+    updateParticipantState(localParticipant, true);
+  }, [isMuted, updateParticipantState]);
 
   const toggleCamera = useCallback(async () => {
     if (!roomRef.current) {
