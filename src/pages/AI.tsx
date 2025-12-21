@@ -2,17 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useAIChatSessions } from '@/hooks/useAIChatSessions';
 import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useSubscription } from '@/hooks/useSubscription';
 import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
 import { AIModelSelector } from '@/components/ai/AIModelSelector';
-import { Loader2, Send, Bot, User, Sparkles, Menu, X, Settings } from 'lucide-react';
+import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import type { SubscriptionPlan } from '@/lib/ai-models';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AI = () => {
   const [input, setInput] = useState('');
@@ -51,14 +51,12 @@ const AI = () => {
     const userInput = input.trim();
     setInput('');
 
-    // Create session if none exists
     let sessionId = currentSessionId;
     if (!sessionId) {
       sessionId = await createSession();
       if (!sessionId) return;
     }
 
-    // Add user message
     await addMessage('user', userInput);
 
     let assistantContent = '';
@@ -89,7 +87,6 @@ const AI = () => {
 
   const handleModelChange = (modelId: string) => {
     updatePreferences({ selected_model: modelId });
-    // Update the session's last used model
     if (currentSessionId) {
       updateSessionModel(currentSessionId, modelId);
     }
@@ -99,8 +96,29 @@ const AI = () => {
     updatePreferences({ execution_mode: mode });
   };
 
+  const suggestionCards = [
+    {
+      icon: Lightbulb,
+      title: "Brainstorm ideas",
+      description: "Help me think through a problem",
+      prompt: "Help me brainstorm creative solutions for improving team productivity"
+    },
+    {
+      icon: MessageCircle,
+      title: "Plan a meeting",
+      description: "Organize your next team sync",
+      prompt: "Help me plan an effective team meeting agenda"
+    },
+    {
+      icon: Zap,
+      title: "Quick summary",
+      description: "Summarize complex topics",
+      prompt: "Explain the key benefits of AI-powered collaboration tools"
+    },
+  ];
+
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-4rem)] bg-background">
       {/* Mobile sidebar toggle */}
       <Button
         variant="ghost"
@@ -127,13 +145,21 @@ const AI = () => {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="border-b p-4 bg-gradient-to-r from-primary/10 to-purple-500/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 ml-10 md:ml-0">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold">Aura AI</h1>
+        <div className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-10">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3 ml-10 md:ml-0">
+              <div className="relative">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25">
+                  <Sparkles className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">Aura</h1>
+                <p className="text-xs text-muted-foreground">AI Assistant</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <AIModelSelector
@@ -147,139 +173,194 @@ const AI = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-9 w-9"
                 onClick={() => navigate('/ai-settings')}
               >
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground ml-10 md:ml-0">
-            Your intelligent assistant powered by advanced AI
-          </p>
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {!currentSessionId || messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-2xl mx-auto">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                <Bot className="h-24 w-24 text-primary relative" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Start a New Conversation</h2>
-                <p className="text-muted-foreground">
-                  Ask me anything! I can help with tasks, answer questions, provide suggestions, and more.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full mt-4">
-                <Card
-                  className="p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => setInput("Help me plan a team meeting")}
+        <ScrollArea className="flex-1" ref={scrollRef}>
+          <div className="max-w-3xl mx-auto px-4 py-6">
+            <AnimatePresence mode="wait">
+              {!currentSessionId || messages.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
                 >
-                  <p className="text-sm font-medium">Plan a meeting</p>
-                  <p className="text-xs text-muted-foreground">Get help organizing your next team sync</p>
-                </Card>
-                <Card
-                  className="p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => setInput("Suggest improvements for team collaboration")}
-                >
-                  <p className="text-sm font-medium">Improve collaboration</p>
-                  <p className="text-xs text-muted-foreground">Get suggestions for better teamwork</p>
-                </Card>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 max-w-3xl mx-auto pb-4">
-              {messages.map((message, index) => (
-                <div
-                  key={message.id || index}
-                  className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-primary/10">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
-                  <div className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}>
-                    {message.content.includes('![Generated Image]') ? (
-                      <div className="space-y-2">
-                        {message.content.split('\n\n').map((part, i) => {
-                          const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);
-                          if (imgMatch) {
-                            return (
-                              <img 
-                                key={i}
-                                src={imgMatch[1]} 
-                                alt="Generated" 
-                                className="rounded-lg max-w-full h-auto"
-                              />
-                            );
-                          }
-                          return part ? <p key={i} className="text-sm whitespace-pre-wrap break-words">{part}</p> : null;
-                        })}
+                  {/* Hero icon */}
+                  <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-purple-500/30 blur-3xl scale-150 opacity-50" />
+                    <motion.div
+                      animate={{ 
+                        scale: [1, 1.05, 1],
+                        rotate: [0, 5, -5, 0]
+                      }}
+                      transition={{ 
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="relative h-20 w-20 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 flex items-center justify-center shadow-2xl shadow-primary/30"
+                    >
+                      <Sparkles className="h-10 w-10 text-primary-foreground" />
+                    </motion.div>
+                  </div>
+                  
+                  <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
+                  <p className="text-muted-foreground mb-8 max-w-md">
+                    I'm Aura, your AI assistant. Ask me anything or choose a suggestion below.
+                  </p>
+                  
+                  {/* Suggestion cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl">
+                    {suggestionCards.map((card, index) => (
+                      <motion.button
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => setInput(card.prompt)}
+                        className="group p-4 rounded-xl border bg-card/50 hover:bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 text-left"
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                          <card.icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <p className="font-medium text-sm mb-1">{card.title}</p>
+                        <p className="text-xs text-muted-foreground">{card.description}</p>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <div className="space-y-6 pb-4">
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={message.id || index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={cn(
+                        "flex gap-3",
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
+                      )}
+                    >
+                      {message.role === 'assistant' && (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-600 shadow-md shadow-primary/20">
+                          <Sparkles className="h-4 w-4 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div className={cn(
+                        "rounded-2xl px-4 py-3 max-w-[85%] shadow-sm",
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-md'
+                          : 'bg-muted/80 rounded-bl-md'
+                      )}>
+                        {message.content.includes('![Generated Image]') ? (
+                          <div className="space-y-2">
+                            {message.content.split('\n\n').map((part, i) => {
+                              const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);
+                              if (imgMatch) {
+                                return (
+                                  <img 
+                                    key={i}
+                                    src={imgMatch[1]} 
+                                    alt="Generated" 
+                                    className="rounded-lg max-w-full h-auto"
+                                  />
+                                );
+                              }
+                              return part ? <p key={i} className="text-sm whitespace-pre-wrap break-words leading-relaxed">{part}</p> : null;
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                        )}
+                        <p className={cn(
+                          "text-[10px] mt-2 opacity-60",
+                          message.role === 'user' ? 'text-right' : 'text-left'
+                        )}>
+                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                    )}
-                    <p className={`text-xs mt-1 ${
-                      message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    }`}>
-                      {new Date(message.created_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  {message.role === 'user' && (
-                    <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-accent">
-                      <User className="h-4 w-4" />
-                    </div>
+                      {message.role === 'user' && (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent shadow-sm">
+                          <User className="h-4 w-4" />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                  {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex gap-3 justify-start"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-600 shadow-md shadow-primary/20">
+                        <Sparkles className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                      <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-muted/80">
+                        <div className="flex items-center gap-1.5">
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                            className="h-2 w-2 rounded-full bg-primary/60"
+                          />
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                            className="h-2 w-2 rounded-full bg-primary/60"
+                          />
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                            className="h-2 w-2 rounded-full bg-primary/60"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-              ))}
-              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                <div className="flex gap-3 justify-start">
-                  <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-primary/10">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="rounded-2xl px-4 py-3 bg-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
                 </div>
               )}
-            </div>
-          )}
+            </AnimatePresence>
+          </div>
         </ScrollArea>
 
         {/* Input area */}
-        <div className="border-t p-4 bg-card/50 backdrop-blur">
-          <div className="flex gap-2 max-w-3xl mx-auto">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask Aura anything..."
-              disabled={isLoading}
-              className="flex-1 bg-background"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              size="icon"
-              className="shrink-0"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+        <div className="border-t bg-background/80 backdrop-blur-xl p-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Message Aura..."
+                  disabled={isLoading}
+                  className="pr-12 py-6 rounded-xl bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/50"
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  size="icon"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <p className="text-[10px] text-center text-muted-foreground mt-2">
+              Aura can make mistakes. Consider checking important information.
+            </p>
           </div>
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            Powered by Aura AI
-          </p>
         </div>
       </div>
     </div>
