@@ -18,7 +18,20 @@ export interface ConnectionStats {
   roundTripTime: number;
   jitter: number;
   connectionQuality: 'excellent' | 'good' | 'fair' | 'poor';
+  // Bandwidth stats
+  inboundBitrate: number; // kbps
+  outboundBitrate: number; // kbps
+  totalBandwidth: number; // kbps
+  isBelowMinimum: boolean; // true if below 3mbps
+  adaptiveMode: 'high' | 'medium' | 'low' | 'audio-only';
 }
+
+// Minimum bandwidth threshold (3 Mbps = 3000 kbps)
+const MIN_BANDWIDTH_KBPS = 3000;
+// Adaptive quality thresholds
+const HIGH_QUALITY_THRESHOLD = 5000; // 5 Mbps
+const MEDIUM_QUALITY_THRESHOLD = 2000; // 2 Mbps
+const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
 // Multiple STUN servers for better NAT traversal success
 // TURN servers provide relay fallback when P2P fails (~30% of connections)
@@ -78,6 +91,70 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const makingOffer = useRef<Set<string>>(new Set());
   const knownPeers = useRef<Map<string, string>>(new Map()); // peerId -> peerName
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastBytesReceived = useRef<number>(0);
+  const lastBytesSent = useRef<number>(0);
+  const lastStatsTime = useRef<number>(Date.now());
+  const lowBandwidthCount = useRef<number>(0);
+  const currentAdaptiveMode = useRef<'high' | 'medium' | 'low' | 'audio-only'>('high');
+
+  // Adapt video quality based on bandwidth
+  const adaptVideoQuality = useCallback(async (mode: 'high' | 'medium' | 'low' | 'audio-only') => {
+    if (currentAdaptiveMode.current === mode) return;
+    
+    console.log("[WebRTC] Adapting video quality to:", mode);
+    currentAdaptiveMode.current = mode;
+
+    const connections = Array.from(peerConnections.current.values());
+    
+    for (const pc of connections) {
+      const senders = pc.getSenders();
+      const videoSender = senders.find(s => s.track?.kind === 'video');
+      
+      if (videoSender && videoSender.track) {
+        const params = videoSender.getParameters();
+        
+        if (!params.encodings || params.encodings.length === 0) {
+          params.encodings = [{}];
+        }
+
+        switch (mode) {
+          case 'high':
+            params.encodings[0].maxBitrate = 2500000; // 2.5 Mbps
+            params.encodings[0].scaleResolutionDownBy = 1;
+            if (localStreamRef.current) {
+              localStreamRef.current.getVideoTracks().forEach(t => t.enabled = true);
+            }
+            break;
+          case 'medium':
+            params.encodings[0].maxBitrate = 1000000; // 1 Mbps
+            params.encodings[0].scaleResolutionDownBy = 1.5;
+            if (localStreamRef.current) {
+              localStreamRef.current.getVideoTracks().forEach(t => t.enabled = true);
+            }
+            break;
+          case 'low':
+            params.encodings[0].maxBitrate = 400000; // 400 kbps
+            params.encodings[0].scaleResolutionDownBy = 2;
+            if (localStreamRef.current) {
+              localStreamRef.current.getVideoTracks().forEach(t => t.enabled = true);
+            }
+            break;
+          case 'audio-only':
+            params.encodings[0].maxBitrate = 50000; // Minimal
+            if (localStreamRef.current) {
+              localStreamRef.current.getVideoTracks().forEach(t => t.enabled = false);
+            }
+            break;
+        }
+
+        try {
+          await videoSender.setParameters(params);
+        } catch (err) {
+          console.warn("[WebRTC] Failed to set video parameters:", err);
+        }
+      }
+    }
+  }, []);
 
   // Collect connection statistics from peer connections
   const collectStats = useCallback(async () => {
@@ -133,13 +210,61 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         }
       });
 
-      // Calculate connection quality based on RTT and packet loss
+      // Calculate bitrate (kbps)
+      const now = Date.now();
+      const timeDelta = (now - lastStatsTime.current) / 1000; // seconds
+      
+      const inboundBitrate = timeDelta > 0 
+        ? Math.round(((bytesReceived - lastBytesReceived.current) * 8) / timeDelta / 1000) 
+        : 0;
+      const outboundBitrate = timeDelta > 0 
+        ? Math.round(((bytesSent - lastBytesSent.current) * 8) / timeDelta / 1000) 
+        : 0;
+      const totalBandwidth = inboundBitrate + outboundBitrate;
+
+      // Update last values for next calculation
+      lastBytesReceived.current = bytesReceived;
+      lastBytesSent.current = bytesSent;
+      lastStatsTime.current = now;
+
+      // Check if below minimum bandwidth (3 Mbps)
+      const isBelowMinimum = totalBandwidth > 0 && totalBandwidth < MIN_BANDWIDTH_KBPS;
+
+      // Adaptive quality based on bandwidth
+      let adaptiveMode: 'high' | 'medium' | 'low' | 'audio-only' = 'high';
+      if (totalBandwidth > 0) {
+        if (totalBandwidth >= HIGH_QUALITY_THRESHOLD) {
+          adaptiveMode = 'high';
+          lowBandwidthCount.current = 0;
+        } else if (totalBandwidth >= MEDIUM_QUALITY_THRESHOLD) {
+          adaptiveMode = 'medium';
+          lowBandwidthCount.current = 0;
+        } else if (totalBandwidth >= LOW_QUALITY_THRESHOLD) {
+          adaptiveMode = 'low';
+          lowBandwidthCount.current = 0;
+        } else {
+          adaptiveMode = 'audio-only';
+          lowBandwidthCount.current++;
+        }
+
+        // Apply adaptive quality
+        adaptVideoQuality(adaptiveMode);
+
+        // Only disconnect after sustained very low bandwidth (10 consecutive checks = 20 seconds)
+        // AND bandwidth is below absolute minimum
+        if (lowBandwidthCount.current >= 10 && totalBandwidth < 100) {
+          console.warn("[WebRTC] Sustained critically low bandwidth, but keeping connection alive");
+          // We don't disconnect - just warn. User can manually disconnect if needed
+        }
+      }
+
+      // Calculate connection quality based on RTT, packet loss, and bandwidth
       let connectionQuality: 'excellent' | 'good' | 'fair' | 'poor' = 'excellent';
-      if (roundTripTime > 300 || packetsLost > 50) {
+      if (roundTripTime > 300 || packetsLost > 50 || (totalBandwidth > 0 && totalBandwidth < LOW_QUALITY_THRESHOLD)) {
         connectionQuality = 'poor';
-      } else if (roundTripTime > 150 || packetsLost > 20) {
+      } else if (roundTripTime > 150 || packetsLost > 20 || (totalBandwidth > 0 && totalBandwidth < MEDIUM_QUALITY_THRESHOLD)) {
         connectionQuality = 'fair';
-      } else if (roundTripTime > 50 || packetsLost > 5) {
+      } else if (roundTripTime > 50 || packetsLost > 5 || (totalBandwidth > 0 && totalBandwidth < HIGH_QUALITY_THRESHOLD)) {
         connectionQuality = 'good';
       }
 
@@ -153,11 +278,16 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         roundTripTime: Math.round(roundTripTime),
         jitter: Math.round(jitter),
         connectionQuality,
+        inboundBitrate: Math.max(0, inboundBitrate),
+        outboundBitrate: Math.max(0, outboundBitrate),
+        totalBandwidth: Math.max(0, totalBandwidth),
+        isBelowMinimum,
+        adaptiveMode,
       });
     } catch (err) {
       console.error("[WebRTC] Failed to collect stats:", err);
     }
-  }, []);
+  }, [adaptVideoQuality]);
 
   // Start/stop stats collection based on connection state
   useEffect(() => {

@@ -478,6 +478,27 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
     poor: 'bg-red-500/20',
   };
 
+  const adaptiveModeLabels = {
+    'high': 'HD',
+    'medium': 'SD',
+    'low': 'Low',
+    'audio-only': 'Audio',
+  };
+
+  const adaptiveModeColors = {
+    'high': 'text-green-500',
+    'medium': 'text-blue-500',
+    'low': 'text-yellow-500',
+    'audio-only': 'text-orange-500',
+  };
+
+  const formatBandwidth = (kbps: number) => {
+    if (kbps >= 1000) {
+      return `${(kbps / 1000).toFixed(1)} Mbps`;
+    }
+    return `${kbps} kbps`;
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -494,6 +515,10 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
             )}
             <span className={cn("text-xs font-medium", qualityColors[stats.connectionQuality])}>
               {stats.isRelay ? 'Relay' : 'P2P'}
+            </span>
+            <span className="text-xs text-muted-foreground">•</span>
+            <span className={cn("text-xs font-medium", adaptiveModeColors[stats.adaptiveMode])}>
+              {adaptiveModeLabels[stats.adaptiveMode]}
             </span>
             <div className="flex gap-0.5">
               {[1, 2, 3, 4].map((bar) => (
@@ -524,16 +549,45 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
             </div>
             <div className="text-muted-foreground">
               {stats.isRelay 
-                ? 'Traffic routed through relay server (slower but works through strict firewalls)'
+                ? 'Traffic routed through relay server (works through strict firewalls)'
                 : 'Direct peer-to-peer connection (fastest, lowest latency)'
               }
             </div>
+            
+            {/* Bandwidth section */}
             <div className="pt-1 border-t border-border/50 space-y-0.5">
+              <div className="font-medium text-foreground">📊 Bandwidth</div>
+              <div>Download: <span className="font-medium">{formatBandwidth(stats.inboundBitrate)}</span></div>
+              <div>Upload: <span className="font-medium">{formatBandwidth(stats.outboundBitrate)}</span></div>
+              <div>Total: <span className={cn("font-medium", stats.isBelowMinimum && "text-yellow-500")}>
+                {formatBandwidth(stats.totalBandwidth)}
+                {stats.isBelowMinimum && " ⚠️"}
+              </span></div>
+            </div>
+
+            {/* Adaptive mode */}
+            <div className="pt-1 border-t border-border/50">
+              <div>
+                Quality Mode: <span className={cn("font-medium", adaptiveModeColors[stats.adaptiveMode])}>
+                  {stats.adaptiveMode === 'high' && '🎬 High Definition'}
+                  {stats.adaptiveMode === 'medium' && '📺 Standard Definition'}
+                  {stats.adaptiveMode === 'low' && '📱 Low Quality'}
+                  {stats.adaptiveMode === 'audio-only' && '🎤 Audio Only'}
+                </span>
+              </div>
+              {stats.adaptiveMode !== 'high' && (
+                <div className="text-muted-foreground mt-0.5">
+                  Auto-adjusted for your connection
+                </div>
+              )}
+            </div>
+
+            {/* Connection stats */}
+            <div className="pt-1 border-t border-border/50 space-y-0.5">
+              <div className="font-medium text-foreground">📡 Connection</div>
               <div>Latency: <span className="font-medium">{stats.roundTripTime}ms</span></div>
               <div>Jitter: <span className="font-medium">{stats.jitter}ms</span></div>
               <div>Packets lost: <span className="font-medium">{stats.packetsLost}</span></div>
-              <div>Local: <span className="font-medium">{stats.localCandidateType}</span></div>
-              <div>Remote: <span className="font-medium">{stats.remoteCandidateType}</span></div>
             </div>
           </div>
         </TooltipContent>
