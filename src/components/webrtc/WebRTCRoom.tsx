@@ -3,13 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, Loader2 
+  Sparkles, Loader2, Wifi, WifiOff, Radio, Server
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useWebRTC } from "@/hooks/useWebRTC";
+import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface WebRTCRoomProps {
   roomName: string;
@@ -39,6 +45,7 @@ export function WebRTCRoom({
     isConnected,
     error,
     callStatus,
+    connectionStats,
     joinRoom,
     leaveRoom,
     toggleAudio,
@@ -322,6 +329,11 @@ export function WebRTCRoom({
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
+      {/* Connection Quality Indicator */}
+      {connectionStats && (
+        <ConnectionQualityIndicator stats={connectionStats} />
+      )}
+      
       {/* Participants grid */}
       <div className={cn("p-4 grid gap-4 flex-1", gridCols)}>
         {allParticipants.map((participant) => {
@@ -447,6 +459,86 @@ export function WebRTCRoom({
         )}
       </div>
     </div>
+  );
+}
+
+// Connection quality indicator component
+function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
+  const qualityColors = {
+    excellent: 'text-green-500',
+    good: 'text-green-400',
+    fair: 'text-yellow-500',
+    poor: 'text-red-500',
+  };
+
+  const qualityBgColors = {
+    excellent: 'bg-green-500/20',
+    good: 'bg-green-400/20',
+    fair: 'bg-yellow-500/20',
+    poor: 'bg-red-500/20',
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "absolute top-2 right-2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full",
+            qualityBgColors[stats.connectionQuality],
+            "backdrop-blur-sm border border-border/50"
+          )}>
+            {stats.isRelay ? (
+              <Server className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+            ) : (
+              <Radio className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+            )}
+            <span className={cn("text-xs font-medium", qualityColors[stats.connectionQuality])}>
+              {stats.isRelay ? 'Relay' : 'P2P'}
+            </span>
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4].map((bar) => (
+                <div
+                  key={bar}
+                  className={cn(
+                    "w-1 rounded-full transition-all",
+                    bar === 1 && "h-1.5",
+                    bar === 2 && "h-2",
+                    bar === 3 && "h-2.5",
+                    bar === 4 && "h-3",
+                    (stats.connectionQuality === 'excellent' && bar <= 4) ||
+                    (stats.connectionQuality === 'good' && bar <= 3) ||
+                    (stats.connectionQuality === 'fair' && bar <= 2) ||
+                    (stats.connectionQuality === 'poor' && bar <= 1)
+                      ? qualityColors[stats.connectionQuality].replace('text-', 'bg-')
+                      : 'bg-muted-foreground/30'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <div className="space-y-1 text-xs">
+            <div className="font-medium">
+              {stats.isRelay ? '🔄 Using TURN Relay' : '⚡ Direct P2P Connection'}
+            </div>
+            <div className="text-muted-foreground">
+              {stats.isRelay 
+                ? 'Traffic routed through relay server (slower but works through strict firewalls)'
+                : 'Direct peer-to-peer connection (fastest, lowest latency)'
+              }
+            </div>
+            <div className="pt-1 border-t border-border/50 space-y-0.5">
+              <div>Latency: <span className="font-medium">{stats.roundTripTime}ms</span></div>
+              <div>Jitter: <span className="font-medium">{stats.jitter}ms</span></div>
+              <div>Packets lost: <span className="font-medium">{stats.packetsLost}</span></div>
+              <div>Local: <span className="font-medium">{stats.localCandidateType}</span></div>
+              <div>Remote: <span className="font-medium">{stats.remoteCandidateType}</span></div>
+            </div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
