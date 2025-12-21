@@ -1,4 +1,4 @@
-import { DailyRoom } from "@/components/daily/DailyRoom";
+import { WebRTCRoom } from "@/components/webrtc/WebRTCRoom";
 
 export interface HybridCallRoomProps {
   roomName: string;
@@ -11,8 +11,9 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - Now uses Daily.co for maximum stability
- * Daily handles all WebRTC complexity internally
+ * HybridCallRoom - Pure P2P WebRTC with TURN fallback
+ * Free, no external dependencies, 5 person limit
+ * Uses OpenRelay TURN servers for NAT traversal when needed
  */
 export function HybridCallRoom({
   roomName,
@@ -24,7 +25,7 @@ export function HybridCallRoom({
   isHost = false,
 }: HybridCallRoomProps) {
   return (
-    <DailyRoom
+    <WebRTCRoom
       roomName={roomName}
       participantName={participantName}
       onDisconnect={onDisconnect}

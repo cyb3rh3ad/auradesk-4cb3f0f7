@@ -8,12 +8,20 @@ interface Participant {
   name: string;
 }
 
+// Multiple STUN servers for better NAT traversal success
+// TURN servers provide relay fallback when P2P fails (~30% of connections)
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
+    // Google STUN servers (free, reliable)
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    // Additional public STUN servers for redundancy
+    { urls: "stun:stun.stunprotocol.org:3478" },
+    { urls: "stun:stun.voip.eutelia.it:3478" },
+    // OpenRelay TURN servers (free tier - relay when P2P fails)
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -29,8 +37,16 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "openrelayproject",
       credential: "openrelayproject",
     },
+    // Xirsys free TURN (backup)
+    {
+      urls: "turn:turn.anyfirewall.com:443?transport=tcp",
+      username: "webrtc",
+      credential: "webrtc",
+    },
   ],
   iceCandidatePoolSize: 10,
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
 };
 
 export const useWebRTC = (roomId: string | null, userName: string) => {
@@ -125,13 +141,56 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         if (pc.connectionState === 'connected') {
           setIsConnected(true);
           setCallStatus("IN_CALL");
-        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          console.warn("[WebRTC] Connection failed/disconnected for:", remoteUserId);
+        } else if (pc.connectionState === 'failed') {
+          console.warn("[WebRTC] Connection failed for:", remoteUserId, "- attempting recovery");
+          // Try ICE restart for failed connections
+          pc.restartIce();
+        } else if (pc.connectionState === 'disconnected') {
+          console.warn("[WebRTC] Connection disconnected for:", remoteUserId, "- waiting for recovery");
+          // Give it a moment to reconnect before taking action
+          setTimeout(() => {
+            if (pc.connectionState === 'disconnected') {
+              console.log("[WebRTC] Still disconnected, attempting ICE restart");
+              pc.restartIce();
+            }
+          }, 3000);
         }
       };
 
       pc.oniceconnectionstatechange = () => {
         console.log("[WebRTC] ICE connection state for", remoteUserId, ":", pc.iceConnectionState);
+        if (pc.iceConnectionState === 'failed') {
+          console.log("[WebRTC] ICE failed, restarting ICE");
+          pc.restartIce();
+        }
+      };
+
+      // Handle negotiation needed (for dynamic track changes)
+      pc.onnegotiationneeded = async () => {
+        console.log("[WebRTC] Negotiation needed for:", remoteUserId);
+        if (isPolite(remoteUserId) && !makingOffer.current.has(remoteUserId)) {
+          try {
+            makingOffer.current.add(remoteUserId);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            if (channelRef.current && user) {
+              await channelRef.current.send({
+                type: "broadcast",
+                event: "offer",
+                payload: { 
+                  offer: pc.localDescription, 
+                  from: user.id, 
+                  fromName: userName, 
+                  to: remoteUserId 
+                },
+              });
+            }
+          } catch (err) {
+            console.error("[WebRTC] Renegotiation error:", err);
+          } finally {
+            makingOffer.current.delete(remoteUserId);
+          }
+        }
       };
 
       peerConnections.current.set(remoteUserId, pc);
