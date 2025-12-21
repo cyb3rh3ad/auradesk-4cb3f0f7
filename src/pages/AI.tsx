@@ -30,6 +30,7 @@ const AI = () => {
     addMessage,
     updateLastAssistantMessage,
     saveAssistantMessage,
+    updateSessionModel,
   } = useAIChatSessions();
   const { preferences, updatePreferences } = useAIPreferences();
   const { plan } = useSubscription();
@@ -88,6 +89,10 @@ const AI = () => {
 
   const handleModelChange = (modelId: string) => {
     updatePreferences({ selected_model: modelId });
+    // Update the session's last used model
+    if (currentSessionId) {
+      updateSessionModel(currentSessionId, modelId);
+    }
   };
 
   const handleModeChange = (mode: 'cloud' | 'local') => {

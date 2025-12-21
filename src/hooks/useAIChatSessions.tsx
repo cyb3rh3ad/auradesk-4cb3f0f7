@@ -8,6 +8,7 @@ interface ChatSession {
   title: string;
   created_at: string;
   updated_at: string;
+  last_used_model: string | null;
 }
 
 interface ChatMessage {
@@ -74,24 +75,39 @@ export const useAIChatSessions = () => {
     }
   }, [currentSessionId, fetchMessages]);
 
-  const createSession = async (initialTitle?: string): Promise<string | null> => {
+  const createSession = async (initialTitle?: string, model?: string): Promise<string | null> => {
     if (!user) return null;
 
-    // Immediately clear messages and set a temp session for instant feedback
+    // Create an optimistic session immediately for instant UI feedback
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticSession: ChatSession = {
+      id: optimisticId,
+      title: initialTitle || 'New Chat',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_used_model: model || 'gemini-2.5-flash',
+    };
+    
+    setSessions(prev => [optimisticSession, ...prev]);
+    setCurrentSessionId(optimisticId);
     setMessages([]);
     
     const { data, error } = await supabase
       .from('ai_chat_sessions')
-      .insert({ user_id: user.id, title: initialTitle || 'New Chat' })
+      .insert({ user_id: user.id, title: initialTitle || 'New Chat', last_used_model: model || 'gemini-2.5-flash' })
       .select()
       .single();
 
     if (error) {
       toast({ title: 'Error', description: 'Failed to create chat', variant: 'destructive' });
+      // Remove the optimistic session on error
+      setSessions(prev => prev.filter(s => s.id !== optimisticId));
+      setCurrentSessionId(null);
       return null;
     }
 
-    setSessions(prev => [data, ...prev]);
+    // Replace the optimistic session with the real one
+    setSessions(prev => prev.map(s => s.id === optimisticId ? data : s));
     setCurrentSessionId(data.id);
     return data.id;
   };
@@ -154,11 +170,17 @@ export const useAIChatSessions = () => {
       await renameSession(currentSessionId, title);
     }
 
-    // Update session's updated_at
-    await supabase
+  };
+
+  const updateSessionModel = async (sessionId: string, model: string) => {
+    const { error } = await supabase
       .from('ai_chat_sessions')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', currentSessionId);
+      .update({ last_used_model: model, updated_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    if (!error) {
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, last_used_model: model } : s));
+    }
   };
 
   const updateLastAssistantMessage = (content: string) => {
@@ -191,5 +213,6 @@ export const useAIChatSessions = () => {
     addMessage,
     updateLastAssistantMessage,
     saveAssistantMessage,
+    updateSessionModel,
   };
 };
