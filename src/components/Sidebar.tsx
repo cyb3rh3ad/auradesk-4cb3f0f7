@@ -1,11 +1,22 @@
-import { Home, MessageSquare, Users, Video, Settings, FileText, Bot, Menu, X, Crown, Shield } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
 import auradeskLogo from "@/assets/auradesk-logo.png";
+import {
+  AnimatedHomeIcon,
+  AnimatedChatIcon,
+  AnimatedTeamsIcon,
+  AnimatedVideoIcon,
+  AnimatedFilesIcon,
+  AnimatedAIIcon,
+  AnimatedCrownIcon,
+  AnimatedShieldIcon,
+  AnimatedSettingsIcon,
+} from "@/components/icons/AnimatedIcons";
 
 export const Sidebar = () => {
   const isMobile = useIsMobile();
@@ -13,15 +24,15 @@ export const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
-    { icon: Home, label: "Dashboard", path: "/dashboard" },
-    { icon: MessageSquare, label: "Chat", path: "/chat" },
-    { icon: Users, label: "Teams", path: "/teams" },
-    { icon: Video, label: "Meetings", path: "/meetings" },
-    { icon: FileText, label: "Files", path: "/files" },
-    { icon: Bot, label: "AI Assistant", path: "/ai" },
-    { icon: Crown, label: "Subscription", path: "/subscription" },
-    ...(isOwner ? [{ icon: Shield, label: "Admin", path: "/admin" }] : []),
-    { icon: Settings, label: "Settings", path: "/settings" },
+    { icon: AnimatedHomeIcon, label: "Dashboard", path: "/dashboard" },
+    { icon: AnimatedChatIcon, label: "Chat", path: "/chat" },
+    { icon: AnimatedTeamsIcon, label: "Teams", path: "/teams" },
+    { icon: AnimatedVideoIcon, label: "Meetings", path: "/meetings" },
+    { icon: AnimatedFilesIcon, label: "Files", path: "/files" },
+    { icon: AnimatedAIIcon, label: "AI Assistant", path: "/ai" },
+    { icon: AnimatedCrownIcon, label: "Subscription", path: "/subscription" },
+    ...(isOwner ? [{ icon: AnimatedShieldIcon, label: "Admin", path: "/admin" }] : []),
+    { icon: AnimatedSettingsIcon, label: "Settings", path: "/settings" },
   ];
 
   if (isMobile) {
@@ -73,10 +84,12 @@ export const Sidebar = () => {
                 >
                   {({ isActive }) => (
                     <>
-                      <item.icon className={cn(
-                        "w-5 h-5",
-                        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
-                      )} />
+                      <item.icon 
+                        className={cn(
+                          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+                        )} 
+                        isActive={isActive}
+                      />
                       <span className="font-medium">{item.label}</span>
                     </>
                   )}
@@ -114,10 +127,13 @@ export const Sidebar = () => {
           >
             {({ isActive }) => (
               <>
-                <item.icon className={cn(
-                  "w-5 h-5 transition-all duration-300",
-                  isActive ? "text-sidebar-primary scale-110" : "text-sidebar-foreground/70 group-hover:scale-110"
-                )} />
+                <item.icon 
+                  className={cn(
+                    "transition-all duration-300",
+                    isActive ? "text-sidebar-primary scale-110" : "text-sidebar-foreground/70"
+                  )} 
+                  isActive={isActive}
+                />
                 <span className="absolute left-full ml-4 px-4 py-2 bg-sidebar-accent/95 backdrop-blur-sm text-sidebar-foreground text-sm font-medium rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-50 shadow-xl border border-sidebar-border/50">
                   {item.label}
                 </span>

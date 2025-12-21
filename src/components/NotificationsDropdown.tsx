@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, UserPlus, Headphones, Check, X } from 'lucide-react';
+import { UserPlus, Headphones, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDismissedHelpRequests } from '@/hooks/useDismissedHelpRequests';
 import { formatDistanceToNow } from 'date-fns';
+import { AnimatedBellIcon } from '@/components/icons/AnimatedIcons';
 
 interface FriendRequest {
   id: string;
@@ -298,7 +299,7 @@ export const NotificationsDropdown = () => {
           size="icon"
           className="relative hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
         >
-          <Bell className="w-5 h-5" />
+          <AnimatedBellIcon className="w-5 h-5" />
           {totalNotifications > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse shadow-lg shadow-red-500/50">
               {totalNotifications > 9 ? '9+' : totalNotifications}
