@@ -8,14 +8,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, MessageSquare, MoreVertical, Pencil, Trash2, Check, X } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Plus, MessageSquare, MoreVertical, Pencil, Trash2, Check, X, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getModelById } from '@/lib/ai-models';
 
 interface ChatSession {
   id: string;
   title: string;
   created_at: string;
   updated_at: string;
+  last_used_model: string | null;
 }
 
 interface AIChatSidebarProps {
@@ -89,18 +97,22 @@ export const AIChatSidebar = ({
             <div key={dateLabel}>
               <p className="text-xs text-muted-foreground px-2 mb-1">{dateLabel}</p>
               <div className="space-y-1">
-                {dateSessions.map(session => (
-                  <div
-                    key={session.id}
-                    className={cn(
-                      "group flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors",
-                      currentSessionId === session.id
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-muted"
-                    )}
-                    onClick={() => editingId !== session.id && onSelectSession(session.id)}
-                  >
-                    <MessageSquare className="h-4 w-4 shrink-0" />
+                {dateSessions.map(session => {
+                  const modelInfo = session.last_used_model ? getModelById(session.last_used_model) : null;
+                  return (
+                  <TooltipProvider key={session.id} delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            "group flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors",
+                            currentSessionId === session.id
+                              ? "bg-primary/10 text-primary"
+                              : "hover:bg-muted"
+                          )}
+                          onClick={() => editingId !== session.id && onSelectSession(session.id)}
+                        >
+                          <MessageSquare className="h-4 w-4 shrink-0" />
                     
                     {editingId === session.id ? (
                       <div className="flex-1 flex items-center gap-1">
@@ -150,10 +162,20 @@ export const AIChatSidebar = ({
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </>
-                    )}
-                  </div>
-                ))}
+                        </>
+                      )}
+                        </div>
+                      </TooltipTrigger>
+                      {modelInfo && (
+                        <TooltipContent side="right" className="flex items-center gap-2">
+                          <Cpu className="h-3 w-3" />
+                          <span className="text-xs">{modelInfo.name}</span>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                  );
+                })}
               </div>
             </div>
           ))}
