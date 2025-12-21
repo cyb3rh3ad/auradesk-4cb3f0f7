@@ -85,7 +85,7 @@ export const AIChatSidebar = ({
   return (
     <div className="w-64 border-r bg-muted/30 flex flex-col h-full">
       <div className="p-3 border-b">
-        <Button onClick={onCreateSession} className="w-full gap-2" variant="outline">
+        <Button onClick={() => onCreateSession()} className="w-full gap-2" variant="outline">
           <Plus className="h-4 w-4" />
           New Chat
         </Button>
