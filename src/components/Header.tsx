@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Command, LogOut, HeadphonesIcon } from "lucide-react";
+import { Command } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
+import {
+  AnimatedSearchIcon,
+  AnimatedHeadphonesIcon,
+  AnimatedLogoutIcon,
+} from "@/components/icons/AnimatedIcons";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -33,7 +38,9 @@ export const Header = () => {
       {!isMobile && (
         <div className="flex items-center flex-1 max-w-2xl relative z-10">
           <div className="relative w-full group">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+              <AnimatedSearchIcon className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            </div>
             <Command className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
             <Input
               type="text"
@@ -52,7 +59,7 @@ export const Header = () => {
             onClick={() => setHelpDialogOpen(true)}
             className="gap-2 hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105"
           >
-            <HeadphonesIcon className="h-4 w-4" />
+            <AnimatedHeadphonesIcon className="h-4 w-4" />
             Request Help
           </Button>
         )}
@@ -85,14 +92,14 @@ export const Header = () => {
             {isMobile && (
               <>
                 <DropdownMenuItem onClick={() => setHelpDialogOpen(true)} className="cursor-pointer">
-                  <HeadphonesIcon className="mr-2 h-4 w-4" />
+                  <AnimatedHeadphonesIcon className="mr-2 h-4 w-4" />
                   <span>Request Help</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
             )}
             <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
+              <AnimatedLogoutIcon className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
