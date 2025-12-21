@@ -8,6 +8,18 @@ interface Participant {
   name: string;
 }
 
+export interface ConnectionStats {
+  isRelay: boolean;
+  localCandidateType: string;
+  remoteCandidateType: string;
+  bytesReceived: number;
+  bytesSent: number;
+  packetsLost: number;
+  roundTripTime: number;
+  jitter: number;
+  connectionQuality: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
 // Multiple STUN servers for better NAT traversal success
 // TURN servers provide relay fallback when P2P fails (~30% of connections)
 const ICE_SERVERS: RTCConfiguration = {
@@ -57,6 +69,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
+  const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -64,6 +77,108 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOffer = useRef<Set<string>>(new Set());
   const knownPeers = useRef<Map<string, string>>(new Map()); // peerId -> peerName
+  const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Collect connection statistics from peer connections
+  const collectStats = useCallback(async () => {
+    const connections = Array.from(peerConnections.current.values());
+    if (connections.length === 0) {
+      setConnectionStats(null);
+      return;
+    }
+
+    try {
+      // Get stats from first active connection
+      const pc = connections[0];
+      if (pc.connectionState !== 'connected') return;
+
+      const stats = await pc.getStats();
+      let isRelay = false;
+      let localCandidateType = 'unknown';
+      let remoteCandidateType = 'unknown';
+      let bytesReceived = 0;
+      let bytesSent = 0;
+      let packetsLost = 0;
+      let roundTripTime = 0;
+      let jitter = 0;
+
+      stats.forEach((report) => {
+        // Check candidate pair to determine if using relay
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          const localCandidate = stats.get(report.localCandidateId);
+          const remoteCandidate = stats.get(report.remoteCandidateId);
+          
+          if (localCandidate) {
+            localCandidateType = localCandidate.candidateType || 'unknown';
+            isRelay = localCandidate.candidateType === 'relay';
+          }
+          if (remoteCandidate) {
+            remoteCandidateType = remoteCandidate.candidateType || 'unknown';
+            if (remoteCandidate.candidateType === 'relay') isRelay = true;
+          }
+          
+          roundTripTime = report.currentRoundTripTime ? report.currentRoundTripTime * 1000 : 0;
+        }
+
+        // Get inbound stats
+        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+          bytesReceived = report.bytesReceived || 0;
+          packetsLost = report.packetsLost || 0;
+          jitter = report.jitter ? report.jitter * 1000 : 0;
+        }
+
+        // Get outbound stats
+        if (report.type === 'outbound-rtp' && report.kind === 'video') {
+          bytesSent = report.bytesSent || 0;
+        }
+      });
+
+      // Calculate connection quality based on RTT and packet loss
+      let connectionQuality: 'excellent' | 'good' | 'fair' | 'poor' = 'excellent';
+      if (roundTripTime > 300 || packetsLost > 50) {
+        connectionQuality = 'poor';
+      } else if (roundTripTime > 150 || packetsLost > 20) {
+        connectionQuality = 'fair';
+      } else if (roundTripTime > 50 || packetsLost > 5) {
+        connectionQuality = 'good';
+      }
+
+      setConnectionStats({
+        isRelay,
+        localCandidateType,
+        remoteCandidateType,
+        bytesReceived,
+        bytesSent,
+        packetsLost,
+        roundTripTime: Math.round(roundTripTime),
+        jitter: Math.round(jitter),
+        connectionQuality,
+      });
+    } catch (err) {
+      console.error("[WebRTC] Failed to collect stats:", err);
+    }
+  }, []);
+
+  // Start/stop stats collection based on connection state
+  useEffect(() => {
+    if (isConnected && peerConnections.current.size > 0) {
+      // Collect stats every 2 seconds
+      statsIntervalRef.current = setInterval(collectStats, 2000);
+      collectStats(); // Initial collection
+    } else {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+        statsIntervalRef.current = null;
+      }
+      setConnectionStats(null);
+    }
+
+    return () => {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+      }
+    };
+  }, [isConnected, collectStats]);
 
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
     try {
@@ -511,5 +626,5 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     return () => leaveRoom();
   }, [leaveRoom]);
 
-  return { localStream, participants, isConnecting, isConnected, error, callStatus, joinRoom, leaveRoom, toggleAudio, toggleVideo };
+  return { localStream, participants, isConnecting, isConnected, error, callStatus, connectionStats, joinRoom, leaveRoom, toggleAudio, toggleVideo };
 };
