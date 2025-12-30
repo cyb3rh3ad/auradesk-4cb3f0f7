@@ -5,7 +5,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import auradeskLogo from "@/assets/auradesk-logo.png";
 import {
   AnimatedHomeIcon,
   AnimatedChatIcon,
@@ -17,6 +16,21 @@ import {
   AnimatedShieldIcon,
   AnimatedSettingsIcon,
 } from "@/components/icons/AnimatedIcons";
+
+// Clean text-based logo component
+const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => (
+  <div className={cn(
+    "flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-accent shadow-lg",
+    size === "md" ? "w-14 h-14" : "w-12 h-12"
+  )}>
+    <span className={cn(
+      "font-bold text-primary-foreground tracking-tight",
+      size === "md" ? "text-2xl" : "text-xl"
+    )}>
+      A
+    </span>
+  </div>
+);
 
 export const Sidebar = () => {
   const isMobile = useIsMobile();
@@ -62,9 +76,7 @@ export const Sidebar = () => {
         >
           <div className="flex flex-col h-full py-6 px-4 space-y-8">
             <div className="flex items-center gap-3 px-2">
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl gradient-primary shadow-lg overflow-hidden">
-                <img src={auradeskLogo} alt="AuraDesk" className="w-full h-full object-cover rounded-lg" />
-              </div>
+              <AuraLogo size="sm" />
               <span className="text-lg font-bold">AuraDesk</span>
             </div>
 
@@ -106,8 +118,8 @@ export const Sidebar = () => {
     <aside className="w-20 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-6 space-y-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
       
-      <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-primary/20 group hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden">
-        <img src={auradeskLogo} alt="AuraDesk" className="w-full h-full object-cover rounded-xl" />
+      <div className="relative group hover:scale-105 transition-transform duration-300">
+        <AuraLogo size="md" />
       </div>
       
       <nav className="relative flex-1 flex flex-col items-center space-y-2 w-full px-3">
