@@ -596,22 +596,68 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
   );
 }
 
-// Helper component for video elements
+// Helper component for video elements with proper audio handling
 function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: boolean; isLocal: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (!stream) return;
+
+    // Attach video stream
+    if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
-  }, [stream]);
+
+    // For remote participants, create a separate audio element for reliable audio playback
+    // This bypasses issues with video element audio autoplay policies
+    if (!isLocal && !muted) {
+      const hasAudio = stream.getAudioTracks().length > 0;
+      if (hasAudio) {
+        // Create audio element if it doesn't exist
+        if (!audioRef.current) {
+          const audio = document.createElement('audio');
+          audio.autoplay = true;
+          (audio as any).playsInline = true; // For Safari compatibility
+          audio.style.display = 'none';
+          document.body.appendChild(audio);
+          audioRef.current = audio;
+        }
+        
+        audioRef.current.srcObject = stream;
+        
+        // Try to play with user gesture fallback
+        audioRef.current.play().catch((err) => {
+          console.warn('[VideoElement] Audio autoplay blocked, will retry on user interaction:', err);
+          // Audio will start on next user interaction with the page
+          const resumeAudio = () => {
+            audioRef.current?.play().catch(() => {});
+            document.removeEventListener('click', resumeAudio);
+            document.removeEventListener('touchstart', resumeAudio);
+          };
+          document.addEventListener('click', resumeAudio, { once: true });
+          document.addEventListener('touchstart', resumeAudio, { once: true });
+        });
+      }
+    }
+
+    // Cleanup audio element on unmount
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.srcObject = null;
+        audioRef.current.remove();
+        audioRef.current = null;
+      }
+    };
+  }, [stream, isLocal, muted]);
 
   return (
     <video
       ref={videoRef}
       autoPlay
       playsInline
-      muted={muted}
+      muted={isLocal || muted} // Always mute local video to prevent echo, mute video element for remote (audio handled separately)
       className={cn("w-full h-full object-cover", isLocal && "transform scale-x-[-1]")}
     />
   );
