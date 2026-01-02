@@ -5,6 +5,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import auradeskLogo from "@/assets/auradesk-logo.png";
 import {
   AnimatedHomeIcon,
   AnimatedChatIcon,
@@ -17,18 +18,24 @@ import {
   AnimatedSettingsIcon,
 } from "@/components/icons/AnimatedIcons";
 
-// Clean text-based logo component
+// Enhanced image-based logo with glow effect
 const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => (
   <div className={cn(
-    "flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-accent shadow-lg",
-    size === "md" ? "w-14 h-14" : "w-12 h-12"
+    "relative flex items-center justify-center rounded-2xl overflow-hidden",
+    "bg-gradient-to-br from-background via-background/90 to-muted",
+    "shadow-lg ring-1 ring-primary/20",
+    "before:absolute before:inset-0 before:bg-gradient-to-t before:from-primary/10 before:via-transparent before:to-transparent",
+    "after:absolute after:-inset-1 after:bg-gradient-to-br after:from-primary/30 after:to-accent/30 after:blur-xl after:opacity-50 after:-z-10",
+    size === "md" ? "w-14 h-14" : "w-11 h-11"
   )}>
-    <span className={cn(
-      "font-bold text-primary-foreground tracking-tight",
-      size === "md" ? "text-2xl" : "text-xl"
-    )}>
-      A
-    </span>
+    <img 
+      src={auradeskLogo} 
+      alt="AuraDesk" 
+      className={cn(
+        "relative z-10 object-contain",
+        size === "md" ? "w-10 h-10" : "w-8 h-8"
+      )}
+    />
   </div>
 );
 
