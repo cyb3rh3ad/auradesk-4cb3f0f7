@@ -21,19 +21,18 @@ import {
 // Enhanced image-based logo with glow effect
 const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => (
   <div className={cn(
-    "relative flex items-center justify-center rounded-2xl overflow-hidden",
-    "bg-gradient-to-br from-background via-background/90 to-muted",
+    "relative flex items-center justify-center rounded-xl overflow-hidden",
+    "bg-gradient-to-br from-background via-background/95 to-muted/50",
     "shadow-lg ring-1 ring-primary/20",
-    "before:absolute before:inset-0 before:bg-gradient-to-t before:from-primary/10 before:via-transparent before:to-transparent",
-    "after:absolute after:-inset-1 after:bg-gradient-to-br after:from-primary/30 after:to-accent/30 after:blur-xl after:opacity-50 after:-z-10",
-    size === "md" ? "w-14 h-14" : "w-11 h-11"
+    "after:absolute after:-inset-1 after:bg-gradient-to-br after:from-primary/20 after:to-accent/20 after:blur-xl after:opacity-40 after:-z-10",
+    size === "md" ? "w-12 h-12" : "w-10 h-10"
   )}>
     <img 
       src={auradeskLogo} 
       alt="AuraDesk" 
       className={cn(
-        "relative z-10 object-contain",
-        size === "md" ? "w-10 h-10" : "w-8 h-8"
+        "relative z-10 object-cover rounded-lg",
+        size === "md" ? "w-full h-full" : "w-full h-full"
       )}
     />
   </div>
