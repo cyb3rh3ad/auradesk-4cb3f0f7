@@ -8,9 +8,108 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
+import auraLogo from '@/assets/auradesk-logo.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
+
+// Interactive Logo Component with creative effects
+const InteractiveLogo = () => {
+  const [isPressed, setIsPressed] = useState(false);
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [sparkCount, setSparkCount] = useState(0);
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const newRipple = { id: Date.now(), x, y };
+    setRipples(prev => [...prev, newRipple]);
+    setSparkCount(prev => prev + 1);
+    
+    // Remove ripple after animation
+    setTimeout(() => {
+      setRipples(prev => prev.filter(r => r.id !== newRipple.id));
+    }, 600);
+  };
+
+  return (
+    <motion.button
+      type="button"
+      className="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+      onMouseLeave={() => setIsPressed(false)}
+      onClick={handleClick}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      animate={{
+        boxShadow: isPressed 
+          ? '0 0 30px hsl(262 83% 58% / 0.6), 0 0 60px hsl(262 83% 58% / 0.3), inset 0 0 20px hsl(262 83% 58% / 0.2)'
+          : '0 10px 30px hsl(262 83% 58% / 0.3), 0 0 0px hsl(262 83% 58% / 0)'
+      }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-blue-500" />
+      
+      {/* Logo */}
+      <img 
+        src={auraLogo} 
+        alt="AuraDesk" 
+        className="relative z-10 w-full h-full object-cover rounded-2xl"
+      />
+      
+      {/* Hover glow overlay */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent pointer-events-none"
+        initial={{ opacity: 0 }}
+        whileHover={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      {/* Click ripples */}
+      {ripples.map(ripple => (
+        <motion.span
+          key={ripple.id}
+          className="absolute rounded-full bg-white/40 pointer-events-none"
+          style={{ left: ripple.x, top: ripple.y }}
+          initial={{ width: 0, height: 0, x: 0, y: 0, opacity: 1 }}
+          animate={{ width: 160, height: 160, x: -80, y: -80, opacity: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        />
+      ))}
+      
+      {/* Sparkle particles on click */}
+      {sparkCount > 0 && Array.from({ length: 6 }).map((_, i) => (
+        <motion.span
+          key={`${sparkCount}-${i}`}
+          className="absolute w-1.5 h-1.5 rounded-full bg-yellow-300 pointer-events-none"
+          style={{ left: '50%', top: '50%' }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+          animate={{ 
+            x: Math.cos((i / 6) * Math.PI * 2) * 50, 
+            y: Math.sin((i / 6) * Math.PI * 2) * 50, 
+            opacity: 0,
+            scale: 0
+          }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        />
+      ))}
+      
+      {/* Shine effect */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none"
+        animate={{ 
+          opacity: [0.3, 0.6, 0.3],
+          backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
+        }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </motion.button>
+  );
+};
 
 const Auth = () => {
   const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState } = useAuth();
@@ -133,10 +232,7 @@ const Auth = () => {
       <Card className="w-full max-w-md relative border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary shadow-lg shadow-primary/30">
-              <span className="text-2xl font-bold text-primary-foreground">AD</span>
-              <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-yellow-400" />
-            </div>
+            <InteractiveLogo />
           </div>
           <CardTitle className="text-3xl font-bold">Welcome to AuraDesk</CardTitle>
           <CardDescription>Sign in to access your workspace</CardDescription>
