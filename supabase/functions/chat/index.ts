@@ -12,7 +12,8 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-flash': 'google/gemini-2.5-flash',
   'gemini-pro': 'google/gemini-2.5-pro',
   'gemini-3-pro': 'google/gemini-3-pro-preview',
-  'gemini-image': 'google/gemini-2.5-flash-image-preview',
+  'gemini-image': 'google/gemini-3-pro-image-preview',
+  'gpt-5-nano': 'openai/gpt-5-nano',
   'gpt-5-mini': 'openai/gpt-5-mini',
   'gpt-5': 'openai/gpt-5',
 };
@@ -24,6 +25,7 @@ const MODEL_TIERS: Record<string, string> = {
   'gemini-pro': 'professional',
   'gemini-3-pro': 'professional',
   'gemini-image': 'professional',
+  'gpt-5-nano': 'advanced',
   'gpt-5-mini': 'advanced',
   'gpt-5': 'professional',
 };
@@ -143,19 +145,22 @@ serve(async (req) => {
         { 
           role: "system", 
           content: isImageGeneration 
-            ? "You are an AI image generator. Generate images based on user prompts."
+            ? "You are an AI image generator. When asked to generate an image, create the image as requested. Do not describe the image - generate it."
             : "You are a helpful AI assistant integrated into a team collaboration platform called AuraDesk. You can help with tasks, answer questions, provide suggestions, and assist with problem-solving. Be concise but thorough." 
         },
         ...messages,
       ],
     };
 
-    // Add modalities for image generation
+    // Add modalities for image generation - this is critical for the model to generate images
     if (isImageGeneration) {
       requestBody.modalities = ["image", "text"];
+      // Don't stream for image generation
     } else {
       requestBody.stream = true;
     }
+
+    console.log("Sending request to Lovable AI:", JSON.stringify({ model: cloudModelId, isImageGeneration, modalities: requestBody.modalities }));
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
