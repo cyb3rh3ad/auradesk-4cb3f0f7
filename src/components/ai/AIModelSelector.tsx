@@ -84,7 +84,7 @@ export const AIModelSelector = ({
           )} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-72 max-h-[400px] overflow-y-auto gpu-accelerated">
+      <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-72 max-h-[400px] overflow-y-auto gpu-accelerated z-[100]">
         {/* Execution Mode Toggle */}
         <motion.div 
           className="p-2 border-b"
