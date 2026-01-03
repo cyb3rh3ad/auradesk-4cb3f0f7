@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Loader2 } from 'lucide-react';
 
@@ -64,18 +63,24 @@ export const MfaVerification = ({ factorId, onSuccess, onCancel }: MfaVerificati
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleVerify} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="mfa-code">Verification Code</Label>
-            <Input
-              id="mfa-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="000000"
+        <form onSubmit={handleVerify} className="space-y-6">
+          <div className="flex flex-col items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Verification Code</span>
+            <InputOTP
               maxLength={6}
-              className="text-center text-2xl tracking-[0.5em] font-mono"
+              value={code}
+              onChange={(value) => setCode(value)}
               autoFocus
-            />
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
           </div>
 
           <div className="flex gap-2">
