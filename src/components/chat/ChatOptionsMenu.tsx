@@ -156,33 +156,34 @@ export const ChatOptionsMenu = ({
               setNicknameValue(currentNickname || '');
               setOpenDialog('nickname');
             }}
+            className="py-2.5"
           >
-            <Edit3 className="w-4 h-4 mr-2" />
+            <Edit3 className="w-4 h-4 mr-3" />
             {currentNickname ? 'Edit nickname' : 'Set nickname'}
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
           {isBlocked ? (
-            <DropdownMenuItem onClick={handleUnblock}>
-              <ShieldOff className="w-4 h-4 mr-2" />
+            <DropdownMenuItem onClick={handleUnblock} className="py-2.5">
+              <ShieldOff className="w-4 h-4 mr-3" />
               Unblock user
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem 
               onClick={() => setOpenDialog('block')}
-              className="text-orange-500 focus:text-orange-500"
+              className="py-2.5 text-orange-500 focus:text-orange-500"
             >
-              <UserX className="w-4 h-4 mr-2" />
+              <UserX className="w-4 h-4 mr-3" />
               Block user
             </DropdownMenuItem>
           )}
           
           <DropdownMenuItem 
             onClick={() => setOpenDialog('report')}
-            className="text-yellow-500 focus:text-yellow-500"
+            className="py-2.5 text-yellow-500 focus:text-yellow-500"
           >
-            <Flag className="w-4 h-4 mr-2" />
+            <Flag className="w-4 h-4 mr-3" />
             Report user
           </DropdownMenuItem>
           
@@ -190,9 +191,9 @@ export const ChatOptionsMenu = ({
           
           <DropdownMenuItem 
             onClick={() => setOpenDialog('unfriend')}
-            className="text-destructive focus:text-destructive"
+            className="py-2.5 text-destructive focus:text-destructive"
           >
-            <UserMinus className="w-4 h-4 mr-2" />
+            <UserMinus className="w-4 h-4 mr-3" />
             Remove friend
           </DropdownMenuItem>
         </DropdownMenuContent>
