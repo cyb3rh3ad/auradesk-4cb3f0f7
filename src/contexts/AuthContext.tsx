@@ -112,14 +112,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      // Check if this is an OAuth user with MFA enabled
-      const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
-      if (isOAuthLogin) {
-        const mfaNeeded = await checkMfaForOAuthUser(session);
-        if (mfaNeeded) {
-          setLoading(false);
-          return; // Don't set user/session
+      // Check MFA for ALL users with existing sessions (not just OAuth)
+      try {
+        const { data: factorsData } = await supabase.auth.mfa.listFactors();
+        const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+        
+        if (verifiedFactor) {
+          const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
+            // MFA required but not verified - redirect to auth
+            setMfaRequired(true);
+            setMfaFactorId(verifiedFactor.id);
+            setLoading(false);
+            navigate('/auth');
+            return; // Don't set user/session until MFA verified
+          }
         }
+      } catch (err) {
+        console.error('MFA check failed:', err);
       }
       
       setSession(session);
