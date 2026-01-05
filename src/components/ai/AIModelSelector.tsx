@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-  DropdownMenuPortal, // Added this import
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ChevronUp, Sparkles, Cpu, Cloud, Lock, Image, Brain, Check } from "lucide-react";
@@ -95,54 +94,46 @@ export const AIModelSelector = ({
         </Button>
       </DropdownMenuTrigger>
 
-      {/* FIX: Portal is required to stop the "jumping to corner" bug */}
       <DropdownMenuPortal>
         <DropdownMenuContent
           align="end"
-          side="top" // Changed to top based on your screenshot showing it's a bottom bar
+          side="top"
           sideOffset={12}
-          className="w-72 max-h-[400px] overflow-y-auto z-[100]"
+          className="w-72 max-h-[400px] overflow-y-auto z-[100] bg-popover border shadow-xl"
         >
-          {/* Execution Mode Toggle */}
           <div className="p-2 border-b">
             <p className="text-xs text-muted-foreground mb-2">Execution Mode</p>
             <div className="flex gap-1">
-              <div className="flex-1">
-                <Button
-                  size="sm"
-                  variant={executionMode === "cloud" ? "default" : "outline"}
-                  className="w-full h-8 text-xs transition-all duration-200"
-                  onClick={() => onModeChange("cloud")}
-                >
-                  <Cloud className="h-3 w-3 mr-1" />
-                  Cloud
-                </Button>
-              </div>
-              <div className="flex-1">
-                <Button
-                  size="sm"
-                  variant={executionMode === "local" ? "default" : "outline"}
-                  className="w-full h-8 text-xs transition-all duration-200"
-                  disabled={!canUseLocal}
-                  onClick={() => canUseLocal && onModeChange("local")}
-                >
-                  <Cpu className="h-3 w-3 mr-1" />
-                  Local
-                  {!canUseLocal && <Lock className="h-3 w-3 ml-1" />}
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                variant={executionMode === "cloud" ? "default" : "outline"}
+                className="flex-1 h-8 text-xs"
+                onClick={() => onModeChange("cloud")}
+              >
+                <Cloud className="h-3 w-3 mr-1" />
+                Cloud
+              </Button>
+              <Button
+                size="sm"
+                variant={executionMode === "local" ? "default" : "outline"}
+                className="flex-1 h-8 text-xs"
+                disabled={!canUseLocal}
+                onClick={() => canUseLocal && onModeChange("local")}
+              >
+                <Cpu className="h-3 w-3 mr-1" />
+                Local
+                {!canUseLocal && <Lock className="h-3 w-3 ml-1" />}
+              </Button>
             </div>
-            {!canUseLocal && (
-              <p className="text-xs text-muted-foreground mt-1">Upgrade to Advanced for local execution</p>
-            )}
           </div>
 
           <DropdownMenuSeparator />
 
-          {/* Model Selection */}
           {Object.entries(groupedModels).map(([provider, models]) => (
             <div key={provider}>
-              <DropdownMenuLabel className={cn("text-xs capitalize", getProviderColor(provider))}>
+              <DropdownMenuLabel
+                className={cn("text-[10px] uppercase tracking-wider mt-1", getProviderColor(provider))}
+              >
                 {provider}
               </DropdownMenuLabel>
               {models.map((model) => {
@@ -154,7 +145,7 @@ export const AIModelSelector = ({
                     key={model.id}
                     disabled={!available || showLocalOnly}
                     className={cn(
-                      "flex items-center justify-between cursor-pointer transition-all duration-150",
+                      "flex items-center justify-between cursor-pointer py-2",
                       selectedModel === model.id && "bg-accent",
                     )}
                     onClick={() => {
@@ -165,9 +156,7 @@ export const AIModelSelector = ({
                     }}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-3">
-                        {" "}
-                        {/* Fixed width container for the check icon */}
+                      <div className="w-4 flex justify-center">
                         {selectedModel === model.id && <Check className="h-3 w-3 text-primary" />}
                       </div>
                       <span className={cn("text-sm", !available && "text-muted-foreground")}>{model.name}</span>
@@ -177,8 +166,7 @@ export const AIModelSelector = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {!available && <Lock className="h-3 w-3" />}
-                      {showLocalOnly && <span className="text-xs text-muted-foreground">Cloud only</span>}
+                      {!available && <Lock className="h-3 w-3 opacity-50" />}
                       {getTierBadge(model.tier)}
                     </div>
                   </DropdownMenuItem>
@@ -188,7 +176,7 @@ export const AIModelSelector = ({
           ))}
 
           <DropdownMenuSeparator />
-          <div className="p-2 text-xs text-muted-foreground bg-muted/30">
+          <div className="p-2 text-[10px] text-muted-foreground bg-muted/20">
             <div className="flex items-center gap-2 mb-1">
               <Image className="h-3 w-3 text-pink-500" /> Image generation
             </div>
