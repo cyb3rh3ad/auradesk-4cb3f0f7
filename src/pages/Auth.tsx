@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
 import auraLogo from '@/assets/auradesk-logo.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
+import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 
 // Interactive Logo Component with creative effects
 const InteractiveLogo = () => {
@@ -157,6 +158,18 @@ const Auth = () => {
       toast({
         title: 'Invalid username',
         description: 'Username must be 3-20 characters and contain only letters, numbers, and underscores.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate password strength
+    const { isValid: isPasswordValid, requirements } = validatePassword(signupPassword);
+    if (!isPasswordValid) {
+      const unmetRequirements = requirements.filter(r => !r.met).map(r => r.label);
+      toast({
+        title: 'Password too weak',
+        description: `Please fix: ${unmetRequirements.join(', ')}`,
         variant: 'destructive',
       });
       return;
@@ -345,8 +358,9 @@ const Auth = () => {
                     onChange={(e) => setSignupPassword(e.target.value)}
                     required
                     disabled={loading}
-                    minLength={6}
+                    minLength={8}
                   />
+                  <PasswordStrengthValidator password={signupPassword} />
                 </div>
                 
                 <Button type="submit" className="w-full" disabled={loading}>
