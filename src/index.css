@@ -2,15 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force Radix Dropdowns to position correctly */
+/* Ensure all Radix popper content has high z-index */
 [data-radix-popper-content-wrapper] {
-  z-index: 9999 !important;
-  position: fixed !important;
-  transform: none !important;
-  -webkit-transform: none !important;
-  will-change: auto !important;
-  backface-visibility: visible !important;
-  -webkit-backface-visibility: visible !important;
+  z-index: 99999 !important;
 }
 
 @layer base {
