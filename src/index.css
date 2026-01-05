@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force Radix Dropdowns to stay within viewport */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
