@@ -7,7 +7,8 @@ import { useAIChatSessions } from '@/hooks/useAIChatSessions';
 import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useSubscription } from '@/hooks/useSubscription';
 import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
-import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle, Cloud } from 'lucide-react';
+import { AIModelSelector } from '@/components/ai/AIModelSelector';
+import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import type { SubscriptionPlan } from '@/lib/ai-models';
@@ -185,12 +186,14 @@ const AI = () => {
               </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
-              {/* Placeholder for AIModelSelector - will be re-added */}
-              <Button variant="outline" className="gap-2 h-9" disabled={isLoading}>
-                <Sparkles className="h-4 w-4" />
-                <span className="max-w-[120px] truncate">{preferences?.selected_model || 'Gemini Flash'}</span>
-                <Cloud className="h-3 w-3 text-muted-foreground" />
-              </Button>
+              <AIModelSelector
+                selectedModel={preferences?.selected_model || 'gemini-flash-lite'}
+                executionMode={preferences?.execution_mode || 'cloud'}
+                subscriptionPlan={subscriptionPlan}
+                onModelChange={handleModelChange}
+                onModeChange={handleModeChange}
+                disabled={isLoading}
+              />
               <Button
                 variant="ghost"
                 size="icon"
