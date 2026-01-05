@@ -161,7 +161,7 @@ const AI = () => {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="bg-background/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="bg-background border-b border-border sticky top-0 z-10">
           <div className="px-3 md:px-4 py-3 flex items-center justify-between gap-2">
             {/* Mobile menu button */}
             <Button
@@ -355,7 +355,7 @@ const AI = () => {
         </ScrollArea>
 
         {/* Input area */}
-        <div className="bg-background/80 backdrop-blur-xl p-3 md:p-4">
+        <div className="bg-background border-t border-border p-3 md:p-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex gap-2 items-center">
               <div className="flex-1 relative">
