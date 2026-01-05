@@ -76,7 +76,7 @@ export const Header = () => {
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" sideOffset={8} className="w-56 mr-0">
             <DropdownMenuLabel>
               <p className="font-medium">My Account</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
