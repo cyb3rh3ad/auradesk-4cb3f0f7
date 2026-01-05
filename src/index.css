@@ -2,9 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force Radix Dropdowns to stay within viewport */
+/* Force Radix Dropdowns to position correctly */
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
+  position: fixed !important;
 }
 
 @layer base {
@@ -118,10 +119,10 @@
     transform: translateZ(0);
   }
   
-  /* Dropdown and popover preloading */
+  /* Dropdown and popover - exclude from transforms that break positioning */
   [data-radix-popper-content-wrapper] {
-    transform: translateZ(0) !important;
-    -webkit-transform: translateZ(0) !important;
+    transform: none !important;
+    -webkit-transform: none !important;
   }
 }
 
