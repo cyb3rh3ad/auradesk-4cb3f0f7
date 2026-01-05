@@ -115,8 +115,8 @@ const Terms = () => {
             <h2 className="text-2xl font-semibold mb-4">9. Contact Information</h2>
             <p className="text-muted-foreground leading-relaxed">
               If you have any questions about these Terms of Service, please contact us at: 
-              <a href="mailto:support@auradesk.com" className="text-primary hover:underline ml-1">
-                support@auradesk.com
+              <a href="mailto:info.auradesk@gmail.com" className="text-primary hover:underline ml-1">
+                info.auradesk@gmail.com
               </a>
             </p>
           </section>
