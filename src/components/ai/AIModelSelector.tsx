@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ChevronUp, Sparkles, Cpu, Cloud, Lock, Image, Brain, Check } from "lucide-react";
+import { ChevronUp, Sparkles, Cpu, Cloud, Lock, Check } from "lucide-react";
 import { AI_MODELS, getAvailableModels, type AIModel, type SubscriptionPlan } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
 
@@ -147,7 +147,7 @@ export const AIModelSelector = ({
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-4 flex justify-center">
-                      {selectedModel === model.id && <Check className="h-3 w-3 text-primary" />}
+                      {selectedModel === model.id ? <Check className="h-3 w-3 text-primary" /> : <div className="w-3" />}
                     </div>
                     <span className={cn("text-sm", !available && "text-muted-foreground")}>{model.name}</span>
                   </div>
