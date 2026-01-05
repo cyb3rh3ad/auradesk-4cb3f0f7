@@ -113,7 +113,7 @@ export const Header = () => {
                   stiffness: 500,
                   damping: 30,
                 }}
-                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-xl z-50 overflow-hidden"
+                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-xl z-[100] overflow-hidden"
               >
                 {/* User Info */}
                 <div className="px-3 py-2">
