@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { Command } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -16,25 +16,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
-import {
-  AnimatedSearchIcon,
-  AnimatedHeadphonesIcon,
-  AnimatedLogoutIcon,
-} from "@/components/icons/AnimatedIcons";
+import { AnimatedSearchIcon, AnimatedHeadphonesIcon, AnimatedLogoutIcon } from "@/components/icons/AnimatedIcons";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const isMobile = useIsMobile();
-  
+
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
   };
 
   return (
     <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4 md:px-6 relative">
+      {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-      
+
       {!isMobile && (
         <div className="flex items-center flex-1 max-w-2xl relative z-10">
           <div className="relative w-full group">
@@ -50,7 +47,7 @@ export const Header = () => {
           </div>
         </div>
       )}
-      
+
       <div className={cn("flex items-center space-x-1 relative z-10", isMobile && "ml-auto")}>
         {!isMobile && (
           <Button
@@ -63,28 +60,30 @@ export const Header = () => {
             Request Help
           </Button>
         )}
-        
+
         <NotificationsDropdown />
-        
-        <DropdownMenu modal={false}>
+
+        {/* User Dropdown */}
+        <div className="relative">
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
               >
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.user_metadata?.avatar_url} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-                    {user?.email ? getInitials(user.email) : 'AD'}
+                    {user?.email ? getInitials(user.email) : "AD"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-56">
+            <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-56 z-[100]">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'User'}</p>
+                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || "User"}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
@@ -104,8 +103,9 @@ export const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
       </div>
-      
+
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
     </header>
   );
