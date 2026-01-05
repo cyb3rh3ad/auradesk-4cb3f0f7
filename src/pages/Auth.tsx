@@ -219,7 +219,7 @@ const Auth = () => {
     await clearMfaState();
   };
 
-  // Show MFA verification screen if required
+  // Show MFA verification within the login card if required
   if (mfaRequired && mfaFactorId) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background">
@@ -227,11 +227,23 @@ const Auth = () => {
         <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
         
-        <MfaVerification
-          factorId={mfaFactorId}
-          onSuccess={handleMfaSuccess}
-          onCancel={handleMfaCancel}
-        />
+        <Card className="w-full max-w-md relative border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
+          <CardHeader className="text-center space-y-3">
+            <div className="flex justify-center">
+              <InteractiveLogo />
+            </div>
+            <CardTitle className="text-3xl font-bold">Welcome to AuraDesk</CardTitle>
+            <CardDescription>Enter your 2FA code to continue</CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <MfaVerification
+              factorId={mfaFactorId}
+              onSuccess={handleMfaSuccess}
+              onCancel={handleMfaCancel}
+            />
+          </CardContent>
+        </Card>
       </div>
     );
   }
