@@ -67,14 +67,14 @@ export const AIModelSelector = ({
         disabled={disabled}
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm transition-all",
+          "flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm transition-all w-[200px]",
           "hover:bg-accent/30",
           open && "shadow-lg shadow-primary/10",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
         <Sparkles className="h-4 w-4 text-primary shrink-0" />
-        <span className="text-sm font-medium text-foreground">{currentModel.name}</span>
+        <span className="text-sm font-medium text-foreground truncate flex-1 text-left">{currentModel.name}</span>
         <motion.div
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
@@ -95,7 +95,7 @@ export const AIModelSelector = ({
               stiffness: 500,
               damping: 30,
             }}
-            className="absolute top-full right-0 mt-2 min-w-[280px] rounded-xl border border-border bg-background shadow-xl z-50 overflow-hidden"
+            className="absolute top-full right-0 mt-2 w-[320px] rounded-xl border border-border bg-background shadow-xl z-50 overflow-hidden"
           >
             {/* Execution Mode Toggle */}
             <div className="p-2 border-b border-border">
