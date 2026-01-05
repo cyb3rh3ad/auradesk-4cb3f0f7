@@ -30,13 +30,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Clear MFA state on successful login
-        if (event === 'SIGNED_IN') {
-          setMfaRequired(false);
-          setMfaFactorId(null);
+        // For OAuth logins (like Google), check MFA after sign in
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Check if this is an OAuth login by looking at the provider
+          const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
+          
+          if (isOAuthLogin) {
+            // Defer MFA check to avoid Supabase deadlock
+            setTimeout(async () => {
+              const { data: factorsData } = await supabase.auth.mfa.listFactors();
+              const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+              
+              if (verifiedFactor) {
+                // User has MFA enabled, require verification
+                setMfaRequired(true);
+                setMfaFactorId(verifiedFactor.id);
+                // Navigate to auth page for MFA verification
+                navigate('/auth');
+              } else {
+                // No MFA, proceed normally
+                setSession(session);
+                setUser(session.user);
+              }
+            }, 0);
+          } else {
+            // Email login - MFA is handled in signIn function
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
         }
       }
     );
