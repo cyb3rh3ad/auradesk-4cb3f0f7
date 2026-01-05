@@ -75,11 +75,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         if (mfaNeeded) {
-          // MFA required - block access completely
+          // MFA required on initial load - sign out completely to force fresh login
+          // This ensures users must login again when opening a new tab/session
+          await supabase.auth.signOut();
           setSession(null);
           setUser(null);
+          setMfaRequired(false);
+          setMfaFactorId(null);
           setLoading(false);
-          // Don't navigate here - ProtectedRoute will handle redirect
         } else {
           // MFA verified or not required - allow access
           setSession(currentSession);
