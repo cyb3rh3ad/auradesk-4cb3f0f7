@@ -50,7 +50,7 @@ export const AIModelSelector = ({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild disabled={disabled}>
         <Button
           variant="ghost"
