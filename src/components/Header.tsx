@@ -66,7 +66,7 @@ export const Header = () => {
         
         <NotificationsDropdown />
         
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
