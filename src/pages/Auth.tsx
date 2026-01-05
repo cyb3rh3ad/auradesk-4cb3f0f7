@@ -215,8 +215,8 @@ const Auth = () => {
     navigate('/dashboard');
   };
 
-  const handleMfaCancel = () => {
-    clearMfaState();
+  const handleMfaCancel = async () => {
+    await clearMfaState();
   };
 
   // Show MFA verification screen if required
