@@ -143,7 +143,7 @@ export const AnimatedFilesIcon = ({ className, isHovered = false }: AnimatedIcon
   </motion.svg>
 );
 
-// AI Sparkles icon - rotating sparkle (larger size for better visibility)
+// AI Sparkles icon - centered star with simple scale animation
 export const AnimatedAIIcon = ({ className, isHovered = false }: AnimatedIconProps) => (
   <motion.svg
     viewBox="0 0 24 24"
@@ -153,18 +153,16 @@ export const AnimatedAIIcon = ({ className, isHovered = false }: AnimatedIconPro
     strokeLinecap="round"
     strokeLinejoin="round"
     className={cn("w-7 h-7", className)}
-    animate={{ 
-      scale: isHovered ? 1.15 : 1,
-      rotate: isHovered ? 15 : 0
-    }}
+    animate={{ scale: isHovered ? 1.15 : 1 }}
     transition={springConfig}
   >
-    <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2z" fill="currentColor" fillOpacity={0.2} />
-    <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2z" />
+    {/* Star centered in viewBox: spans y=5 to y=19, centered at y=12 */}
+    <path d="M12 5l1.8 5.4L19 12l-5.2 1.6L12 19l-1.8-5.4L5 12l5.2-1.6L12 5z" fill="currentColor" fillOpacity={0.2} />
+    <path d="M12 5l1.8 5.4L19 12l-5.2 1.6L12 19l-1.8-5.4L5 12l5.2-1.6L12 5z" />
     {isHovered && (
       <>
-        <motion.path d="M19 8l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5.5-1.5z" fill="currentColor" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.05 }} />
-        <motion.path d="M5 16l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5.5-1.5z" fill="currentColor" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1 }} />
+        <motion.circle cx="18" cy="6" r="1.5" fill="currentColor" stroke="none" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.05 }} />
+        <motion.circle cx="6" cy="18" r="1.5" fill="currentColor" stroke="none" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }} />
       </>
     )}
   </motion.svg>
