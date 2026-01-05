@@ -147,7 +147,7 @@ const AI = () => {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="bg-background/80 backdrop-blur-xl sticky top-0 z-10">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3 ml-10 md:ml-0">
               <div className="relative">
@@ -331,7 +331,7 @@ const AI = () => {
         </ScrollArea>
 
         {/* Input area */}
-        <div className="border-t bg-background/80 backdrop-blur-xl p-4">
+        <div className="bg-background/80 backdrop-blur-xl p-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex gap-2 items-center">
               <div className="flex-1 relative">
