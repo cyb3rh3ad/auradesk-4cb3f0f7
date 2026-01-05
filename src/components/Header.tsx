@@ -52,7 +52,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative z-50">
+    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative z-[100]">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
 
       {!isMobile && (
@@ -118,8 +118,12 @@ export const Header = () => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 top-[calc(100%+8px)] w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden z-[300]"
-                style={{ transformOrigin: "top right" }}
+                className="fixed w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden z-[9999]"
+                style={{ 
+                  transformOrigin: "top right",
+                  top: "72px",
+                  right: "24px"
+                }}
               >
                 {/* User info header */}
                 <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
