@@ -1,14 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
 
   const features = [
@@ -116,19 +114,10 @@ const Landing = () => {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 gradient-primary hover:opacity-90 transition-all hover:scale-105 shadow-lg group"
-                onClick={() => {
-                  // Create a download link for a hypothetical installer
-                  const link = document.createElement('a');
-                  link.href = '#'; // In real scenario, this would be the actual download URL
-                  link.download = 'AuraDesk-Setup.exe';
-                  toast({
-                    title: "Download Started",
-                    description: "Desktop app download will be available soon!",
-                  });
-                }}
+                onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
-                <Download className="w-5 h-5 mr-2 group-hover:animate-bounce" />
-                Download for PC
+                <Zap className="w-5 h-5 mr-2 group-hover:animate-pulse" />
+                Get Started Free
               </Button>
               
               <Button 
@@ -143,7 +132,7 @@ const Landing = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Free to start • No credit card required • Works on Windows, Mac, Linux & Web
+              Free to start • No credit card required • Works on any modern browser
             </p>
           </motion.div>
         </div>
@@ -248,10 +237,18 @@ const Landing = () => {
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border/50">
         <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <span className="text-xl font-bold text-primary">AuraDesk</span>
+            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <Link to="/terms" className="hover:text-primary transition-colors">
+                Terms of Service
+              </Link>
+              <Link to="/privacy" className="hover:text-primary transition-colors">
+                Privacy Policy
+              </Link>
+            </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 AuraDesk. All rights reserved.
+              © 2026 AuraDesk. All rights reserved.
             </p>
           </div>
         </div>
