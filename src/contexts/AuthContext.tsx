@@ -58,6 +58,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
+        // Check if this is an OAuth callback (fresh login) vs stale session
+        const isOAuthCallback = window.location.hash.includes('access_token') || 
+                                 window.location.hash.includes('refresh_token') ||
+                                 window.location.search.includes('code=');
+
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -75,14 +80,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         if (mfaNeeded) {
-          // MFA required on initial load - sign out completely to force fresh login
-          // This ensures users must login again when opening a new tab/session
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setMfaRequired(false);
-          setMfaFactorId(null);
-          setLoading(false);
+          if (isOAuthCallback) {
+            // Fresh OAuth login - show MFA screen (don't sign out)
+            // mfaRequired and mfaFactorId are already set by checkAndHandleMfa
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+          } else {
+            // Stale session from another tab - sign out completely to force fresh login
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setMfaRequired(false);
+            setMfaFactorId(null);
+            setLoading(false);
+          }
         } else {
           // MFA verified or not required - allow access
           setSession(currentSession);
