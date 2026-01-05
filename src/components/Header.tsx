@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Command, LogOut, Settings, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -9,24 +10,45 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
+  };
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileOpen]);
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setProfileOpen(false);
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    setProfileOpen(false);
   };
 
   return (
@@ -64,40 +86,92 @@ export const Header = () => {
 
         <NotificationsDropdown />
 
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-xl p-0 h-9 w-9">
+        {/* Expanding Profile Menu */}
+        <div ref={profileRef} className="relative">
+          <motion.div
+            layout
+            className={cn(
+              "overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm",
+              profileOpen && "shadow-xl shadow-primary/10"
+            )}
+            transition={{
+              type: 'spring',
+              stiffness: 400,
+              damping: 30,
+            }}
+          >
+            {/* Avatar Trigger */}
+            <motion.button
+              layout
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="p-1.5 hover:bg-accent/30 transition-colors"
+            >
               <Avatar className="w-8 h-8 cursor-pointer">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
                   {user?.email ? getInitials(user.email) : "AD"}
                 </AvatarFallback>
               </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col">
-                <span className="font-medium">My Account</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/subscription')} className="cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
-              Subscription
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </motion.button>
+
+            {/* Expanded Content */}
+            <AnimatePresence>
+              {profileOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 400,
+                    damping: 30,
+                  }}
+                  className="overflow-hidden"
+                >
+                  <div className="border-t border-border/50 w-56">
+                    {/* User Info */}
+                    <div className="px-3 py-2">
+                      <p className="font-medium text-foreground">My Account</p>
+                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                    </div>
+                    
+                    <div className="h-px bg-border/50" />
+                    
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleNavigate('/settings')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => handleNavigate('/subscription')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
+                      >
+                        <User className="h-4 w-4" />
+                        Subscription
+                      </button>
+                    </div>
+                    
+                    <div className="h-px bg-border/50" />
+                    
+                    <div className="py-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
       </div>
 
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
