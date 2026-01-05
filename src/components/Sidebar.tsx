@@ -53,17 +53,19 @@ const SidebarNavItem = ({
   }
   return <NavLink to={path} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} className={({
     isActive
-  }) => cn("w-full h-12 flex items-center justify-center rounded-xl transition-all duration-300", "hover:bg-sidebar-accent group relative", "hover:scale-105 hover:shadow-lg hover:shadow-primary/10", isActive && "bg-sidebar-accent text-sidebar-primary shadow-md shadow-primary/20")} style={{
+  }) => cn("w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-300", "hover:bg-sidebar-accent group relative", "hover:scale-105 hover:shadow-lg hover:shadow-primary/10", isActive && "bg-sidebar-accent text-sidebar-primary shadow-md shadow-primary/20")} style={{
     animationDelay: animationDelay ? `${animationDelay}ms` : undefined
   }}>
       {({
       isActive
     }) => <>
-          <Icon className={cn("transition-colors duration-300", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70")} isActive={isActive} isHovered={isHovered} />
+          <div className="w-full h-full flex items-center justify-center">
+            <Icon className={cn("transition-colors duration-300", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70")} isActive={isActive} isHovered={isHovered} />
+          </div>
           <span className="absolute left-full ml-4 px-4 py-2 bg-sidebar-accent/95 backdrop-blur-sm text-sidebar-foreground text-sm font-medium rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-50 shadow-xl border border-sidebar-border/50">
             {label}
           </span>
-          {isActive && <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl -z-10 mx-px" />}
+          {isActive && <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-xl -z-10" />}
         </>}
     </NavLink>;
 };

@@ -143,7 +143,7 @@ export const AnimatedFilesIcon = ({ className, isHovered = false }: AnimatedIcon
   </motion.svg>
 );
 
-// AI Sparkles icon - rotating sparkle
+// AI Sparkles icon - rotating sparkle (larger size for better visibility)
 export const AnimatedAIIcon = ({ className, isHovered = false }: AnimatedIconProps) => (
   <motion.svg
     viewBox="0 0 24 24"
@@ -152,15 +152,15 @@ export const AnimatedAIIcon = ({ className, isHovered = false }: AnimatedIconPro
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className={cn("w-6 h-6", className)}
+    className={cn("w-7 h-7", className)}
     animate={{ 
       scale: isHovered ? 1.15 : 1,
       rotate: isHovered ? 15 : 0
     }}
     transition={springConfig}
   >
-    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" fill="currentColor" fillOpacity={0.2} />
-    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+    <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2z" fill="currentColor" fillOpacity={0.2} />
+    <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2z" />
     {isHovered && (
       <>
         <motion.path d="M19 8l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5.5-1.5z" fill="currentColor" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.05 }} />
