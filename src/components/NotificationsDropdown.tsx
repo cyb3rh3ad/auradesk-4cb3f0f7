@@ -33,7 +33,7 @@ export const NotificationsDropdown = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
