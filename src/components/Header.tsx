@@ -52,7 +52,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative">
+    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative z-50">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
 
       {!isMobile && (
@@ -91,12 +91,9 @@ export const Header = () => {
           {/* Avatar Trigger */}
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className={cn(
-              "p-1.5 rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm hover:bg-accent/30 transition-all",
-              profileOpen && "shadow-lg shadow-primary/10"
-            )}
+            className="hover:opacity-80 transition-opacity"
           >
-            <Avatar className="w-8 h-8 cursor-pointer">
+            <Avatar className="w-9 h-9 cursor-pointer ring-2 ring-transparent hover:ring-primary/30 transition-all">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
                 {user?.email ? getInitials(user.email) : "AD"}
