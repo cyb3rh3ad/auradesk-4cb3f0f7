@@ -14,18 +14,21 @@ const Chat = () => {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const { conversations, loading: convoLoading, refetch } = useConversations();
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  
+  // Initialize from URL param immediately
+  const initialConversation = searchParams.get('conversation');
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
   const { messages, sendMessage, loading: messagesLoading } = useMessages(selectedConversationId);
 
-  // Auto-select conversation from URL query param
+  // Handle URL param changes (for navigation from other pages)
   useEffect(() => {
     const conversationFromUrl = searchParams.get('conversation');
-    if (conversationFromUrl && !selectedConversationId) {
+    if (conversationFromUrl) {
       setSelectedConversationId(conversationFromUrl);
       // Clear the query param after setting
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, selectedConversationId, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
 
