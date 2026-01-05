@@ -28,66 +28,107 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mfaCheckInProgress = false;
+    
+    const checkMfaForOAuthUser = async (session: Session): Promise<boolean> => {
+      if (mfaCheckInProgress) return false;
+      mfaCheckInProgress = true;
+      
+      try {
+        const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
+        if (!isOAuthLogin) {
+          mfaCheckInProgress = false;
+          return false;
+        }
+        
+        const { data: factorsData } = await supabase.auth.mfa.listFactors();
+        const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+        
+        if (verifiedFactor) {
+          // Check if MFA has been verified in this session
+          const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
+            // MFA is required but not yet verified
+            setMfaRequired(true);
+            setMfaFactorId(verifiedFactor.id);
+            mfaCheckInProgress = false;
+            return true;
+          }
+        }
+        mfaCheckInProgress = false;
+        return false;
+      } catch {
+        mfaCheckInProgress = false;
+        return false;
+      }
+    };
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // For OAuth logins (like Google), check MFA after sign in
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Check if this is an OAuth login by looking at the provider
-          const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
-          
-          if (isOAuthLogin) {
-            // Check MFA factors - use setTimeout to avoid Supabase deadlock
-            setTimeout(async () => {
-              const { data: factorsData } = await supabase.auth.mfa.listFactors();
-              const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
-              
-              if (verifiedFactor) {
-                // User has MFA enabled - DO NOT set user/session yet
-                // This blocks access to protected routes
-                setMfaRequired(true);
-                setMfaFactorId(verifiedFactor.id);
-                setLoading(false);
-                // Navigate to auth page for MFA verification
-                navigate('/auth');
-              } else {
-                // No MFA, proceed normally
-                setSession(session);
-                setUser(session.user);
-                setLoading(false);
-              }
-            }, 0);
-          } else {
-            // Email login - MFA is handled in signIn function
-            setSession(session);
-            setUser(session?.user ?? null);
-          }
-        } else if (event === 'SIGNED_OUT') {
+      (event, session) => {
+        if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
           setMfaRequired(false);
           setMfaFactorId(null);
+          setLoading(false);
+          return;
+        }
+        
+        if (!session) {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // For SIGNED_IN or INITIAL_SESSION with OAuth, check MFA
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session.user.app_metadata?.provider !== 'email') {
+          setTimeout(async () => {
+            const mfaNeeded = await checkMfaForOAuthUser(session);
+            if (mfaNeeded) {
+              // Don't set user/session - redirect to auth
+              setLoading(false);
+              navigate('/auth');
+            } else {
+              setSession(session);
+              setUser(session.user);
+              setLoading(false);
+            }
+          }, 0);
         } else {
+          // Email login or token refresh - set normally
           setSession(session);
           setUser(session?.user ?? null);
+          setLoading(false);
         }
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      // If we have a session but MFA is pending, don't set user
-      if (mfaRequired && mfaFactorId) {
+      if (!session) {
         setLoading(false);
         return;
       }
+      
+      // Check if this is an OAuth user with MFA enabled
+      const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
+      if (isOAuthLogin) {
+        const mfaNeeded = await checkMfaForOAuthUser(session);
+        if (mfaNeeded) {
+          setLoading(false);
+          return; // Don't set user/session
+        }
+      }
+      
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(session.user);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, mfaRequired, mfaFactorId]);
+  }, [navigate]);
 
   const signUp = async (email: string, password: string, fullName: string, username: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
