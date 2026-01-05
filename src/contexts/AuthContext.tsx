@@ -58,32 +58,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        // Get the current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (!currentSession) {
-          // No session - user needs to log in
           setSession(null);
           setUser(null);
           setLoading(false);
           return;
         }
 
-        // Session exists - check if MFA is required
+        // Session exists - ALWAYS check MFA before allowing access
         const mfaNeeded = await checkAndHandleMfa(currentSession);
         
         if (!mounted) return;
 
         if (mfaNeeded) {
-          // MFA required - DON'T set user/session, keep them blocked
+          // MFA required - block access completely
           setSession(null);
           setUser(null);
           setLoading(false);
-          navigate('/auth');
+          // Don't navigate here - ProtectedRoute will handle redirect
         } else {
-          // MFA not required or already verified - allow access
+          // MFA verified or not required - allow access
           setSession(currentSession);
           setUser(currentSession.user);
           setLoading(false);
@@ -96,10 +94,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Initialize auth state
     initializeAuth();
 
-    // Set up auth state listener for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
@@ -115,6 +111,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        // Skip INITIAL_SESSION as we handle it in initializeAuth
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+
         if (!newSession) {
           setSession(null);
           setUser(null);
@@ -122,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        // For any session event, check MFA before allowing access
+        // For SIGNED_IN and TOKEN_REFRESHED, check MFA
         // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(async () => {
           if (!mounted) return;
@@ -132,13 +133,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!mounted) return;
 
           if (mfaNeeded) {
-            // MFA required - block access
             setSession(null);
             setUser(null);
             setLoading(false);
-            navigate('/auth');
           } else {
-            // MFA verified or not required - allow access
             setSession(newSession);
             setUser(newSession.user);
             setLoading(false);
