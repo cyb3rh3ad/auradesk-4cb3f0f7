@@ -57,6 +57,27 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Semantic gradient colors
+        "gradient-blue": {
+          DEFAULT: "hsl(var(--gradient-blue))",
+          end: "hsl(var(--gradient-blue-end))",
+        },
+        "gradient-purple": {
+          DEFAULT: "hsl(var(--gradient-purple))",
+          end: "hsl(var(--gradient-purple-end))",
+        },
+        "gradient-orange": {
+          DEFAULT: "hsl(var(--gradient-orange))",
+          end: "hsl(var(--gradient-orange-end))",
+        },
+        "gradient-green": {
+          DEFAULT: "hsl(var(--gradient-green))",
+          end: "hsl(var(--gradient-green-end))",
+        },
+        "gradient-indigo": {
+          DEFAULT: "hsl(var(--gradient-indigo))",
+          end: "hsl(var(--gradient-indigo-end))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
