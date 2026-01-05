@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Command, Bell, LogOut } from "lucide-react";
+import { Command, LogOut, Settings, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,23 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -51,25 +62,42 @@ export const Header = () => {
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" className="hover:bg-accent/10 rounded-xl">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <NotificationsDropdown />
 
-        <Avatar className="w-8 h-8 cursor-pointer">
-          <AvatarImage src={user?.user_metadata?.avatar_url} />
-          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-            {user?.email ? getInitials(user.email) : "AD"}
-          </AvatarFallback>
-        </Avatar>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={signOut}
-          className="hover:bg-accent/10 rounded-xl"
-        >
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-xl p-0 h-9 w-9">
+              <Avatar className="w-8 h-8 cursor-pointer">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                  {user?.email ? getInitials(user.email) : "AD"}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col">
+                <span className="font-medium">My Account</span>
+                <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/subscription')} className="cursor-pointer">
+              <User className="mr-2 h-4 w-4" />
+              Subscription
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
