@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session, AuthError } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   mfaRequired: boolean;
   mfaFactorId: string | null;
-  clearMfaState: () => void;
+  clearMfaState: () => Promise<void>;
   completeMfaVerification: () => Promise<void>;
 }
 
@@ -27,45 +27,85 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let mfaCheckInProgress = false;
-    
-    const checkMfaForOAuthUser = async (session: Session): Promise<boolean> => {
-      if (mfaCheckInProgress) return false;
-      mfaCheckInProgress = true;
+  // Core MFA check function - returns true if MFA is required but not verified
+  const checkAndHandleMfa = async (currentSession: Session): Promise<boolean> => {
+    try {
+      const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       
-      try {
-        const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
-        if (!isOAuthLogin) {
-          mfaCheckInProgress = false;
-          return false;
-        }
-        
+      // MFA is required if current level is aal1 and next level is aal2
+      if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
         const { data: factorsData } = await supabase.auth.mfa.listFactors();
         const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
         
         if (verifiedFactor) {
-          // Check if MFA has been verified in this session
-          const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
-            // MFA is required but not yet verified
-            setMfaRequired(true);
-            setMfaFactorId(verifiedFactor.id);
-            mfaCheckInProgress = false;
-            return true;
-          }
+          // MFA required but not verified
+          setMfaRequired(true);
+          setMfaFactorId(verifiedFactor.id);
+          return true;
         }
-        mfaCheckInProgress = false;
-        return false;
-      } catch {
-        mfaCheckInProgress = false;
-        return false;
+      }
+      
+      // MFA not required or already verified
+      return false;
+    } catch (err) {
+      console.error('MFA check failed:', err);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get the current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (!currentSession) {
+          // No session - user needs to log in
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Session exists - check if MFA is required
+        const mfaNeeded = await checkAndHandleMfa(currentSession);
+        
+        if (!mounted) return;
+
+        if (mfaNeeded) {
+          // MFA required - DON'T set user/session, keep them blocked
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          navigate('/auth');
+        } else {
+          // MFA not required or already verified - allow access
+          setSession(currentSession);
+          setUser(currentSession.user);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Auth initialization failed:', err);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
-    
-    // Set up auth state listener FIRST
+
+    // Initialize auth state
+    initializeAuth();
+
+    // Set up auth state listener for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, newSession) => {
+        if (!mounted) return;
+
+        console.log('Auth state change:', event);
+
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
@@ -74,87 +114,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
           return;
         }
-        
-        if (!session) {
+
+        if (!newSession) {
           setSession(null);
           setUser(null);
           setLoading(false);
           return;
         }
-        
-        // For ANY session event, check MFA status before allowing access
+
+        // For any session event, check MFA before allowing access
+        // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(async () => {
-          try {
-            const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            
-            // Only require MFA if current level is aal1 and next level is aal2
-            if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
-              const { data: factorsData } = await supabase.auth.mfa.listFactors();
-              const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
-              
-              if (verifiedFactor) {
-                // MFA required but not verified - don't set user/session
-                setMfaRequired(true);
-                setMfaFactorId(verifiedFactor.id);
-                setLoading(false);
-                navigate('/auth');
-                return;
-              }
-            }
-            
-            // MFA not required or already verified - proceed
-            setSession(session);
-            setUser(session.user);
+          if (!mounted) return;
+
+          const mfaNeeded = await checkAndHandleMfa(newSession);
+          
+          if (!mounted) return;
+
+          if (mfaNeeded) {
+            // MFA required - block access
+            setSession(null);
+            setUser(null);
             setLoading(false);
-          } catch (err) {
-            console.error('MFA check failed in auth state change:', err);
-            // On error, still set session to not block user
-            setSession(session);
-            setUser(session.user);
+            navigate('/auth');
+          } else {
+            // MFA verified or not required - allow access
+            setSession(newSession);
+            setUser(newSession.user);
             setLoading(false);
           }
         }, 0);
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-      
-      // Check MFA status - only require verification if session is at aal1 and needs aal2
-      try {
-        const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        
-        // Only require MFA if:
-        // 1. Current level is aal1 (not yet verified in this session)
-        // 2. Next level is aal2 (MFA is enabled and required)
-        if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
-          const { data: factorsData } = await supabase.auth.mfa.listFactors();
-          const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
-          
-          if (verifiedFactor) {
-            // MFA required but not verified - redirect to auth
-            setMfaRequired(true);
-            setMfaFactorId(verifiedFactor.id);
-            setLoading(false);
-            navigate('/auth');
-            return; // Don't set user/session until MFA verified
-          }
-        }
-        // If currentLevel is already aal2, MFA was already verified - proceed normally
-      } catch (err) {
-        console.error('MFA check failed:', err);
-      }
-      
-      setSession(session);
-      setUser(session.user);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const signUp = async (email: string, password: string, fullName: string, username: string) => {
@@ -184,13 +180,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error };
     }
     
-    // Check if MFA is required
+    // Check if MFA is required after login
     if (data?.session) {
       const { data: factorsData } = await supabase.auth.mfa.listFactors();
       const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
       
       if (verifiedFactor) {
-        // MFA is enabled, need verification
+        // MFA is enabled - don't set session yet, require verification
         setMfaRequired(true);
         setMfaFactorId(verifiedFactor.id);
         return { error: null, mfaRequired: true, factorId: verifiedFactor.id };
@@ -218,25 +214,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('aura_remember_me');
     setMfaRequired(false);
     setMfaFactorId(null);
+    setSession(null);
+    setUser(null);
     await supabase.auth.signOut();
     navigate('/');
   };
 
   const clearMfaState = async () => {
-    // Sign out the user when they cancel MFA
-    await supabase.auth.signOut();
+    // Sign out the user completely when they cancel MFA
     setMfaRequired(false);
     setMfaFactorId(null);
     setSession(null);
     setUser(null);
+    await supabase.auth.signOut();
   };
 
   const completeMfaVerification = async () => {
     // After MFA is verified, fetch and set the current session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      setSession(session);
-      setUser(session.user);
+    const { data: { session: verifiedSession } } = await supabase.auth.getSession();
+    if (verifiedSession) {
+      setSession(verifiedSession);
+      setUser(verifiedSession.user);
     }
     setMfaRequired(false);
     setMfaFactorId(null);
