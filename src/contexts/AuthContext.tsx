@@ -82,26 +82,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
-        // For SIGNED_IN or INITIAL_SESSION with OAuth, check MFA
-        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session.user.app_metadata?.provider !== 'email') {
-          setTimeout(async () => {
-            const mfaNeeded = await checkMfaForOAuthUser(session);
-            if (mfaNeeded) {
-              // Don't set user/session - redirect to auth
-              setLoading(false);
-              navigate('/auth');
-            } else {
-              setSession(session);
-              setUser(session.user);
-              setLoading(false);
+        // For ANY session event, check MFA status before allowing access
+        setTimeout(async () => {
+          try {
+            const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            
+            // Only require MFA if current level is aal1 and next level is aal2
+            if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
+              const { data: factorsData } = await supabase.auth.mfa.listFactors();
+              const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+              
+              if (verifiedFactor) {
+                // MFA required but not verified - don't set user/session
+                setMfaRequired(true);
+                setMfaFactorId(verifiedFactor.id);
+                setLoading(false);
+                navigate('/auth');
+                return;
+              }
             }
-          }, 0);
-        } else {
-          // Email login or token refresh - set normally
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
+            
+            // MFA not required or already verified - proceed
+            setSession(session);
+            setUser(session.user);
+            setLoading(false);
+          } catch (err) {
+            console.error('MFA check failed in auth state change:', err);
+            // On error, still set session to not block user
+            setSession(session);
+            setUser(session.user);
+            setLoading(false);
+          }
+        }, 0);
       }
     );
 
