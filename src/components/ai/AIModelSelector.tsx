@@ -67,7 +67,7 @@ export const AIModelSelector = ({
   }, {} as Record<string, AIModel[]>);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
