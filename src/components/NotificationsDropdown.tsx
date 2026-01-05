@@ -292,111 +292,113 @@ export const NotificationsDropdown = () => {
   };
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
-        >
-          <AnimatedBellIcon className="w-5 h-5" />
-          {totalNotifications > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse shadow-lg shadow-red-500/50">
-              {totalNotifications > 9 ? '9+' : totalNotifications}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <ScrollArea className="h-[400px]">
-          {totalNotifications === 0 ? (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              No new notifications
-            </div>
-          ) : (
-            <>
-              {friendRequests.map((request) => (
-                <div key={request.id} className="p-3 border-b border-border/50">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <UserPlus className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">Friend Request</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {request.profiles?.full_name || request.profiles?.username || request.profiles?.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleAcceptFriend(request.id)}
-                          disabled={loading}
-                        >
-                          <Check className="h-3 w-3 mr-1" />
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => handleDeclineFriend(request.id)}
-                          disabled={loading}
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Decline
-                        </Button>
+    <div className="relative">
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
+          >
+            <AnimatedBellIcon className="w-5 h-5" />
+            {totalNotifications > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse shadow-lg shadow-red-500/50">
+                {totalNotifications > 9 ? '9+' : totalNotifications}
+              </span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="bottom" sideOffset={8} usePortal={false} className="w-80">
+          <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <ScrollArea className="h-[400px]">
+            {totalNotifications === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                No new notifications
+              </div>
+            ) : (
+              <>
+                {friendRequests.map((request) => (
+                  <div key={request.id} className="p-3 border-b border-border/50">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <UserPlus className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Friend Request</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {request.profiles?.full_name || request.profiles?.username || request.profiles?.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleAcceptFriend(request.id)}
+                            disabled={loading}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleDeclineFriend(request.id)}
+                            disabled={loading}
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Decline
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {visibleHelpRequests.map((request) => (
-                <div key={request.id} className="p-3 border-b border-border/50">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-orange-500/10">
-                      <Headphones className="h-4 w-4 text-orange-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{request.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {request.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        From: {request.profiles?.full_name || request.profiles?.username || 'Unknown'}
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleAcceptHelp(request.id)}
-                          disabled={loading}
-                        >
-                          Connect & Help
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => handleDismissHelp(request.id)}
-                        >
-                          Dismiss
-                        </Button>
+                {visibleHelpRequests.map((request) => (
+                  <div key={request.id} className="p-3 border-b border-border/50">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-full bg-orange-500/10">
+                        <Headphones className="h-4 w-4 text-orange-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{request.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {request.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          From: {request.profiles?.full_name || request.profiles?.username || 'Unknown'}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleAcceptHelp(request.id)}
+                            disabled={loading}
+                          >
+                            Connect & Help
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleDismissHelp(request.id)}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </>
-          )}
-        </ScrollArea>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                ))}
+              </>
+            )}
+          </ScrollArea>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };

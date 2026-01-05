@@ -56,15 +56,17 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
     container?: HTMLElement | null;
+    usePortal?: boolean;
   }
->(({ className, sideOffset = 4, align = "center", container, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal container={container}>
+>(({ className, sideOffset = 4, align = "center", container, usePortal = true, ...props }, ref) => {
+  const content = (
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
       align={align}
       collisionPadding={8}
       avoidCollisions={true}
+      style={{ position: 'absolute' }}
       className={cn(
         "z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md gpu-accelerated",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -77,8 +79,18 @@ const DropdownMenuContent = React.forwardRef<
       )}
       {...props}
     />
-  </DropdownMenuPrimitive.Portal>
-));
+  );
+
+  if (!usePortal) {
+    return content;
+  }
+
+  return (
+    <DropdownMenuPrimitive.Portal container={container}>
+      {content}
+    </DropdownMenuPrimitive.Portal>
+  );
+});
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<

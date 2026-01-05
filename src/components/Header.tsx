@@ -66,44 +66,46 @@ export const Header = () => {
         
         <NotificationsDropdown />
         
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
-            >
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-                  {user?.email ? getInitials(user.email) : 'AD'}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={8} className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'User'}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {isMobile && (
-              <>
-                <DropdownMenuItem onClick={() => setHelpDialogOpen(true)} className="cursor-pointer">
-                  <AnimatedHeadphonesIcon className="mr-2 h-4 w-4" />
-                  <span>Request Help</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-              <AnimatedLogoutIcon className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="relative">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-accent/10 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-md"
+              >
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                    {user?.email ? getInitials(user.email) : 'AD'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom" sideOffset={8} usePortal={false} className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || 'User'}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isMobile && (
+                <>
+                  <DropdownMenuItem onClick={() => setHelpDialogOpen(true)} className="cursor-pointer">
+                    <AnimatedHeadphonesIcon className="mr-2 h-4 w-4" />
+                    <span>Request Help</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                <AnimatedLogoutIcon className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
