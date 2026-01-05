@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
+import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
@@ -12,6 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 
 const Chat = () => {
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { conversations, loading: convoLoading, refetch } = useConversations();
   
@@ -31,12 +33,19 @@ const Chat = () => {
 
   const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
 
+  // Get the other user's ID for direct messages
+  const getOtherUserId = () => {
+    if (!selectedConversation || selectedConversation.is_group) return null;
+    const otherMember = selectedConversation.members?.find((m: any) => m.user_id !== user?.id);
+    return otherMember?.user_id || null;
+  };
+
   const getConversationName = () => {
     if (!selectedConversation) return 'Select a conversation';
     if (selectedConversation.is_group) {
       return selectedConversation.name || 'Unnamed Group';
     }
-    const otherMember = selectedConversation.members?.find((m: any) => m.user_id !== selectedConversationId);
+    const otherMember = selectedConversation.members?.find((m: any) => m.user_id !== user?.id);
     return otherMember?.profiles?.full_name || otherMember?.profiles?.email || 'Private Chat';
   };
 
@@ -82,6 +91,7 @@ const Chat = () => {
                 conversationName={getConversationName()}
                 isGroup={selectedConversation?.is_group || false}
                 conversationId={selectedConversationId}
+                otherUserId={getOtherUserId()}
               />
             </div>
           </div>
@@ -141,6 +151,7 @@ const Chat = () => {
             conversationName={getConversationName()}
             isGroup={selectedConversation?.is_group || false}
             conversationId={selectedConversationId}
+            otherUserId={getOtherUserId()}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
