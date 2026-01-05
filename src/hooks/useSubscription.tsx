@@ -50,7 +50,7 @@ const SUBSCRIPTION_TIERS = {
 };
 
 export const useSubscription = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [status, setStatus] = useState<SubscriptionStatus>({
     plan: 'free',
     subscribed: false,
@@ -59,7 +59,8 @@ export const useSubscription = () => {
   });
 
   const checkSubscription = async () => {
-    if (!user) {
+    // Require both user AND a valid session with access token
+    if (!user || !session?.access_token) {
       setStatus({
         plan: 'free',
         subscribed: false,
@@ -98,7 +99,7 @@ export const useSubscription = () => {
     const interval = setInterval(checkSubscription, 60000); // every minute
     
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, session?.access_token]);
 
 
   const openCustomerPortal = async () => {
