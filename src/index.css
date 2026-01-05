@@ -6,6 +6,11 @@
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
   position: fixed !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
 }
 
 @layer base {
@@ -90,9 +95,16 @@
   [data-framer-motion],
   .animate-fade-in,
   .animate-scale-in,
-  .animate-slide-in-right,
-  [data-state="open"],
-  [data-state="closed"] {
+  .animate-slide-in-right {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, opacity;
+  }
+  
+  /* Exclude dropdown states from GPU transforms that break positioning */
+  [data-state="open"]:not([data-radix-popper-content-wrapper] *),
+  [data-state="closed"]:not([data-radix-popper-content-wrapper] *) {
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -119,11 +131,6 @@
     transform: translateZ(0);
   }
   
-  /* Dropdown and popover - exclude from transforms that break positioning */
-  [data-radix-popper-content-wrapper] {
-    transform: none !important;
-    -webkit-transform: none !important;
-  }
 }
 
 @layer utilities {

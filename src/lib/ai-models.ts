@@ -26,6 +26,16 @@ export const AI_MODELS: AIModel[] = [
     supportsLocal: false,
     cloudModelId: 'google/gemini-2.5-flash-lite',
   },
+  {
+    id: 'gpt-5-nano',
+    name: 'GPT-5 Nano',
+    description: 'Fastest and most efficient for simple tasks',
+    provider: 'openai',
+    capabilities: ['text'],
+    tier: 'free',
+    supportsLocal: false,
+    cloudModelId: 'openai/gpt-5-nano',
+  },
   
   // Advanced tier models
   {
@@ -99,16 +109,6 @@ export const AI_MODELS: AIModel[] = [
     tier: 'professional',
     supportsLocal: false,
     cloudModelId: 'openai/gpt-5',
-  },
-  {
-    id: 'gpt-5-nano',
-    name: 'GPT-5 Nano',
-    description: 'Fastest and most efficient for simple tasks',
-    provider: 'openai',
-    capabilities: ['text'],
-    tier: 'advanced',
-    supportsLocal: false,
-    cloudModelId: 'openai/gpt-5-nano',
   },
   {
     id: 'local-medium',
