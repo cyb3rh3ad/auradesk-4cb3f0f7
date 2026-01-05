@@ -118,11 +118,13 @@
     text-rendering: optimizeLegibility;
   }
   
-  /* Force GPU layer for all interactive elements */
-  button, a, [role="button"], [role="tab"], [role="menuitem"], [role="option"] {
+  /* Force GPU layer for interactive elements - exclude dropdown triggers */
+  button:not([data-radix-collection-item]):not([data-state]), 
+  a:not([data-radix-collection-item]), 
+  [role="tab"], 
+  [role="menuitem"]:not([data-radix-collection-item]), 
+  [role="option"] {
     transform-origin: center center;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
   }
   
   /* Optimize paint performance */
