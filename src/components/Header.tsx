@@ -30,7 +30,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4 md:px-6 relative">
+    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
 
       {!isMobile && (
