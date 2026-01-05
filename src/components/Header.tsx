@@ -66,49 +66,43 @@ export const Header = () => {
           <NotificationsDropdown />
         </div>
 
-        {/* Profile Menu with visual connection to avatar */}
-        <div className="relative ml-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="focus:outline-none rounded-full">
-                <Avatar className="w-9 h-9 cursor-pointer ring-2 ring-transparent hover:ring-primary/30 transition-all">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-                    {user?.email ? getInitials(user.email) : "AD"}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              alignOffset={-4}
-              sideOffset={12} 
-              className="w-56 bg-popover border border-border shadow-lg rounded-xl z-[200]"
-            >
-              {/* Arrow pointing to avatar */}
-              <div className="absolute -top-2 right-4 w-4 h-4 bg-popover border-l border-t border-border rotate-45" />
-              
-              <DropdownMenuLabel className="pt-3">
-                <p className="font-medium">My Account</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/subscription')}>
-                <User className="mr-2 h-4 w-4" />
-                Subscription
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Profile Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="ml-4 focus:outline-none rounded-full">
+              <Avatar className="w-9 h-9 cursor-pointer ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                  {user?.email ? getInitials(user.email) : "AD"}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent 
+            align="end"
+            sideOffset={8} 
+            className="w-56 bg-popover border border-border shadow-xl rounded-xl"
+          >
+            <DropdownMenuLabel>
+              <p className="font-medium">My Account</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/subscription')}>
+              <User className="mr-2 h-4 w-4" />
+              Subscription
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
