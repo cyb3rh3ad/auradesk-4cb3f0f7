@@ -113,7 +113,7 @@ const InteractiveLogo = () => {
 };
 
 const Auth = () => {
-  const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState } = useAuth();
+  const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState, completeMfaVerification } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -210,7 +210,8 @@ const Auth = () => {
     }
   };
 
-  const handleMfaSuccess = () => {
+  const handleMfaSuccess = async () => {
+    await completeMfaVerification();
     navigate('/dashboard');
   };
 
