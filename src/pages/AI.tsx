@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const AI = () => {
   const [input, setInput] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Closed by default on mobile
   const { isLoading, sendMessage } = useAIChat();
   const {
     sessions,
@@ -36,6 +36,22 @@ const AI = () => {
   const { plan } = useSubscription();
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Close sidebar when selecting a session on mobile
+  const handleSelectSession = (id: string) => {
+    setCurrentSessionId(id);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // Close sidebar after creating a session on mobile
+  const handleCreateSession = async () => {
+    await createSession();
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
 
   const subscriptionPlan: SubscriptionPlan = (plan as SubscriptionPlan) || 'free';
 
@@ -118,27 +134,25 @@ const AI = () => {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-background">
-      {/* Mobile sidebar toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 left-2 z-50 md:hidden"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-      >
-        {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
+    <div className="flex h-[calc(100vh-4rem)] bg-background relative overflow-hidden">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <div className={cn(
-        "absolute md:relative z-40 h-full transition-transform duration-200 md:translate-x-0",
+        "fixed md:relative z-40 h-full transition-transform duration-200 ease-out md:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <AIChatSidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
-          onSelectSession={setCurrentSessionId}
-          onCreateSession={createSession}
+          onSelectSession={handleSelectSession}
+          onCreateSession={handleCreateSession}
           onRenameSession={renameSession}
           onDeleteSession={deleteSession}
         />
@@ -148,20 +162,30 @@ const AI = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className="bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-          <div className="px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3 ml-10 md:ml-0">
-              <div className="relative">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25">
-                  <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="px-3 md:px-4 py-3 flex items-center justify-between gap-2">
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 md:hidden"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25">
+                  <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
+                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-emerald-500 border-2 border-background" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold tracking-tight">Aura</h1>
                 <p className="text-xs text-muted-foreground">AI Assistant</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
               <AIModelSelector
                 selectedModel={preferences?.selected_model || 'gemini-2.5-flash'}
                 executionMode={(preferences?.execution_mode as 'cloud' | 'local') || 'cloud'}
@@ -173,7 +197,7 @@ const AI = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9"
+                className="h-8 w-8 md:h-9 md:w-9 shrink-0"
                 onClick={() => navigate('/ai-settings')}
               >
                 <Settings className="h-4 w-4" />
@@ -184,7 +208,7 @@ const AI = () => {
 
         {/* Messages */}
         <ScrollArea className="flex-1" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
             <AnimatePresence mode="wait">
               {!currentSessionId || messages.length === 0 ? (
                 <motion.div
@@ -212,13 +236,13 @@ const AI = () => {
                     </motion.div>
                   </div>
                   
-                  <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
-                  <p className="text-muted-foreground mb-8 max-w-md">
+                  <h2 className="text-xl md:text-2xl font-semibold mb-2">How can I help you today?</h2>
+                  <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8 max-w-md px-4">
                     I'm Aura, your AI assistant. Ask me anything or choose a suggestion below.
                   </p>
                   
                   {/* Suggestion cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 w-full max-w-2xl px-2">
                     {suggestionCards.map((card, index) => (
                       <motion.button
                         key={index}
@@ -226,13 +250,13 @@ const AI = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
                         onClick={() => setInput(card.prompt)}
-                        className="group p-4 rounded-xl border bg-card/50 hover:bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 text-left"
+                        className="group p-3 md:p-4 rounded-xl border bg-card/50 hover:bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 text-left"
                       >
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                          <card.icon className="h-4 w-4 text-primary" />
+                        <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
+                          <card.icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                         </div>
-                        <p className="font-medium text-sm mb-1">{card.title}</p>
-                        <p className="text-xs text-muted-foreground">{card.description}</p>
+                        <p className="font-medium text-sm mb-0.5 md:mb-1">{card.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p>
                       </motion.button>
                     ))}
                   </div>
@@ -331,7 +355,7 @@ const AI = () => {
         </ScrollArea>
 
         {/* Input area */}
-        <div className="bg-background/80 backdrop-blur-xl p-4">
+        <div className="bg-background/80 backdrop-blur-xl p-3 md:p-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex gap-2 items-center">
               <div className="flex-1 relative">
@@ -341,13 +365,13 @@ const AI = () => {
                   onKeyPress={handleKeyPress}
                   placeholder="Message Aura..."
                   disabled={isLoading}
-                  className="pr-12 py-6 rounded-xl bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/50"
+                  className="pr-11 md:pr-12 py-5 md:py-6 rounded-xl bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/50 text-sm md:text-base"
                 />
                 <Button
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
                   size="icon"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 md:h-8 md:w-8 rounded-lg"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -357,7 +381,7 @@ const AI = () => {
                 </Button>
               </div>
             </div>
-            <p className="text-[10px] text-center text-muted-foreground mt-2">
+            <p className="text-[10px] text-center text-muted-foreground mt-2 hidden sm:block">
               Aura can make mistakes. Consider checking important information.
             </p>
           </div>
