@@ -86,91 +86,78 @@ export const Header = () => {
 
         <NotificationsDropdown />
 
-        {/* Expanding Profile Menu */}
+        {/* Profile Menu */}
         <div ref={profileRef} className="relative">
-          <motion.div
-            layout
+          {/* Avatar Trigger */}
+          <button
+            onClick={() => setProfileOpen(!profileOpen)}
             className={cn(
-              "overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm",
-              profileOpen && "shadow-xl shadow-primary/10"
+              "p-1.5 rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm hover:bg-accent/30 transition-all",
+              profileOpen && "shadow-lg shadow-primary/10"
             )}
-            transition={{
-              type: 'spring',
-              stiffness: 400,
-              damping: 30,
-            }}
           >
-            {/* Avatar Trigger */}
-            <motion.button
-              layout
-              onClick={() => setProfileOpen(!profileOpen)}
-              className="p-1.5 hover:bg-accent/30 transition-colors"
-            >
-              <Avatar className="w-8 h-8 cursor-pointer">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-                  {user?.email ? getInitials(user.email) : "AD"}
-                </AvatarFallback>
-              </Avatar>
-            </motion.button>
+            <Avatar className="w-8 h-8 cursor-pointer">
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                {user?.email ? getInitials(user.email) : "AD"}
+              </AvatarFallback>
+            </Avatar>
+          </button>
 
-            {/* Expanded Content */}
-            <AnimatePresence>
-              {profileOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 400,
-                    damping: 30,
-                  }}
-                  className="overflow-hidden"
-                >
-                  <div className="border-t border-border/50 w-56">
-                    {/* User Info */}
-                    <div className="px-3 py-2">
-                      <p className="font-medium text-foreground">My Account</p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    </div>
-                    
-                    <div className="h-px bg-border/50" />
-                    
-                    {/* Menu Items */}
-                    <div className="py-1">
-                      <button
-                        onClick={() => handleNavigate('/settings')}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </button>
-                      <button
-                        onClick={() => handleNavigate('/subscription')}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
-                      >
-                        <User className="h-4 w-4" />
-                        Subscription
-                      </button>
-                    </div>
-                    
-                    <div className="h-px bg-border/50" />
-                    
-                    <div className="py-1">
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign out
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          {/* Dropdown Content - Absolute positioned */}
+          <AnimatePresence>
+            {profileOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 500,
+                  damping: 30,
+                }}
+                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-xl z-50 overflow-hidden"
+              >
+                {/* User Info */}
+                <div className="px-3 py-2">
+                  <p className="font-medium text-foreground">My Account</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+                
+                <div className="h-px bg-border" />
+                
+                {/* Menu Items */}
+                <div className="py-1">
+                  <button
+                    onClick={() => handleNavigate('/settings')}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => handleNavigate('/subscription')}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
+                  >
+                    <User className="h-4 w-4" />
+                    Subscription
+                  </button>
+                </div>
+                
+                <div className="h-px bg-border" />
+                
+                <div className="py-1">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
