@@ -29,7 +29,6 @@ export const Header = () => {
 
   return (
     <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4 md:px-6 relative">
-      {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
 
       {!isMobile && (
@@ -63,7 +62,7 @@ export const Header = () => {
 
         <NotificationsDropdown />
 
-        {/* User Dropdown */}
+        {/* FIX APPLIED HERE: Added a relative container and disabled the Portal */}
         <div className="relative">
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
@@ -80,7 +79,15 @@ export const Header = () => {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-56 z-[100]">
+
+            <DropdownMenuContent
+              align="end"
+              side="bottom"
+              sideOffset={8}
+              className="w-56 z-[100]"
+              // This is the important part - it stops the jump to 0,0
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user?.user_metadata?.full_name || "User"}</p>
