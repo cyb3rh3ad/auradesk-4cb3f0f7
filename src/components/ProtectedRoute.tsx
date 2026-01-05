@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, mfaRequired } = useAuth();
 
   if (loading) {
     return (
@@ -10,6 +10,11 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  // If MFA is required, redirect to auth page for verification
+  if (mfaRequired) {
+    return <Navigate to="/auth" replace />;
   }
 
   if (!user) {
