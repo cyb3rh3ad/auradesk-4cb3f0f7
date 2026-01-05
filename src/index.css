@@ -47,6 +47,18 @@
     --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(217 91% 60%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(262 83% 58% / 0.2) 0%, hsl(217 91% 60% / 0.2) 100%);
     --glow: 0 0 40px hsl(262 83% 58% / 0.3);
+    
+    /* Semantic gradient tokens for cards and UI elements */
+    --gradient-blue: 199 89% 48%;
+    --gradient-blue-end: 187 85% 53%;
+    --gradient-purple: 270 70% 60%;
+    --gradient-purple-end: 330 81% 60%;
+    --gradient-orange: 25 95% 53%;
+    --gradient-orange-end: 0 84% 60%;
+    --gradient-green: 142 71% 45%;
+    --gradient-green-end: 160 84% 39%;
+    --gradient-indigo: 234 89% 63%;
+    --gradient-indigo-end: 270 70% 60%;
   }
 
   .dark {

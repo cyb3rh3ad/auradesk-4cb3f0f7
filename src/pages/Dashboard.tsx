@@ -21,7 +21,8 @@ const Dashboard = () => {
       value: "12", 
       change: "+2 from last week", 
       icon: Users,
-      gradient: "from-blue-500 to-cyan-500",
+      gradientFrom: "from-gradient-blue",
+      gradientTo: "to-gradient-blue-end",
       path: "/teams"
     },
     { 
@@ -29,7 +30,8 @@ const Dashboard = () => {
       value: "2,847", 
       change: "+573 this week", 
       icon: MessageSquare,
-      gradient: "from-purple-500 to-pink-500",
+      gradientFrom: "from-gradient-purple",
+      gradientTo: "to-gradient-purple-end",
       path: "/chat"
     },
     { 
@@ -37,7 +39,8 @@ const Dashboard = () => {
       value: "8", 
       change: "3 upcoming today", 
       icon: Calendar,
-      gradient: "from-orange-500 to-red-500",
+      gradientFrom: "from-gradient-orange",
+      gradientTo: "to-gradient-orange-end",
       path: "/meetings"
     },
   ];
@@ -67,13 +70,13 @@ const Dashboard = () => {
             className={`relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group ${stat.path ? 'cursor-pointer' : ''}`}
             style={{ animationDelay: `${i * 100}ms` }}
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-5 rounded-full blur-2xl`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} opacity-5 rounded-full blur-2xl`} />
             
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                <stat.icon className="h-4 w-4 text-white" />
+              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                <stat.icon className="h-4 w-4 text-primary-foreground" />
               </div>
             </CardHeader>
             <CardContent>
@@ -92,13 +95,13 @@ const Dashboard = () => {
           className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group cursor-pointer"
           style={{ animationDelay: '300ms' }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-emerald-500 opacity-5 rounded-full blur-2xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-gradient-green to-gradient-green-end opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-gradient-green to-gradient-green-end opacity-5 rounded-full blur-2xl" />
           
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Next Meeting</CardTitle>
-            <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <Video className="h-4 w-4 text-white" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-gradient-green to-gradient-green-end shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Video className="h-4 w-4 text-primary-foreground" />
             </div>
           </CardHeader>
           <CardContent>
@@ -145,12 +148,12 @@ const Dashboard = () => {
               </div>
             ) : (
               contacts.map((contact, i) => {
-                const gradients = [
-                  "from-blue-500 to-cyan-500",
-                  "from-purple-500 to-pink-500",
-                  "from-orange-500 to-red-500",
-                  "from-green-500 to-emerald-500",
-                  "from-indigo-500 to-violet-500",
+                const gradientClasses = [
+                  "from-gradient-blue to-gradient-blue-end",
+                  "from-gradient-purple to-gradient-purple-end",
+                  "from-gradient-orange to-gradient-orange-end",
+                  "from-gradient-green to-gradient-green-end",
+                  "from-gradient-indigo to-gradient-indigo-end",
                 ];
                 const initials = contact.full_name 
                   ? contact.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -165,7 +168,7 @@ const Dashboard = () => {
                     <div className="flex items-center space-x-4">
                       <Avatar className={`w-12 h-12 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-200`}>
                         <AvatarImage src={contact.avatar_url || undefined} />
-                        <AvatarFallback className={`rounded-2xl bg-gradient-to-br ${gradients[i % gradients.length]} text-white font-semibold`}>
+                        <AvatarFallback className={`rounded-2xl bg-gradient-to-br ${gradientClasses[i % gradientClasses.length]} text-primary-foreground font-semibold`}>
                           {initials}
                         </AvatarFallback>
                       </Avatar>
