@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { MessageArea } from '@/components/chat/MessageArea';
@@ -8,12 +8,24 @@ import { MessageSquare, ArrowLeft, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSearchParams } from 'react-router-dom';
 
 const Chat = () => {
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { conversations, loading: convoLoading, refetch } = useConversations();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const { messages, sendMessage, loading: messagesLoading } = useMessages(selectedConversationId);
+
+  // Auto-select conversation from URL query param
+  useEffect(() => {
+    const conversationFromUrl = searchParams.get('conversation');
+    if (conversationFromUrl && !selectedConversationId) {
+      setSelectedConversationId(conversationFromUrl);
+      // Clear the query param after setting
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, selectedConversationId, setSearchParams]);
 
   const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
 

@@ -159,7 +159,7 @@ const Dashboard = () => {
                 return (
                   <div 
                     key={contact.id} 
-                    onClick={() => navigate('/chat')}
+                    onClick={() => navigate(contact.conversation_id ? `/chat?conversation=${contact.conversation_id}` : '/chat')}
                     className="flex items-center justify-between p-4 rounded-xl hover:bg-accent/5 transition-all duration-200 group border border-transparent hover:border-border/50 cursor-pointer"
                   >
                     <div className="flex items-center space-x-4">
