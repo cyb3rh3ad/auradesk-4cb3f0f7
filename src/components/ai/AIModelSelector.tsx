@@ -7,7 +7,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ChevronUp, Sparkles, Cpu, Cloud, Lock, Image, Brain, Check } from "lucide-react";
@@ -94,98 +93,74 @@ export const AIModelSelector = ({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuPortal>
-        <DropdownMenuContent
-          align="end"
-          side="top"
-          sideOffset={12}
-          className="w-72 max-h-[400px] overflow-y-auto z-[100] bg-popover border shadow-xl"
-        >
-          <div className="p-2 border-b">
-            <p className="text-xs text-muted-foreground mb-2">Execution Mode</p>
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant={executionMode === "cloud" ? "default" : "outline"}
-                className="flex-1 h-8 text-xs"
-                onClick={() => onModeChange("cloud")}
-              >
-                <Cloud className="h-3 w-3 mr-1" />
-                Cloud
-              </Button>
-              <Button
-                size="sm"
-                variant={executionMode === "local" ? "default" : "outline"}
-                className="flex-1 h-8 text-xs"
-                disabled={!canUseLocal}
-                onClick={() => canUseLocal && onModeChange("local")}
-              >
-                <Cpu className="h-3 w-3 mr-1" />
-                Local
-                {!canUseLocal && <Lock className="h-3 w-3 ml-1" />}
-              </Button>
-            </div>
+      <DropdownMenuContent align="end" side="top" sideOffset={12} className="w-72 max-h-[400px] overflow-y-auto">
+        <div className="p-2 border-b">
+          <p className="text-xs text-muted-foreground mb-2">Execution Mode</p>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={executionMode === "cloud" ? "default" : "outline"}
+              className="flex-1 h-8 text-xs"
+              onClick={() => onModeChange("cloud")}
+            >
+              <Cloud className="h-3 w-3 mr-1" />
+              Cloud
+            </Button>
+            <Button
+              size="sm"
+              variant={executionMode === "local" ? "default" : "outline"}
+              className="flex-1 h-8 text-xs"
+              disabled={!canUseLocal}
+              onClick={() => canUseLocal && onModeChange("local")}
+            >
+              <Cpu className="h-3 w-3 mr-1" />
+              Local
+            </Button>
           </div>
+        </div>
 
-          <DropdownMenuSeparator />
+        <DropdownMenuSeparator />
 
-          {Object.entries(groupedModels).map(([provider, models]) => (
-            <div key={provider}>
-              <DropdownMenuLabel
-                className={cn("text-[10px] uppercase tracking-wider mt-1", getProviderColor(provider))}
-              >
-                {provider}
-              </DropdownMenuLabel>
-              {models.map((model) => {
-                const available = isModelAvailable(model);
-                const showLocalOnly = executionMode === "local" && !model.supportsLocal;
+        {Object.entries(groupedModels).map(([provider, models]) => (
+          <div key={provider}>
+            <DropdownMenuLabel className={cn("text-[10px] uppercase tracking-wider mt-1", getProviderColor(provider))}>
+              {provider}
+            </DropdownMenuLabel>
+            {models.map((model) => {
+              const available = isModelAvailable(model);
+              const showLocalOnly = executionMode === "local" && !model.supportsLocal;
 
-                return (
-                  <DropdownMenuItem
-                    key={model.id}
-                    disabled={!available || showLocalOnly}
-                    className={cn(
-                      "flex items-center justify-between cursor-pointer py-2",
-                      selectedModel === model.id && "bg-accent",
-                    )}
-                    onClick={() => {
-                      if (available && !showLocalOnly) {
-                        onModelChange(model.id);
-                        setOpen(false);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 flex justify-center">
-                        {selectedModel === model.id && <Check className="h-3 w-3 text-primary" />}
-                      </div>
-                      <span className={cn("text-sm", !available && "text-muted-foreground")}>{model.name}</span>
-                      <div className="flex gap-1">
-                        {model.capabilities.includes("image") && <Image className="h-3 w-3 text-pink-500" />}
-                        {model.capabilities.includes("reasoning") && <Brain className="h-3 w-3 text-yellow-500" />}
-                      </div>
+              return (
+                <DropdownMenuItem
+                  key={model.id}
+                  disabled={!available || showLocalOnly}
+                  className={cn(
+                    "flex items-center justify-between cursor-pointer py-2",
+                    selectedModel === model.id && "bg-accent",
+                  )}
+                  onClick={() => {
+                    if (available && !showLocalOnly) {
+                      onModelChange(model.id);
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 flex justify-center">
+                      {selectedModel === model.id && <Check className="h-3 w-3 text-primary" />}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {!available && <Lock className="h-3 w-3 opacity-50" />}
-                      {getTierBadge(model.tier)}
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })}
-            </div>
-          ))}
-
-          <DropdownMenuSeparator />
-          <div className="p-2 text-[10px] text-muted-foreground bg-muted/20">
-            <div className="flex items-center gap-2 mb-1">
-              <Image className="h-3 w-3 text-pink-500" /> Image generation
-            </div>
-            <div className="flex items-center gap-2">
-              <Brain className="h-3 w-3 text-yellow-500" /> Advanced reasoning
-            </div>
+                    <span className={cn("text-sm", !available && "text-muted-foreground")}>{model.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!available && <Lock className="h-3 w-3 opacity-50" />}
+                    {getTierBadge(model.tier)}
+                  </div>
+                </DropdownMenuItem>
+              );
+            })}
           </div>
-        </DropdownMenuContent>
-      </DropdownMenuPortal>
+        ))}
+      </DropdownMenuContent>
     </DropdownMenu>
   );
 };
