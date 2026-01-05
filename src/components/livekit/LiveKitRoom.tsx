@@ -12,13 +12,6 @@ import { useLiveKit } from "@/hooks/useLiveKit";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -646,35 +639,30 @@ export function LiveKitRoom({
                 )}
               </div>
 
-              {/* Host controls for remote participants */}
+              {/* Host controls for remote participants - Placeholder buttons */}
               {isHost && !isLocal && (
-                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleMuteParticipant(participant.identity)}>
-                        {participant.isMuted ? (
-                          <><Volume2 className="h-4 w-4 mr-2" /> Unmute</>
-                        ) : (
-                          <><VolumeX className="h-4 w-4 mr-2" /> Mute</>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={() => {
-                          setParticipantToKick(participant.identity);
-                          setKickDialogOpen(true);
-                        }}
-                      >
-                        <UserX className="h-4 w-4 mr-2" /> Remove from call
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <Button 
+                    variant="secondary" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => handleMuteParticipant(participant.identity)}
+                    title={participant.isMuted ? "Unmute" : "Mute"}
+                  >
+                    {participant.isMuted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="icon" 
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setParticipantToKick(participant.identity);
+                      setKickDialogOpen(true);
+                    }}
+                    title="Remove from call"
+                  >
+                    <UserX className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </div>

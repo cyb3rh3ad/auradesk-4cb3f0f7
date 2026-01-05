@@ -3,18 +3,12 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Plus, MessageSquare, MoreVertical, Pencil, Trash2, Check, X, Cpu } from 'lucide-react';
+import { Plus, MessageSquare, Pencil, Trash2, Check, X, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getModelById } from '@/lib/ai-models';
 
@@ -46,7 +40,8 @@ export const AIChatSidebar = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  const startEditing = (session: ChatSession) => {
+  const startEditing = (session: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingId(session.id);
     setEditTitle(session.title);
   };
@@ -61,6 +56,11 @@ export const AIChatSidebar = ({
   const cancelEdit = () => {
     setEditingId(null);
     setEditTitle('');
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeleteSession(id);
   };
 
   const formatDate = (dateString: string) => {
@@ -101,80 +101,73 @@ export const AIChatSidebar = ({
                 {dateSessions.map(session => {
                   const modelInfo = session.last_used_model ? getModelById(session.last_used_model) : null;
                   return (
-                  <TooltipProvider key={session.id} delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={cn(
-                            "group flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors",
-                            currentSessionId === session.id
-                              ? "bg-primary/10 text-primary"
-                              : "hover:bg-muted"
-                          )}
-                          onClick={() => editingId !== session.id && onSelectSession(session.id)}
-                        >
-                          <MessageSquare className="h-4 w-4 shrink-0" />
-                    
-                    {editingId === session.id ? (
-                      <div className="flex-1 flex items-center gap-1">
-                        <Input
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="h-6 text-sm"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit();
-                            if (e.key === 'Escape') cancelEdit();
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={saveEdit}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="flex-1 truncate text-sm">{session.title}</span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => startEditing(session)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => onDeleteSession(session.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        </>
-                      )}
-                        </div>
-                      </TooltipTrigger>
-                      {modelInfo && (
-                        <TooltipContent side="right" className="flex items-center gap-2">
-                          <Cpu className="h-3 w-3" />
-                          <span className="text-xs">{modelInfo.name}</span>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
+                    <TooltipProvider key={session.id} delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "group flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors",
+                              currentSessionId === session.id
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted"
+                            )}
+                            onClick={() => editingId !== session.id && onSelectSession(session.id)}
+                          >
+                            <MessageSquare className="h-4 w-4 shrink-0" />
+                      
+                            {editingId === session.id ? (
+                              <div className="flex-1 flex items-center gap-1">
+                                <Input
+                                  value={editTitle}
+                                  onChange={(e) => setEditTitle(e.target.value)}
+                                  className="h-6 text-sm"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveEdit();
+                                    if (e.key === 'Escape') cancelEdit();
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={saveEdit}>
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="flex-1 truncate text-sm">{session.title}</span>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={(e) => startEditing(session, e)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={(e) => handleDelete(session.id, e)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        {modelInfo && (
+                          <TooltipContent side="right" className="flex items-center gap-2">
+                            <Cpu className="h-3 w-3" />
+                            <span className="text-xs">{modelInfo.name}</span>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   );
                 })}
               </div>
