@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Command, LogOut, Settings, User } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -11,44 +10,23 @@ import { HelpRequestDialog } from "./HelpRequestDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
 import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
-  };
-
-  // Close on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setProfileOpen(false);
-      }
-    };
-
-    if (profileOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [profileOpen]);
-
-  const handleNavigate = (path: string) => {
-    navigate(path);
-    setProfileOpen(false);
-  };
-
-  const handleSignOut = () => {
-    signOut();
-    setProfileOpen(false);
   };
 
   return (
@@ -87,75 +65,38 @@ export const Header = () => {
         <NotificationsDropdown />
 
         {/* Profile Menu */}
-        <div ref={profileRef} className="relative">
-          {/* Avatar Trigger */}
-          <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="hover:opacity-80 transition-opacity"
-          >
-            <Avatar className="w-9 h-9 cursor-pointer ring-2 ring-transparent hover:ring-primary/30 transition-all">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
-                {user?.email ? getInitials(user.email) : "AD"}
-              </AvatarFallback>
-            </Avatar>
-          </button>
-
-          {/* Dropdown Content - Absolute positioned */}
-          <AnimatePresence>
-            {profileOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 500,
-                  damping: 30,
-                }}
-                className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-xl z-[100] overflow-hidden"
-              >
-                {/* User Info */}
-                <div className="px-3 py-2">
-                  <p className="font-medium text-foreground">My Account</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                </div>
-                
-                <div className="h-px bg-border" />
-                
-                {/* Menu Items */}
-                <div className="py-1">
-                  <button
-                    onClick={() => handleNavigate('/settings')}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
-                  >
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => handleNavigate('/subscription')}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent/30 transition-colors"
-                  >
-                    <User className="h-4 w-4" />
-                    Subscription
-                  </button>
-                </div>
-                
-                <div className="h-px bg-border" />
-                
-                <div className="py-1">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="focus:outline-none">
+              <Avatar className="w-9 h-9 cursor-pointer ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs">
+                  {user?.email ? getInitials(user.email) : "AD"}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <p className="font-medium">My Account</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/subscription')}>
+              <User className="mr-2 h-4 w-4" />
+              Subscription
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <HelpRequestDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} />
