@@ -12,6 +12,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { HelpNotification } from "@/components/HelpNotification";
 import { OwnerInitializer } from "@/components/OwnerInitializer";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { supabase } from "@/integrations/supabase/client";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
@@ -25,6 +27,8 @@ import Subscription from "./pages/Subscription";
 import AISettings from "./pages/AISettings";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const ThemeInit = () => {
@@ -95,55 +99,60 @@ const PageTransition = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeInit />
-          <OwnerInitializer />
-          <HelpNotification />
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/*"
-              element={
-              <ProtectedRoute>
-                  <CallProvider>
-                    <div className="flex h-screen w-full overflow-hidden">
-                      <Sidebar />
-                      <div className="flex-1 flex flex-col overflow-hidden">
-                        <Header />
-                        <main className="flex-1 overflow-auto">
-                          <PageTransition>
-                            <Routes>
-                              <Route path="/dashboard" element={<Dashboard />} />
-                              <Route path="/chat" element={<Chat />} />
-                              <Route path="/teams" element={<Teams />} />
-                              <Route path="/meetings" element={<Meetings />} />
-                              <Route path="/files" element={<Files />} />
-                              <Route path="/ai" element={<AI />} />
-                              <Route path="/ai-settings" element={<AISettings />} />
-                              <Route path="/settings" element={<Settings />} />
-                              <Route path="/subscription" element={<Subscription />} />
-                              <Route path="/admin" element={<Admin />} />
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
-                          </PageTransition>
-                        </main>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <ThemeInit />
+            <OwnerInitializer />
+            <HelpNotification />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route
+                path="/*"
+                element={
+                <ProtectedRoute>
+                    <OnboardingCheck />
+                    <CallProvider>
+                      <div className="flex h-screen w-full overflow-hidden">
+                        <Sidebar />
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                          <Header />
+                          <main className="flex-1 overflow-auto">
+                            <PageTransition>
+                              <Routes>
+                                <Route path="/dashboard" element={<Dashboard />} />
+                                <Route path="/chat" element={<Chat />} />
+                                <Route path="/teams" element={<Teams />} />
+                                <Route path="/meetings" element={<Meetings />} />
+                                <Route path="/files" element={<Files />} />
+                                <Route path="/ai" element={<AI />} />
+                                <Route path="/ai-settings" element={<AISettings />} />
+                                <Route path="/settings" element={<Settings />} />
+                                <Route path="/subscription" element={<Subscription />} />
+                                <Route path="/admin" element={<Admin />} />
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </PageTransition>
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  </CallProvider>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+                    </CallProvider>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
