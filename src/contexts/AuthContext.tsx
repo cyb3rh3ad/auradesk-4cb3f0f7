@@ -14,6 +14,7 @@ interface AuthContextType {
   mfaRequired: boolean;
   mfaFactorId: string | null;
   clearMfaState: () => void;
+  completeMfaVerification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,28 +30,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         // For OAuth logins (like Google), check MFA after sign in
         if (event === 'SIGNED_IN' && session?.user) {
           // Check if this is an OAuth login by looking at the provider
           const isOAuthLogin = session.user.app_metadata?.provider !== 'email';
           
           if (isOAuthLogin) {
-            // Defer MFA check to avoid Supabase deadlock
+            // Check MFA factors - use setTimeout to avoid Supabase deadlock
             setTimeout(async () => {
               const { data: factorsData } = await supabase.auth.mfa.listFactors();
               const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
               
               if (verifiedFactor) {
-                // User has MFA enabled, require verification
+                // User has MFA enabled - DO NOT set user/session yet
+                // This blocks access to protected routes
                 setMfaRequired(true);
                 setMfaFactorId(verifiedFactor.id);
+                setLoading(false);
                 // Navigate to auth page for MFA verification
                 navigate('/auth');
               } else {
                 // No MFA, proceed normally
                 setSession(session);
                 setUser(session.user);
+                setLoading(false);
               }
             }, 0);
           } else {
@@ -58,6 +62,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setSession(session);
             setUser(session?.user ?? null);
           }
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setMfaRequired(false);
+          setMfaFactorId(null);
         } else {
           setSession(session);
           setUser(session?.user ?? null);
@@ -66,14 +75,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // If we have a session but MFA is pending, don't set user
+      if (mfaRequired && mfaFactorId) {
+        setLoading(false);
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, mfaRequired, mfaFactorId]);
 
   const signUp = async (email: string, password: string, fullName: string, username: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
@@ -145,6 +159,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMfaFactorId(null);
   };
 
+  const completeMfaVerification = async () => {
+    // After MFA is verified, fetch and set the current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setSession(session);
+      setUser(session.user);
+    }
+    setMfaRequired(false);
+    setMfaFactorId(null);
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -156,7 +181,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       mfaRequired,
       mfaFactorId,
-      clearMfaState
+      clearMfaState,
+      completeMfaVerification
     }}>
       {children}
     </AuthContext.Provider>
