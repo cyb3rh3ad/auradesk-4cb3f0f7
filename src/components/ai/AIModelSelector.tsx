@@ -158,7 +158,7 @@ export const AIModelSelector = ({
               </div>
 
               {/* Models List */}
-              <div className="max-h-[300px] overflow-y-auto py-1">
+              <div className="py-1">
                 {Object.entries(groupedModels).map(([provider, models]) => (
                   <div key={provider}>
                     <div className="px-3 py-1.5 text-xs text-muted-foreground uppercase tracking-wider font-medium">
