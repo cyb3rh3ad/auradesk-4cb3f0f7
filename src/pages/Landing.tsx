@@ -246,6 +246,9 @@ const Landing = () => {
               <Link to="/privacy" className="hover:text-primary transition-colors">
                 Privacy Policy
               </Link>
+              <a href="mailto:info.auradesk@gmail.com" className="hover:text-primary transition-colors">
+                Contact
+              </a>
             </div>
             <p className="text-sm text-muted-foreground">
               © 2026 AuraDesk. All rights reserved.

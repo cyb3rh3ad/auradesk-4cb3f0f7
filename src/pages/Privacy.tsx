@@ -159,8 +159,8 @@ const Privacy = () => {
             <h2 className="text-2xl font-semibold mb-4">11. Contact Us</h2>
             <p className="text-muted-foreground leading-relaxed">
               If you have questions or concerns about this Privacy Policy or our data practices, please contact us at:
-              <a href="mailto:privacy@auradesk.com" className="text-primary hover:underline ml-1">
-                privacy@auradesk.com
+              <a href="mailto:info.auradesk@gmail.com" className="text-primary hover:underline ml-1">
+                info.auradesk@gmail.com
               </a>
             </p>
           </section>
