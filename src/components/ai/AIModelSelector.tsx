@@ -67,8 +67,7 @@ export const AIModelSelector = ({
   }, {} as Record<string, AIModel[]>);
 
   return (
-    <div className="relative">
-    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -85,7 +84,7 @@ export const AIModelSelector = ({
           )} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="bottom" sideOffset={8} usePortal={false} className="w-72 max-h-[400px] overflow-y-auto gpu-accelerated">
+      <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-72 max-h-[400px] overflow-y-auto">
         {/* Execution Mode Toggle */}
         <motion.div 
           className="p-2 border-b"
@@ -222,6 +221,5 @@ export const AIModelSelector = ({
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-    </div>
   );
 };
