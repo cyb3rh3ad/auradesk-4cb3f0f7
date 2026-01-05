@@ -292,8 +292,7 @@ export const NotificationsDropdown = () => {
   };
 
   return (
-    <div className="relative">
-      <DropdownMenu modal={false}>
+    <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -308,7 +307,7 @@ export const NotificationsDropdown = () => {
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="bottom" sideOffset={8} usePortal={false} className="w-80">
+        <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-80">
           <DropdownMenuLabel>Notifications</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <ScrollArea className="h-[400px]">
@@ -399,6 +398,5 @@ export const NotificationsDropdown = () => {
           </ScrollArea>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
   );
 };
