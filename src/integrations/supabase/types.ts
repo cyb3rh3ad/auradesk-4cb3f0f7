@@ -100,6 +100,27 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_users: {
+        Row: {
+          blocked_user_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          blocked_user_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          blocked_user_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversation_members: {
         Row: {
           conversation_id: string
@@ -611,6 +632,39 @@ export type Database = {
           selected_model?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reported_user_id?: string
+          reporter_id?: string
+          resolved_at?: string | null
+          status?: string
         }
         Relationships: []
       }

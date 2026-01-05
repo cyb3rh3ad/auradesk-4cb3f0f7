@@ -10,6 +10,7 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useCall } from '@/contexts/CallContext';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
+import { ChatOptionsMenu } from './ChatOptionsMenu';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -17,9 +18,10 @@ interface MessageAreaProps {
   conversationName: string;
   isGroup?: boolean;
   conversationId: string | null;
+  otherUserId?: string | null;
 }
 
-export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId }: MessageAreaProps) => {
+export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
   const { user } = useAuth();
   const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
@@ -129,9 +131,21 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           >
             <Video className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-            <MoreVertical className="w-4 h-4" />
-          </Button>
+          {!isGroup && otherUserId && (
+            <ChatOptionsMenu 
+              targetUserId={otherUserId} 
+              targetUserName={conversationName}
+            >
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </ChatOptionsMenu>
+          )}
+          {(isGroup || !otherUserId) && (
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
