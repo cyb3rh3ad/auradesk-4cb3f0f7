@@ -23,15 +23,33 @@ export const AddFriendDialog = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const handleSearch = async () => {
-    if (!email.trim()) return;
+    const searchTerm = email.trim();
+    if (!searchTerm) return;
+    
+    // Require minimum 3 characters
+    if (searchTerm.length < 3) {
+      toast({
+        title: 'Search too short',
+        description: 'Please enter at least 3 characters to search.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLoading(true);
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`username.ilike.%${email}%,email.ilike.%${email}%`)
-      .neq('id', user?.id)
-      .limit(5);
+    // Use secure RPC function that only returns safe fields (no email exposure)
+    const { data: profiles, error } = await supabase
+      .rpc('search_profiles', { search_query: searchTerm });
+
+    if (error) {
+      console.error('Search error:', error);
+      toast({
+        title: 'Search failed',
+        description: 'Could not search for users. Please try again.',
+        variant: 'destructive',
+      });
+    }
 
     setSearchResults(profiles || []);
     setLoading(false);
@@ -101,13 +119,13 @@ export const AddFriendDialog = () => {
         <DialogHeader>
           <DialogTitle>Add Friend</DialogTitle>
           <DialogDescription>
-            Search for users by username or email to send a friend request.
+            Search for users by username to send a friend request.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Enter username or email..."
+              placeholder="Enter username (min 3 characters)..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -123,8 +141,10 @@ export const AddFriendDialog = () => {
                 className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/50"
               >
                 <div>
-                  <p className="font-medium">@{profile.username || profile.email}</p>
-                  <p className="text-sm text-muted-foreground">{profile.full_name || profile.email}</p>
+                  <p className="font-medium">@{profile.username || 'Unknown'}</p>
+                  {profile.full_name && (
+                    <p className="text-sm text-muted-foreground">{profile.full_name}</p>
+                  )}
                 </div>
                 <Button
                   size="sm"
