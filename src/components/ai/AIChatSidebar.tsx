@@ -84,8 +84,8 @@ export const AIChatSidebar = ({
   }, {} as Record<string, ChatSession[]>);
 
   return (
-    <div className="w-64 border-r bg-muted/30 flex flex-col h-full">
-      <div className="p-3 border-b">
+    <div className="w-64 bg-muted/30 flex flex-col h-full">
+      <div className="p-3">
         <Button onClick={() => onCreateSession()} className="w-full gap-2" variant="outline">
           <Plus className="h-4 w-4" />
           New Chat
