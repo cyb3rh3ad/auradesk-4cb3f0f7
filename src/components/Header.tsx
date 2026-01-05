@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Command, LogOut, Settings, User, ChevronDown } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Command, LogOut, Settings, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -19,15 +20,34 @@ export const Header = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
   };
 
+  // Update menu position when opened
+  useEffect(() => {
+    if (profileMenuOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right
+      });
+    }
+  }, [profileMenuOpen]);
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        profileMenuRef.current && 
+        !profileMenuRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setProfileMenuOpen(false);
       }
     };
@@ -88,42 +108,37 @@ export const Header = () => {
           <NotificationsDropdown />
         </div>
 
-        {/* Profile Menu - Expanding card style */}
-        <div ref={profileMenuRef} className="relative ml-4">
+        {/* Profile Menu */}
+        <div className="relative ml-4">
           <button 
+            ref={buttonRef}
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded-full transition-all duration-200",
-              "hover:bg-muted/50",
-              profileMenuOpen && "bg-muted/50"
-            )}
+            className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-primary/30"
           >
-            <Avatar className="w-8 h-8 ring-2 ring-primary/20">
+            <Avatar className="w-9 h-9 ring-2 ring-primary/20">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
                 {user?.email ? getInitials(user.email) : "AD"}
               </AvatarFallback>
             </Avatar>
-            <ChevronDown className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform duration-200",
-              profileMenuOpen && "rotate-180"
-            )} />
           </button>
 
-          {/* Animated expanding menu */}
-          <AnimatePresence>
-            {profileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="fixed w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden z-[9999]"
-                style={{ 
-                  transformOrigin: "top right",
-                  top: "72px",
-                  right: "24px"
-                }}
+          {/* Portal dropdown to body */}
+          {profileMenuOpen && createPortal(
+            <div ref={profileMenuRef}>
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="fixed w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden"
+                  style={{ 
+                    transformOrigin: "top right",
+                    top: menuPosition.top,
+                    right: menuPosition.right,
+                    zIndex: 99999
+                  }}
               >
                 {/* User info header */}
                 <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
@@ -177,9 +192,11 @@ export const Header = () => {
                     <span className="text-destructive">Sign out</span>
                   </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              </AnimatePresence>
+            </div>,
+            document.body
+          )}
         </div>
       </div>
 
