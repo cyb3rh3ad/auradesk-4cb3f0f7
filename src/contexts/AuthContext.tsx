@@ -112,14 +112,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      // Check MFA for ALL users with existing sessions (not just OAuth)
+      // Check MFA status - only require verification if session is at aal1 and needs aal2
       try {
-        const { data: factorsData } = await supabase.auth.mfa.listFactors();
-        const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+        const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         
-        if (verifiedFactor) {
-          const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
+        // Only require MFA if:
+        // 1. Current level is aal1 (not yet verified in this session)
+        // 2. Next level is aal2 (MFA is enabled and required)
+        if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
+          const { data: factorsData } = await supabase.auth.mfa.listFactors();
+          const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
+          
+          if (verifiedFactor) {
             // MFA required but not verified - redirect to auth
             setMfaRequired(true);
             setMfaFactorId(verifiedFactor.id);
@@ -128,6 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return; // Don't set user/session until MFA verified
           }
         }
+        // If currentLevel is already aal2, MFA was already verified - proceed normally
       } catch (err) {
         console.error('MFA check failed:', err);
       }
@@ -205,9 +210,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate('/');
   };
 
-  const clearMfaState = () => {
+  const clearMfaState = async () => {
+    // Sign out the user when they cancel MFA
+    await supabase.auth.signOut();
     setMfaRequired(false);
     setMfaFactorId(null);
+    setSession(null);
+    setUser(null);
   };
 
   const completeMfaVerification = async () => {
