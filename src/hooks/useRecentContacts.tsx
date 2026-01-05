@@ -127,7 +127,6 @@ export const useRecentContacts = (limit: number = 5) => {
           };
         });
 
-        console.log('Recent contacts with conversation IDs:', finalContacts.map(c => ({ name: c.full_name, conversation_id: c.conversation_id })));
         setContacts(finalContacts);
       } catch (error) {
         console.error('Error fetching recent contacts:', error);
