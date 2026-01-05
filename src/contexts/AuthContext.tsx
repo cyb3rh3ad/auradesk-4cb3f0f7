@@ -56,18 +56,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
+    // Track if this is a fresh OAuth login - set BEFORE redirect clears URL params
+    // We check sessionStorage because the URL params are cleared after OAuth redirect processing
+    const checkIsOAuthLogin = () => {
+      const hasOAuthParams = window.location.hash.includes('access_token') || 
+                             window.location.hash.includes('refresh_token') ||
+                             window.location.search.includes('code=');
+      
+      if (hasOAuthParams) {
+        // Mark this as a fresh OAuth login
+        sessionStorage.setItem('oauth_login_pending', 'true');
+        return true;
+      }
+      
+      // Check if we recently came from OAuth
+      const pending = sessionStorage.getItem('oauth_login_pending');
+      return pending === 'true';
+    };
+
     const initializeAuth = async () => {
       try {
-        // Check if this is an OAuth callback (fresh login) vs stale session
-        const isOAuthCallback = window.location.hash.includes('access_token') || 
-                                 window.location.hash.includes('refresh_token') ||
-                                 window.location.search.includes('code=');
-
+        const isOAuthLogin = checkIsOAuthLogin();
+        
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (!currentSession) {
+          sessionStorage.removeItem('oauth_login_pending');
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -80,14 +96,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         if (mfaNeeded) {
-          if (isOAuthCallback) {
+          if (isOAuthLogin) {
             // Fresh OAuth login - show MFA screen (don't sign out)
             // mfaRequired and mfaFactorId are already set by checkAndHandleMfa
+            // Keep oauth_login_pending until MFA is completed
             setSession(null);
             setUser(null);
             setLoading(false);
           } else {
             // Stale session from another tab - sign out completely to force fresh login
+            sessionStorage.removeItem('oauth_login_pending');
             await supabase.auth.signOut();
             setSession(null);
             setUser(null);
@@ -97,6 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           // MFA verified or not required - allow access
+          sessionStorage.removeItem('oauth_login_pending');
           setSession(currentSession);
           setUser(currentSession.user);
           setLoading(false);
@@ -104,6 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         console.error('Auth initialization failed:', err);
         if (mounted) {
+          sessionStorage.removeItem('oauth_login_pending');
           setLoading(false);
         }
       }
@@ -118,6 +138,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Auth state change:', event);
 
         if (event === 'SIGNED_OUT') {
+          sessionStorage.removeItem('oauth_login_pending');
           setSession(null);
           setUser(null);
           setMfaRequired(false);
@@ -132,10 +153,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (!newSession) {
+          sessionStorage.removeItem('oauth_login_pending');
           setSession(null);
           setUser(null);
           setLoading(false);
           return;
+        }
+
+        // For SIGNED_IN events, mark as OAuth login (this is a fresh login)
+        if (event === 'SIGNED_IN') {
+          sessionStorage.setItem('oauth_login_pending', 'true');
         }
 
         // For SIGNED_IN and TOKEN_REFRESHED, check MFA
@@ -148,10 +175,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!mounted) return;
 
           if (mfaNeeded) {
+            // Keep oauth_login_pending - this is a fresh login requiring MFA
             setSession(null);
             setUser(null);
             setLoading(false);
           } else {
+            sessionStorage.removeItem('oauth_login_pending');
             setSession(newSession);
             setUser(newSession.user);
             setLoading(false);
@@ -244,6 +273,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const completeMfaVerification = async () => {
     // After MFA is verified, fetch and set the current session
+    sessionStorage.removeItem('oauth_login_pending');
     const { data: { session: verifiedSession } } = await supabase.auth.getSession();
     if (verifiedSession) {
       setSession(verifiedSession);
