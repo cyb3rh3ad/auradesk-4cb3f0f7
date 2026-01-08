@@ -92,24 +92,28 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, find the correct path to dist/index.html
-    // Works both in ASAR and unpacked builds
-    const possiblePaths = [
-      path.join(app.getAppPath(), 'dist', 'index.html'),
-      path.join(__dirname, '..', 'dist', 'index.html'),
-      path.join(process.resourcesPath, 'app', 'dist', 'index.html'),
-      path.join(process.resourcesPath, 'app.asar', 'dist', 'index.html'),
+    // In production, use file:// URL to ensure relative paths resolve correctly
+    // This is critical for Vite builds with base: "./"
+    const fs = require('fs');
+    const url = require('url');
+    
+    // Find the dist folder
+    const possibleDistPaths = [
+      path.join(app.getAppPath(), 'dist'),
+      path.join(__dirname, '..', 'dist'),
+      path.join(process.resourcesPath, 'app', 'dist'),
+      path.join(process.resourcesPath, 'app.asar', 'dist'),
     ];
     
-    let indexPath = null;
-    const fs = require('fs');
+    let distPath = null;
     
-    for (const p of possiblePaths) {
-      console.log('Checking path:', p);
+    for (const p of possibleDistPaths) {
+      const indexPath = path.join(p, 'index.html');
+      console.log('Checking path:', indexPath);
       try {
-        if (fs.existsSync(p)) {
-          indexPath = p;
-          console.log('Found index.html at:', p);
+        if (fs.existsSync(indexPath)) {
+          distPath = p;
+          console.log('Found dist folder at:', p);
           break;
         }
       } catch (e) {
@@ -117,16 +121,22 @@ function createWindow() {
       }
     }
     
-    if (indexPath) {
-      mainWindow.loadFile(indexPath).then(() => {
-        console.log('Successfully loaded index.html from:', indexPath);
+    if (distPath) {
+      // Use loadURL with file:// protocol so relative paths work correctly
+      const indexPath = path.join(distPath, 'index.html');
+      const fileUrl = url.pathToFileURL(indexPath).href;
+      
+      console.log('Loading URL:', fileUrl);
+      
+      mainWindow.loadURL(fileUrl).then(() => {
+        console.log('Successfully loaded app from:', fileUrl);
       }).catch((err) => {
-        console.error('Failed to load index.html:', err);
-        showErrorPage('Failed to load application files.');
+        console.error('Failed to load app:', err);
+        showErrorPage('Failed to load application files: ' + err.message);
       });
     } else {
-      console.error('Could not find index.html in any expected location');
-      console.error('Tried paths:', possiblePaths);
+      console.error('Could not find dist folder in any expected location');
+      console.error('Tried paths:', possibleDistPaths);
       showErrorPage('Application files not found. Please reinstall the application.');
     }
     
