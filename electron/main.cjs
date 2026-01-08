@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
@@ -7,6 +8,54 @@ if (require('electron-squirrel-startup')) {
 }
 
 let mainWindow;
+
+// Configure auto-updater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+function setupAutoUpdater() {
+  // Check for updates silently
+  autoUpdater.checkForUpdates().catch(() => {
+    // Silently fail if offline or can't reach update server
+  });
+
+  // Update available
+  autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version (${info.version}) is available. Would you like to download it now?`,
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.downloadUpdate();
+      }
+    });
+  });
+
+  // Update downloaded
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.version} has been downloaded. The app will restart to install the update.`,
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall(false, true);
+      }
+    });
+  });
+
+  // Error handling
+  autoUpdater.on('error', (error) => {
+    console.error('Auto-updater error:', error);
+  });
+}
 
 function createWindow() {
   // Create the browser window
@@ -36,6 +85,9 @@ function createWindow() {
   } else {
     // In production, load the built files
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    
+    // Setup auto-updater only in production
+    setupAutoUpdater();
   }
 
   // Show window when ready to prevent visual flash
