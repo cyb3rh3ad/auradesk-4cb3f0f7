@@ -113,20 +113,20 @@ const Landing = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button 
                 size="lg" 
-                className="text-lg font-medium px-8 py-6 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white border-0 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 rounded-xl"
+                className="text-xl font-medium px-10 py-7 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white border-0 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 rounded-xl"
                 onClick={() => window.open('https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk-Setup-1.0.0.exe', '_blank')}
               >
-                <Download className="w-5 h-5 mr-2" />
+                <Download className="w-6 h-6 mr-3" />
                 Download
               </Button>
               
               <Button 
                 size="lg" 
                 variant="outline"
-                className="text-lg font-medium px-8 py-6 bg-transparent border border-border/50 hover:border-primary/50 hover:bg-primary/5 text-foreground transition-all duration-300 hover:scale-[1.02] rounded-xl"
+                className="text-xl font-medium px-10 py-7 bg-transparent border border-border/50 hover:border-primary/50 hover:bg-primary/5 text-foreground transition-all duration-300 hover:scale-[1.02] rounded-xl"
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
-                <Globe className="w-5 h-5 mr-2" />
+                <Globe className="w-6 h-6 mr-3" />
                 Use in Browser
               </Button>
             </div>
