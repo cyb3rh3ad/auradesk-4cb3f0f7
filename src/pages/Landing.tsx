@@ -113,36 +113,26 @@ const Landing = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
               <Button 
                 size="lg" 
-                className="text-lg px-8 py-6 gradient-primary hover:opacity-90 transition-all hover:scale-105 shadow-lg group"
-                onClick={() => navigate(user ? '/dashboard' : '/auth')}
+                className="text-lg px-10 py-7 gradient-primary hover:opacity-90 transition-all hover:scale-105 shadow-lg shadow-primary/25 group"
+                onClick={() => window.open('https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk-Setup-1.0.0.exe', '_blank')}
               >
-                <Zap className="w-5 h-5 mr-2 group-hover:animate-pulse" />
-                Get Started Free
+                <Download className="w-5 h-5 mr-2 group-hover:animate-bounce" />
+                Download
               </Button>
               
               <Button 
                 size="lg" 
                 variant="outline"
-                className="text-lg px-8 py-6 border-2 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105"
+                className="text-lg px-10 py-7 border-2 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105"
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
                 <Globe className="w-5 h-5 mr-2" />
                 Use in Browser
               </Button>
-              
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="text-lg px-8 py-6 border-2 border-blue-500 hover:bg-blue-500 hover:text-white transition-all hover:scale-105"
-                onClick={() => window.open('https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk-Setup-1.0.0.exe', '_blank')}
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Download for Windows
-              </Button>
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Free to start • No credit card required • Windows App & Browser
+              Free to start • No credit card required • Windows & Browser
             </p>
           </motion.div>
         </div>
