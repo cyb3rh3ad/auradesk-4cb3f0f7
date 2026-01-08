@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock } from "lucide-react";
+import { Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock, Download } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,10 +129,20 @@ const Landing = () => {
                 <Globe className="w-5 h-5 mr-2" />
                 Use in Browser
               </Button>
+              
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 py-6 border-2 border-blue-500 hover:bg-blue-500 hover:text-white transition-all hover:scale-105"
+                onClick={() => window.open('https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk-Setup-1.0.0.exe', '_blank')}
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Download for Windows
+              </Button>
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Free to start • No credit card required • Works on any modern browser
+              Free to start • No credit card required • Windows App & Browser
             </p>
           </motion.div>
         </div>
