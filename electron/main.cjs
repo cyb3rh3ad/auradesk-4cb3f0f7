@@ -76,6 +76,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false, // Required for file:// protocol to load local assets
+      allowRunningInsecureContent: false,
       preload: path.join(__dirname, 'preload.cjs'),
     },
     titleBarStyle: 'default',
@@ -91,27 +93,26 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files using app.getAppPath()
-    // This correctly resolves paths inside asar archives
+    // In production, load the built files
     const appPath = app.getAppPath();
     const indexPath = path.join(appPath, 'dist', 'index.html');
     
     console.log('App path:', appPath);
     console.log('Loading index from:', indexPath);
     
-    // Use loadURL with file:// protocol for better compatibility
-    const url = require('url').format({
-      protocol: 'file',
-      slashes: true,
-      pathname: indexPath
-    });
-    
-    console.log('Loading URL:', url);
-    
-    mainWindow.loadURL(url).catch((err) => {
-      console.error('Failed to load:', err);
-      // Open DevTools to debug
-      mainWindow.webContents.openDevTools();
+    // Use loadFile which is simpler and more reliable for local files
+    mainWindow.loadFile(indexPath).then(() => {
+      console.log('Successfully loaded index.html');
+    }).catch((err) => {
+      console.error('Failed to load index.html:', err);
+      
+      // Try alternative path (for unpacked builds)
+      const altPath = path.join(__dirname, '..', 'dist', 'index.html');
+      console.log('Trying alternative path:', altPath);
+      
+      mainWindow.loadFile(altPath).catch((err2) => {
+        console.error('Also failed with alternative path:', err2);
+      });
     });
     
     // Temporarily open DevTools in production to debug white screen
