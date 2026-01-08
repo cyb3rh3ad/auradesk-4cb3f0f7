@@ -72,7 +72,7 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    icon: path.join(__dirname, '../public/favicon.ico'),
+    icon: path.join(__dirname, '../public/icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -91,18 +91,31 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files from the app's resources
-    const indexPath = path.join(__dirname, '../dist/index.html');
+    // In production, load the built files using app.getAppPath()
+    // This correctly resolves paths inside asar archives
+    const appPath = app.getAppPath();
+    const indexPath = path.join(appPath, 'dist', 'index.html');
+    
+    console.log('App path:', appPath);
     console.log('Loading index from:', indexPath);
-    mainWindow.loadFile(indexPath).catch((err) => {
-      console.error('Failed to load index.html:', err);
-      // Fallback: try alternative path
-      const altPath = path.join(app.getAppPath(), 'dist/index.html');
-      console.log('Trying alternative path:', altPath);
-      mainWindow.loadFile(altPath).catch((err2) => {
-        console.error('Failed to load from alternative path:', err2);
-      });
+    
+    // Use loadURL with file:// protocol for better compatibility
+    const url = require('url').format({
+      protocol: 'file',
+      slashes: true,
+      pathname: indexPath
     });
+    
+    console.log('Loading URL:', url);
+    
+    mainWindow.loadURL(url).catch((err) => {
+      console.error('Failed to load:', err);
+      // Open DevTools to debug
+      mainWindow.webContents.openDevTools();
+    });
+    
+    // Temporarily open DevTools in production to debug white screen
+    mainWindow.webContents.openDevTools();
     
     // Setup auto-updater only in production
     setupAutoUpdater();
