@@ -157,12 +157,13 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // Find the dist folder
+    // Find the dist folder - check unpacked location first (asarUnpack)
     const possibleDistPaths = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'dist'),
+      path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'dist'),
       path.join(app.getAppPath(), 'dist'),
       path.join(__dirname, '..', 'dist'),
       path.join(process.resourcesPath, 'app', 'dist'),
-      path.join(process.resourcesPath, 'app.asar', 'dist'),
     ];
     
     let distPath = null;
