@@ -15,6 +15,12 @@
   "extraMetadata": {
     "main": "electron/main.cjs"
   },
+  "publish": {
+    "provider": "github",
+    "owner": "cyb3rh3ad",
+    "repo": "auradesk-4cb3f0f7",
+    "releaseType": "release"
+  },
   "win": {
     "target": [
       {
