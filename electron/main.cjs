@@ -1,19 +1,34 @@
 const { app, BrowserWindow, shell, dialog } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
+// Only require electron-updater in production builds
+let autoUpdater = null;
+if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') {
+  try {
+    autoUpdater = require('electron-updater').autoUpdater;
+  } catch (e) {
+    console.log('Auto-updater not available:', e.message);
+  }
+}
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
-if (require('electron-squirrel-startup')) {
-  app.quit();
+try {
+  if (require('electron-squirrel-startup')) {
+    app.quit();
+  }
+} catch (e) {
+  // electron-squirrel-startup not installed, skip
 }
 
 let mainWindow;
 
-// Configure auto-updater
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
-
 function setupAutoUpdater() {
+  if (!autoUpdater) return;
+  
+  // Configure auto-updater
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
   // Check for updates silently
   autoUpdater.checkForUpdates().catch(() => {
     // Silently fail if offline or can't reach update server
@@ -83,8 +98,18 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // In production, load the built files from the app's resources
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    console.log('Loading index from:', indexPath);
+    mainWindow.loadFile(indexPath).catch((err) => {
+      console.error('Failed to load index.html:', err);
+      // Fallback: try alternative path
+      const altPath = path.join(app.getAppPath(), 'dist/index.html');
+      console.log('Trying alternative path:', altPath);
+      mainWindow.loadFile(altPath).catch((err2) => {
+        console.error('Failed to load from alternative path:', err2);
+      });
+    });
     
     // Setup auto-updater only in production
     setupAutoUpdater();
