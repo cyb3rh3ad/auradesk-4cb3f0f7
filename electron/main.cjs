@@ -39,6 +39,21 @@ const mimeTypes = {
 };
 
 function createStaticServer(distPath) {
+  console.log('=== CREATING STATIC SERVER ===');
+  console.log('Serving from distPath:', distPath);
+  
+  // List files in distPath to verify structure
+  try {
+    const files = fs.readdirSync(distPath);
+    console.log('Files in distPath:', files);
+    if (files.includes('assets')) {
+      const assetFiles = fs.readdirSync(path.join(distPath, 'assets'));
+      console.log('Files in assets folder:', assetFiles.slice(0, 10)); // First 10
+    }
+  } catch (e) {
+    console.error('Error listing distPath contents:', e.message);
+  }
+  
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       // Parse URL and remove query string
@@ -51,8 +66,11 @@ function createStaticServer(distPath) {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = mimeTypes[ext] || 'application/octet-stream';
       
+      console.log(`[HTTP] ${req.method} ${urlPath} -> ${filePath}`);
+      
       fs.readFile(filePath, (err, content) => {
         if (err) {
+          console.error(`[HTTP] ERROR reading ${filePath}:`, err.code);
           // For SPA routing, serve index.html for missing routes (not assets)
           if (err.code === 'ENOENT' && !ext) {
             fs.readFile(path.join(distPath, 'index.html'), (err2, indexContent) => {
@@ -65,11 +83,11 @@ function createStaticServer(distPath) {
               res.end(indexContent);
             });
           } else {
-            console.error('File not found:', filePath);
             res.writeHead(404);
             res.end('Not Found');
           }
         } else {
+          console.log(`[HTTP] OK ${urlPath} (${content.length} bytes)`);
           res.writeHead(200, { 'Content-Type': contentType });
           res.end(content);
         }
@@ -83,7 +101,7 @@ function createStaticServer(distPath) {
 
     server.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
-      console.log('Static server started on port:', port);
+      console.log('=== STATIC SERVER STARTED ON PORT:', port, '===');
       resolve({ server, port });
     });
   });
@@ -152,6 +170,13 @@ function createWindow() {
   });
 
   const isDev = process.env.NODE_ENV === 'development';
+  
+  console.log('=== ELECTRON STARTUP ===');
+  console.log('isDev:', isDev);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('app.getAppPath():', app.getAppPath());
+  console.log('process.resourcesPath:', process.resourcesPath);
+  console.log('__dirname:', __dirname);
   
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
