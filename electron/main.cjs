@@ -76,47 +76,59 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false, // Required for file:// protocol to load local assets
+      webSecurity: false,
       allowRunningInsecureContent: false,
       preload: path.join(__dirname, 'preload.cjs'),
     },
     titleBarStyle: 'default',
     autoHideMenuBar: true,
-    show: false, // Don't show until ready
+    show: false,
   });
 
   // Load the app
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // In development, load from Vite dev server
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files
-    const appPath = app.getAppPath();
-    const indexPath = path.join(appPath, 'dist', 'index.html');
+    // In production, find the correct path to dist/index.html
+    // Works both in ASAR and unpacked builds
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'dist', 'index.html'),
+      path.join(__dirname, '..', 'dist', 'index.html'),
+      path.join(process.resourcesPath, 'app', 'dist', 'index.html'),
+      path.join(process.resourcesPath, 'app.asar', 'dist', 'index.html'),
+    ];
     
-    console.log('App path:', appPath);
-    console.log('Loading index from:', indexPath);
+    let indexPath = null;
+    const fs = require('fs');
     
-    // Use loadFile which is simpler and more reliable for local files
-    mainWindow.loadFile(indexPath).then(() => {
-      console.log('Successfully loaded index.html');
-    }).catch((err) => {
-      console.error('Failed to load index.html:', err);
-      
-      // Try alternative path (for unpacked builds)
-      const altPath = path.join(__dirname, '..', 'dist', 'index.html');
-      console.log('Trying alternative path:', altPath);
-      
-      mainWindow.loadFile(altPath).catch((err2) => {
-        console.error('Also failed with alternative path:', err2);
+    for (const p of possiblePaths) {
+      console.log('Checking path:', p);
+      try {
+        if (fs.existsSync(p)) {
+          indexPath = p;
+          console.log('Found index.html at:', p);
+          break;
+        }
+      } catch (e) {
+        // Path doesn't exist, try next
+      }
+    }
+    
+    if (indexPath) {
+      mainWindow.loadFile(indexPath).then(() => {
+        console.log('Successfully loaded index.html from:', indexPath);
+      }).catch((err) => {
+        console.error('Failed to load index.html:', err);
+        showErrorPage('Failed to load application files.');
       });
-    });
-    
-    // Temporarily open DevTools in production to debug white screen
-    mainWindow.webContents.openDevTools();
+    } else {
+      console.error('Could not find index.html in any expected location');
+      console.error('Tried paths:', possiblePaths);
+      showErrorPage('Application files not found. Please reinstall the application.');
+    }
     
     // Setup auto-updater only in production
     setupAutoUpdater();
@@ -136,6 +148,57 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function showErrorPage(message) {
+  const errorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>AuraDesk - Error</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          color: white;
+        }
+        .error-container {
+          text-align: center;
+          padding: 40px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 16px;
+          backdrop-filter: blur(10px);
+        }
+        h1 { color: #ff6b6b; margin-bottom: 16px; }
+        p { color: #ccc; margin-bottom: 24px; }
+        button {
+          background: #4ecdc4;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 16px;
+        }
+        button:hover { background: #45b7aa; }
+      </style>
+    </head>
+    <body>
+      <div class="error-container">
+        <h1>⚠️ Oops!</h1>
+        <p>${message}</p>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+    </body>
+    </html>
+  `;
+  mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml));
 }
 
 // This method will be called when Electron has finished initialization
