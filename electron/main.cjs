@@ -1,5 +1,7 @@
 const { app, BrowserWindow, shell, dialog } = require('electron');
 const path = require('path');
+const http = require('http');
+const fs = require('fs');
 
 // Only require electron-updater in production builds
 let autoUpdater = null;
@@ -11,23 +13,90 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') {
   }
 }
 
-// Note: electron-squirrel-startup is not needed for NSIS installers
-
 let mainWindow;
+let staticServer = null;
+
+// MIME types for static file serving
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.webp': 'image/webp'
+};
+
+function createStaticServer(distPath) {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      // Parse URL and remove query string
+      let urlPath = req.url.split('?')[0];
+      if (urlPath === '/') urlPath = '/index.html';
+      
+      // Decode URI and build file path
+      const decodedPath = decodeURIComponent(urlPath);
+      let filePath = path.join(distPath, decodedPath);
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      
+      fs.readFile(filePath, (err, content) => {
+        if (err) {
+          // For SPA routing, serve index.html for missing routes (not assets)
+          if (err.code === 'ENOENT' && !ext) {
+            fs.readFile(path.join(distPath, 'index.html'), (err2, indexContent) => {
+              if (err2) {
+                res.writeHead(500);
+                res.end('Server Error');
+                return;
+              }
+              res.writeHead(200, { 'Content-Type': 'text/html' });
+              res.end(indexContent);
+            });
+          } else {
+            console.error('File not found:', filePath);
+            res.writeHead(404);
+            res.end('Not Found');
+          }
+        } else {
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(content);
+        }
+      });
+    });
+
+    server.on('error', (err) => {
+      console.error('Static server error:', err);
+      reject(err);
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      console.log('Static server started on port:', port);
+      resolve({ server, port });
+    });
+  });
+}
 
 function setupAutoUpdater() {
   if (!autoUpdater) return;
   
-  // Configure auto-updater
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // Check for updates silently
-  autoUpdater.checkForUpdates().catch(() => {
-    // Silently fail if offline or can't reach update server
-  });
+  autoUpdater.checkForUpdates().catch(() => {});
 
-  // Update available
   autoUpdater.on('update-available', (info) => {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
@@ -43,7 +112,6 @@ function setupAutoUpdater() {
     });
   });
 
-  // Update downloaded
   autoUpdater.on('update-downloaded', (info) => {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
@@ -59,14 +127,12 @@ function setupAutoUpdater() {
     });
   });
 
-  // Error handling
   autoUpdater.on('error', (error) => {
     console.error('Auto-updater error:', error);
   });
 }
 
 function createWindow() {
-  // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -85,18 +151,12 @@ function createWindow() {
     show: false,
   });
 
-  // Load the app
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, use file:// URL to ensure relative paths resolve correctly
-    // This is critical for Vite builds with base: "./"
-    const fs = require('fs');
-    const url = require('url');
-    
     // Find the dist folder
     const possibleDistPaths = [
       path.join(app.getAppPath(), 'dist'),
@@ -122,17 +182,21 @@ function createWindow() {
     }
     
     if (distPath) {
-      // Use loadURL with file:// protocol so relative paths work correctly
-      const indexPath = path.join(distPath, 'index.html');
-      const fileUrl = url.pathToFileURL(indexPath).href;
-      
-      console.log('Loading URL:', fileUrl);
-      
-      mainWindow.loadURL(fileUrl).then(() => {
-        console.log('Successfully loaded app from:', fileUrl);
+      // Start local HTTP server to serve dist files
+      createStaticServer(distPath).then(({ server, port }) => {
+        staticServer = server;
+        const url = `http://127.0.0.1:${port}/`;
+        console.log('Loading app from:', url);
+        
+        mainWindow.loadURL(url).then(() => {
+          console.log('Successfully loaded app');
+        }).catch((err) => {
+          console.error('Failed to load app:', err);
+          showErrorPage('Failed to load application: ' + err.message);
+        });
       }).catch((err) => {
-        console.error('Failed to load app:', err);
-        showErrorPage('Failed to load application files: ' + err.message);
+        console.error('Failed to start static server:', err);
+        showErrorPage('Failed to start application server: ' + err.message);
       });
     } else {
       console.error('Could not find dist folder in any expected location');
@@ -140,16 +204,13 @@ function createWindow() {
       showErrorPage('Application files not found. Please reinstall the application.');
     }
     
-    // Setup auto-updater only in production
     setupAutoUpdater();
   }
 
-  // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -211,26 +272,29 @@ function showErrorPage(message) {
   mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml));
 }
 
-// This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
   createWindow();
 
   app.on('activate', () => {
-    // On macOS, re-create window when dock icon is clicked
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-// Quit when all windows are closed (except on macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// Security: Prevent new window creation
+app.on('before-quit', () => {
+  if (staticServer) {
+    staticServer.close();
+    console.log('Static server closed');
+  }
+});
+
 app.on('web-contents-created', (event, contents) => {
   contents.on('new-window', (event, navigationUrl) => {
     event.preventDefault();
