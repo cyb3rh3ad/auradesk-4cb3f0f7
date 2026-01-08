@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter, BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -30,6 +30,10 @@ import Auth from "./pages/Auth";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+
+// Use HashRouter for Electron (file:// protocol), BrowserRouter for web
+const isElectron = typeof window !== 'undefined' && window.navigator.userAgent.includes('Electron');
+const Router = isElectron ? HashRouter : BrowserRouter;
 
 const ThemeInit = () => {
   const { user } = useAuth();
@@ -104,7 +108,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <Router>
           <AuthProvider>
             <ThemeInit />
             <OwnerInitializer />
@@ -149,7 +153,7 @@ const App = () => (
               />
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
+        </Router>
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>
