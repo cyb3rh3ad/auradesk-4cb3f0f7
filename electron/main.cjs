@@ -11,14 +11,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') {
   }
 }
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
-try {
-  if (require('electron-squirrel-startup')) {
-    app.quit();
-  }
-} catch (e) {
-  // electron-squirrel-startup not installed, skip
-}
+// Note: electron-squirrel-startup is not needed for NSIS installers
 
 let mainWindow;
 
