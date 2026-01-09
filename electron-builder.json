@@ -4,7 +4,7 @@
   "productName": "AuraDesk",
   "copyright": "Copyright © 2026 AuraDesk",
   "directories": {
-    "output": "release",
+    "output": "release2",
     "buildResources": "build"
   },
   "files": [
