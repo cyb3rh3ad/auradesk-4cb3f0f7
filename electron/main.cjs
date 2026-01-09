@@ -153,10 +153,13 @@ function setupAutoUpdater() {
  */
 function getDistPath() {
   // Log paths for debugging
+  console.log('=== Path Detection Debug ===');
   console.log('__dirname:', __dirname);
   console.log('process.resourcesPath:', process.resourcesPath);
   console.log('app.isPackaged:', app.isPackaged);
   console.log('app.getAppPath():', app.getAppPath());
+  console.log('process.cwd():', process.cwd());
+  console.log('process.execPath:', process.execPath);
   
   // Possible paths to check (in order of priority)
   const pathsToCheck = [
@@ -164,25 +167,40 @@ function getDistPath() {
     path.join(process.resourcesPath, 'app', 'dist'),
     // Alternative packaged location
     path.join(app.getAppPath(), 'dist'),
+    // Next to executable
+    path.join(path.dirname(process.execPath), 'resources', 'app', 'dist'),
     // Development: dist next to electron folder
     path.join(__dirname, '..', 'dist'),
     // Development alternative: dist in current working directory
     path.join(process.cwd(), 'dist'),
   ];
   
+  console.log('=== Checking paths ===');
   for (const testPath of pathsToCheck) {
-    console.log('Checking path:', testPath, 'exists:', fs.existsSync(testPath));
-    if (fs.existsSync(testPath)) {
+    const exists = fs.existsSync(testPath);
+    console.log(`Path: ${testPath}`);
+    console.log(`  Exists: ${exists}`);
+    
+    if (exists) {
       const indexPath = path.join(testPath, 'index.html');
-      console.log('Checking index.html:', indexPath, 'exists:', fs.existsSync(indexPath));
-      if (fs.existsSync(indexPath)) {
-        console.log('Found valid dist path:', testPath);
+      const indexExists = fs.existsSync(indexPath);
+      console.log(`  index.html exists: ${indexExists}`);
+      
+      if (indexExists) {
+        // List files in dist to verify
+        try {
+          const files = fs.readdirSync(testPath);
+          console.log(`  Files in dist:`, files.slice(0, 10));
+        } catch (e) {
+          console.log(`  Could not list files:`, e.message);
+        }
+        console.log('=== Using path:', testPath);
         return testPath;
       }
     }
   }
   
-  console.error('Could not find dist folder! Checked:', pathsToCheck);
+  console.error('=== Could not find dist folder! ===');
   return null;
 }
 
