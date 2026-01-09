@@ -18,10 +18,11 @@ let staticServer = null;
 
 // MIME types for static file serving
 const mimeTypes = {
-  '.html': 'text/html',
-  '.js': 'application/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -48,7 +49,7 @@ function createStaticServer(distPath) {
     console.log('Files in distPath:', files);
     if (files.includes('assets')) {
       const assetFiles = fs.readdirSync(path.join(distPath, 'assets'));
-      console.log('Files in assets folder:', assetFiles.slice(0, 10)); // First 10
+      console.log('Files in assets folder:', assetFiles.slice(0, 10));
     }
   } catch (e) {
     console.error('Error listing distPath contents:', e.message);
@@ -58,43 +59,62 @@ function createStaticServer(distPath) {
     const server = http.createServer((req, res) => {
       // Parse URL and remove query string
       let urlPath = req.url.split('?')[0];
-      if (urlPath === '/') urlPath = '/index.html';
       
-      // Remove leading slash for proper path joining
-      const cleanPath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+      // Handle root path
+      if (urlPath === '/' || urlPath === '') {
+        urlPath = '/index.html';
+      }
+      
+      // Remove leading slash for proper path joining on Windows
+      let cleanPath = urlPath;
+      while (cleanPath.startsWith('/')) {
+        cleanPath = cleanPath.substring(1);
+      }
       
       // Decode URI and build file path
       const decodedPath = decodeURIComponent(cleanPath);
-      let filePath = path.join(distPath, decodedPath);
+      const filePath = path.join(distPath, decodedPath);
       const ext = path.extname(filePath).toLowerCase();
       const contentType = mimeTypes[ext] || 'application/octet-stream';
       
-      console.log(`[HTTP] ${req.method} ${urlPath} -> ${filePath}`);
+      console.log(`[HTTP] ${req.method} "${req.url}" -> "${filePath}"`);
       
-      fs.readFile(filePath, (err, content) => {
-        if (err) {
-          console.error(`[HTTP] ERROR reading ${filePath}:`, err.code);
-          // For SPA routing, serve index.html for missing routes (not assets)
-          if (err.code === 'ENOENT' && !ext) {
-            fs.readFile(path.join(distPath, 'index.html'), (err2, indexContent) => {
-              if (err2) {
-                res.writeHead(500);
-                res.end('Server Error');
-                return;
-              }
-              res.writeHead(200, { 'Content-Type': 'text/html' });
-              res.end(indexContent);
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.log(`[HTTP] File not found: ${filePath}`);
+        // For SPA routing: if no extension, serve index.html
+        if (!ext || ext === '') {
+          const indexPath = path.join(distPath, 'index.html');
+          if (fs.existsSync(indexPath)) {
+            console.log(`[HTTP] SPA fallback -> serving index.html`);
+            const content = fs.readFileSync(indexPath);
+            res.writeHead(200, { 
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache'
             });
-          } else {
-            res.writeHead(404);
-            res.end('Not Found');
+            res.end(content);
+            return;
           }
-        } else {
-          console.log(`[HTTP] OK ${urlPath} (${content.length} bytes)`);
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(content);
         }
-      });
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found: ' + urlPath);
+        return;
+      }
+      
+      // Read and serve the file
+      try {
+        const content = fs.readFileSync(filePath);
+        console.log(`[HTTP] OK "${urlPath}" (${content.length} bytes, ${contentType})`);
+        res.writeHead(200, { 
+          'Content-Type': contentType,
+          'Cache-Control': ext === '.html' ? 'no-cache' : 'max-age=31536000'
+        });
+        res.end(content);
+      } catch (err) {
+        console.error(`[HTTP] Error reading file:`, err.message);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Server Error');
+      }
     });
 
     server.on('error', (err) => {
