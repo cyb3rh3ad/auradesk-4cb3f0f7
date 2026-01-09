@@ -10,50 +10,31 @@
   },
   "files": [
     "dist/**/*",
-    "electron/**/*",
-    "package.json"
+    "electron/**/*"
   ],
   "extraMetadata": {
     "main": "electron/main.cjs"
   },
-  "publish": {
-    "provider": "github",
-    "owner": "cyb3rh3ad",
-    "repo": "auradesk-4cb3f0f7",
-    "releaseType": "release"
-  },
   "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      }
-    ],
-    "icon": "public/icon.png",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "target": "nsis",
+    "icon": "public/icon.png"
   },
   "nsis": {
     "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false,
-    "installerIcon": "public/icon.png",
-    "uninstallerIcon": "public/icon.png",
-    "installerHeaderIcon": "public/icon.png",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "AuraDesk"
   },
   "mac": {
-    "target": ["dmg"],
+    "target": "dmg",
     "icon": "public/icon.png",
-    "category": "public.app-category.productivity",
-    "artifactName": "${productName}-${version}.${ext}"
+    "category": "public.app-category.productivity"
   },
   "linux": {
     "target": ["AppImage", "deb"],
     "icon": "public/icon.png",
-    "category": "Office",
-    "artifactName": "${productName}-${version}.${ext}"
+    "category": "Office"
   }
 }

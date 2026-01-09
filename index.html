@@ -2,54 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AuraDesk</title>
     <meta name="description" content="Better workflow, with AI">
-    <meta name="author" content="AuraDesk" />
-    
-    <!-- Mobile app meta tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="AuraDesk" />
-    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#1a1a2e" />
-    
-    <!-- Prevent tap highlight on mobile -->
-    <meta name="format-detection" content="telephone=no" />
-    
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="AuraDesk">
-    <meta property="og:description" content="Better workflow, with AI">
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@auradesk" />
-    <meta name="twitter:title" content="AuraDesk">
-    <meta name="twitter:description" content="Better workflow, with AI">
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
-    <link rel="apple-touch-icon" href="./icon.png">
   </head>
   <body>
-    <div id="root">
-      <!-- Loading indicator while React initializes -->
-      <div id="initial-loader" style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #1a1a2e; color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-        <div style="text-align: center;">
-          <div style="width: 50px; height: 50px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: #8b5cf6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-          <p style="font-size: 18px; opacity: 0.8;">Loading AuraDesk...</p>
-        </div>
-      </div>
-      <style>
-        @keyframes spin { to { transform: rotate(360deg); } }
-        /* Safe area insets for notched devices */
-        body {
-          padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-        }
-      </style>
-    </div>
+    <div id="root"></div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
