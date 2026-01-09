@@ -152,21 +152,37 @@ function setupAutoUpdater() {
  * With asar disabled, files are at: resources/app/dist
  */
 function getDistPath() {
-  // In packaged app: process.resourcesPath points to resources folder
-  // The app folder contains our files (since asar is disabled)
-  const packagedPath = path.join(process.resourcesPath, 'app', 'dist');
+  // Log paths for debugging
+  console.log('__dirname:', __dirname);
+  console.log('process.resourcesPath:', process.resourcesPath);
+  console.log('app.isPackaged:', app.isPackaged);
+  console.log('app.getAppPath():', app.getAppPath());
   
-  // In development or if running from source
-  const devPath = path.join(__dirname, '..', 'dist');
+  // Possible paths to check (in order of priority)
+  const pathsToCheck = [
+    // Packaged app with asar disabled: resources/app/dist
+    path.join(process.resourcesPath, 'app', 'dist'),
+    // Alternative packaged location
+    path.join(app.getAppPath(), 'dist'),
+    // Development: dist next to electron folder
+    path.join(__dirname, '..', 'dist'),
+    // Development alternative: dist in current working directory
+    path.join(process.cwd(), 'dist'),
+  ];
   
-  // Check which one exists
-  if (fs.existsSync(packagedPath)) {
-    return packagedPath;
+  for (const testPath of pathsToCheck) {
+    console.log('Checking path:', testPath, 'exists:', fs.existsSync(testPath));
+    if (fs.existsSync(testPath)) {
+      const indexPath = path.join(testPath, 'index.html');
+      console.log('Checking index.html:', indexPath, 'exists:', fs.existsSync(indexPath));
+      if (fs.existsSync(indexPath)) {
+        console.log('Found valid dist path:', testPath);
+        return testPath;
+      }
+    }
   }
-  if (fs.existsSync(devPath)) {
-    return devPath;
-  }
   
+  console.error('Could not find dist folder! Checked:', pathsToCheck);
   return null;
 }
 
@@ -200,14 +216,24 @@ async function createWindow() {
     // Production: serve from local HTTP server
     const distPath = getDistPath();
     
+    // Always open DevTools in production for debugging
+    mainWindow.webContents.openDevTools();
+    
     if (!distPath) {
-      // Show error if dist folder not found
+      // Show error with debug info if dist folder not found
+      const debugInfo = `
+        __dirname: ${__dirname}
+        resourcesPath: ${process.resourcesPath}
+        appPath: ${app.getAppPath()}
+        cwd: ${process.cwd()}
+      `;
       mainWindow.loadURL(`data:text/html,
         <html>
           <body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:white;">
-            <div style="text-align:center;">
+            <div style="text-align:center;max-width:600px;padding:20px;">
               <h1>Application Error</h1>
               <p>Could not find application files. Please reinstall.</p>
+              <pre style="text-align:left;background:#2a2a3e;padding:10px;border-radius:5px;font-size:12px;overflow:auto;">${debugInfo}</pre>
             </div>
           </body>
         </html>
@@ -217,10 +243,14 @@ async function createWindow() {
     }
 
     try {
+      console.log('Starting static server with distPath:', distPath);
       const { server, port } = await createStaticServer(distPath);
       staticServer = server;
+      console.log('Server started on port:', port);
       await mainWindow.loadURL(`http://127.0.0.1:${port}/`);
+      console.log('Page loaded successfully');
     } catch (err) {
+      console.error('Failed to start server:', err);
       mainWindow.loadURL(`data:text/html,
         <html>
           <body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:white;">
