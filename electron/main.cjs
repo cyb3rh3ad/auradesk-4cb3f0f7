@@ -60,8 +60,11 @@ function createStaticServer(distPath) {
       let urlPath = req.url.split('?')[0];
       if (urlPath === '/') urlPath = '/index.html';
       
+      // Remove leading slash for proper path joining
+      const cleanPath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+      
       // Decode URI and build file path
-      const decodedPath = decodeURIComponent(urlPath);
+      const decodedPath = decodeURIComponent(cleanPath);
       let filePath = path.join(distPath, decodedPath);
       const ext = path.extname(filePath).toLowerCase();
       const contentType = mimeTypes[ext] || 'application/octet-stream';
