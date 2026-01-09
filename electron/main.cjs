@@ -3,26 +3,26 @@ const path = require('path');
 const http = require('http');
 const fs = require('fs');
 
-// Only require electron-updater in production builds
+// Auto-updater (only in production)
 let autoUpdater = null;
-if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') {
-  try {
+try {
+  if (app.isPackaged) {
     autoUpdater = require('electron-updater').autoUpdater;
-  } catch (e) {
-    console.log('Auto-updater not available:', e.message);
   }
+} catch (e) {
+  // Auto-updater not available
 }
 
-let mainWindow;
+let mainWindow = null;
 let staticServer = null;
 
-// MIME types for static file serving
-const mimeTypes = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+// MIME type mapping
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -36,116 +36,87 @@ const mimeTypes = {
   '.mp3': 'audio/mpeg',
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
-  '.webp': 'image/webp'
+  '.webp': 'image/webp',
+  '.wasm': 'application/wasm'
 };
 
+/**
+ * Creates a local HTTP server to serve static files from distPath
+ * This approach handles SPA routing correctly
+ */
 function createStaticServer(distPath) {
-  console.log('=== CREATING STATIC SERVER ===');
-  console.log('Serving from distPath:', distPath);
-  
-  // List files in distPath to verify structure
-  try {
-    const files = fs.readdirSync(distPath);
-    console.log('Files in distPath:', files);
-    if (files.includes('assets')) {
-      const assetFiles = fs.readdirSync(path.join(distPath, 'assets'));
-      console.log('Files in assets folder:', assetFiles.slice(0, 10));
-    }
-  } catch (e) {
-    console.error('Error listing distPath contents:', e.message);
-  }
-  
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
-      // Parse URL and remove query string
-      let urlPath = req.url.split('?')[0];
-      
-      // Handle root path
-      if (urlPath === '/' || urlPath === '') {
+      // Get the URL path, default to index.html
+      let urlPath = (req.url || '/').split('?')[0];
+      if (urlPath === '/') {
         urlPath = '/index.html';
       }
+
+      // Remove leading slashes for path.join compatibility on Windows
+      const cleanPath = urlPath.replace(/^\/+/, '');
       
-      // Remove leading slash for proper path joining on Windows
-      let cleanPath = urlPath;
-      while (cleanPath.startsWith('/')) {
-        cleanPath = cleanPath.substring(1);
-      }
-      
-      // Decode URI and build file path
-      const decodedPath = decodeURIComponent(cleanPath);
-      const filePath = path.join(distPath, decodedPath);
+      // Build the full file path
+      const filePath = path.join(distPath, decodeURIComponent(cleanPath));
       const ext = path.extname(filePath).toLowerCase();
-      const contentType = mimeTypes[ext] || 'application/octet-stream';
-      
-      console.log(`[HTTP] ${req.method} "${req.url}" -> "${filePath}"`);
-      
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        console.log(`[HTTP] File not found: ${filePath}`);
-        // For SPA routing: if no extension, serve index.html
-        if (!ext || ext === '') {
-          const indexPath = path.join(distPath, 'index.html');
-          if (fs.existsSync(indexPath)) {
-            console.log(`[HTTP] SPA fallback -> serving index.html`);
-            const content = fs.readFileSync(indexPath);
-            res.writeHead(200, { 
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'no-cache'
+      const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+
+      // Read and serve the file
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          // File not found - for SPA, serve index.html for routes (not assets)
+          if (err.code === 'ENOENT' && !ext) {
+            const indexPath = path.join(distPath, 'index.html');
+            fs.readFile(indexPath, (indexErr, indexData) => {
+              if (indexErr) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end('Internal Server Error');
+                return;
+              }
+              res.writeHead(200, { 'Content-Type': 'text/html' });
+              res.end(indexData);
             });
-            res.end(content);
             return;
           }
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found');
+          return;
         }
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Not Found: ' + urlPath);
-        return;
-      }
-      
-      // Read and serve the file
-      try {
-        const content = fs.readFileSync(filePath);
-        console.log(`[HTTP] OK "${urlPath}" (${content.length} bytes, ${contentType})`);
-        res.writeHead(200, { 
-          'Content-Type': contentType,
-          'Cache-Control': ext === '.html' ? 'no-cache' : 'max-age=31536000'
-        });
-        res.end(content);
-      } catch (err) {
-        console.error(`[HTTP] Error reading file:`, err.message);
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Server Error');
-      }
+
+        res.writeHead(200, { 'Content-Type': mimeType });
+        res.end(data);
+      });
     });
 
     server.on('error', (err) => {
-      console.error('Static server error:', err);
       reject(err);
     });
 
+    // Listen on random available port on localhost
     server.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
-      console.log('=== STATIC SERVER STARTED ON PORT:', port, '===');
       resolve({ server, port });
     });
   });
 }
 
+/**
+ * Setup auto-updater event handlers
+ */
 function setupAutoUpdater() {
   if (!autoUpdater) return;
-  
+
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.checkForUpdates().catch(() => {});
-
   autoUpdater.on('update-available', (info) => {
+    if (!mainWindow) return;
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Available',
-      message: `A new version (${info.version}) is available. Would you like to download it now?`,
+      message: `Version ${info.version} is available. Download now?`,
       buttons: ['Download', 'Later'],
-      defaultId: 0,
-      cancelId: 1
+      defaultId: 0
     }).then((result) => {
       if (result.response === 0) {
         autoUpdater.downloadUpdate();
@@ -154,13 +125,13 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-downloaded', (info) => {
+    if (!mainWindow) return;
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update Ready',
-      message: `Version ${info.version} has been downloaded. The app will restart to install the update.`,
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1
+      message: `Version ${info.version} is ready. Restart to install?`,
+      buttons: ['Restart', 'Later'],
+      defaultId: 0
     }).then((result) => {
       if (result.response === 0) {
         autoUpdater.quitAndInstall(false, true);
@@ -168,119 +139,101 @@ function setupAutoUpdater() {
     });
   });
 
-  autoUpdater.on('error', (error) => {
-    console.error('Auto-updater error:', error);
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err.message);
   });
+
+  // Check for updates
+  autoUpdater.checkForUpdates().catch(() => {});
 }
 
-function createWindow() {
+/**
+ * Get the path to the dist folder
+ * With asar disabled, files are at: resources/app/dist
+ */
+function getDistPath() {
+  // In packaged app: process.resourcesPath points to resources folder
+  // The app folder contains our files (since asar is disabled)
+  const packagedPath = path.join(process.resourcesPath, 'app', 'dist');
+  
+  // In development or if running from source
+  const devPath = path.join(__dirname, '..', 'dist');
+  
+  // Check which one exists
+  if (fs.existsSync(packagedPath)) {
+    return packagedPath;
+  }
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+  
+  return null;
+}
+
+/**
+ * Create the main application window
+ */
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: path.join(__dirname, '..', 'public', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false,
-      allowRunningInsecureContent: false,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.cjs')
     },
     titleBarStyle: 'default',
     autoHideMenuBar: true,
-    show: false,
+    show: false
   });
 
   const isDev = process.env.NODE_ENV === 'development';
-  
-  console.log('=== ELECTRON STARTUP ===');
-  console.log('isDev:', isDev);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('app.getAppPath():', app.getAppPath());
-  console.log('process.resourcesPath:', process.resourcesPath);
-  console.log('__dirname:', __dirname);
-  
+
   if (isDev) {
+    // Development: connect to Vite dev server
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // Find the dist folder - check unpacked location first (asarUnpack)
-    // The dist folder is unpacked via asarUnpack config in electron-builder.json
-    const resourcesPath = process.resourcesPath || path.dirname(app.getPath('exe'));
-    const appAsarPath = path.join(resourcesPath, 'app.asar');
-    const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked');
+    // Production: serve from local HTTP server
+    const distPath = getDistPath();
     
-    console.log('resourcesPath:', resourcesPath);
-    console.log('appAsarPath:', appAsarPath);
-    console.log('unpackedPath:', unpackedPath);
-    console.log('unpackedPath exists:', fs.existsSync(unpackedPath));
-    
-    // List what's in unpacked folder if it exists
-    if (fs.existsSync(unpackedPath)) {
-      try {
-        const unpackedContents = fs.readdirSync(unpackedPath);
-        console.log('Contents of app.asar.unpacked:', unpackedContents);
-      } catch (e) {
-        console.log('Error reading unpacked folder:', e.message);
-      }
+    if (!distPath) {
+      // Show error if dist folder not found
+      mainWindow.loadURL(`data:text/html,
+        <html>
+          <body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:white;">
+            <div style="text-align:center;">
+              <h1>Application Error</h1>
+              <p>Could not find application files. Please reinstall.</p>
+            </div>
+          </body>
+        </html>
+      `);
+      mainWindow.show();
+      return;
     }
-    
-    const possibleDistPaths = [
-      path.join(unpackedPath, 'dist'),
-      path.join(resourcesPath, 'app.asar.unpacked', 'dist'),
-      path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'dist'),
-      path.join(__dirname, '..', 'dist'),
-      path.join(app.getAppPath(), 'dist'),
-    ];
-    
-    console.log('Possible dist paths to check:', possibleDistPaths);
-    
-    let distPath = null;
-    
-    for (const p of possibleDistPaths) {
-      console.log('Checking:', p);
-      try {
-        const exists = fs.existsSync(p);
-        console.log('  exists:', exists);
-        if (exists) {
-          const indexPath = path.join(p, 'index.html');
-          const indexExists = fs.existsSync(indexPath);
-          console.log('  index.html exists:', indexExists);
-          if (indexExists) {
-            distPath = p;
-            console.log('*** Found valid dist folder at:', p);
-            break;
-          }
-        }
-      } catch (e) {
-        console.log('  error:', e.message);
-      }
+
+    try {
+      const { server, port } = await createStaticServer(distPath);
+      staticServer = server;
+      await mainWindow.loadURL(`http://127.0.0.1:${port}/`);
+    } catch (err) {
+      mainWindow.loadURL(`data:text/html,
+        <html>
+          <body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:white;">
+            <div style="text-align:center;">
+              <h1>Startup Error</h1>
+              <p>${err.message}</p>
+            </div>
+          </body>
+        </html>
+      `);
     }
-    
-    if (distPath) {
-      // Start local HTTP server to serve dist files
-      createStaticServer(distPath).then(({ server, port }) => {
-        staticServer = server;
-        const url = `http://127.0.0.1:${port}/`;
-        console.log('Loading app from:', url);
-        
-        mainWindow.loadURL(url).then(() => {
-          console.log('Successfully loaded app');
-        }).catch((err) => {
-          console.error('Failed to load app:', err);
-          showErrorPage('Failed to load application: ' + err.message);
-        });
-      }).catch((err) => {
-        console.error('Failed to start static server:', err);
-        showErrorPage('Failed to start application server: ' + err.message);
-      });
-    } else {
-      console.error('Could not find dist folder in any expected location');
-      console.error('Tried paths:', possibleDistPaths);
-      showErrorPage('Application files not found. Please reinstall the application.');
-    }
-    
+
+    // Setup auto-updater after window is ready
     setupAutoUpdater();
   }
 
@@ -288,6 +241,7 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -298,65 +252,13 @@ function createWindow() {
   });
 }
 
-function showErrorPage(message) {
-  const errorHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>AuraDesk - Error</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          margin: 0;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-          color: white;
-        }
-        .error-container {
-          text-align: center;
-          padding: 40px;
-          background: rgba(255,255,255,0.1);
-          border-radius: 16px;
-          backdrop-filter: blur(10px);
-        }
-        h1 { color: #ff6b6b; margin-bottom: 16px; }
-        p { color: #ccc; margin-bottom: 24px; }
-        button {
-          background: #4ecdc4;
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 16px;
-        }
-        button:hover { background: #45b7aa; }
-      </style>
-    </head>
-    <body>
-      <div class="error-container">
-        <h1>⚠️ Oops!</h1>
-        <p>${message}</p>
-        <button onclick="location.reload()">Try Again</button>
-      </div>
-    </body>
-    </html>
-  `;
-  mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml));
-}
+// App lifecycle events
+app.whenReady().then(createWindow);
 
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -368,13 +270,13 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   if (staticServer) {
     staticServer.close();
-    console.log('Static server closed');
   }
 });
 
+// Handle external link clicks
 app.on('web-contents-created', (event, contents) => {
-  contents.on('new-window', (event, navigationUrl) => {
+  contents.on('new-window', (event, url) => {
     event.preventDefault();
-    shell.openExternal(navigationUrl);
+    shell.openExternal(url);
   });
 });
