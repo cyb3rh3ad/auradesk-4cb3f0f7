@@ -206,27 +206,55 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // Find the dist folder - check unpacked location first (asarUnpack)
+    // The dist folder is unpacked via asarUnpack config in electron-builder.json
+    const resourcesPath = process.resourcesPath || path.dirname(app.getPath('exe'));
+    const appAsarPath = path.join(resourcesPath, 'app.asar');
+    const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked');
+    
+    console.log('resourcesPath:', resourcesPath);
+    console.log('appAsarPath:', appAsarPath);
+    console.log('unpackedPath:', unpackedPath);
+    console.log('unpackedPath exists:', fs.existsSync(unpackedPath));
+    
+    // List what's in unpacked folder if it exists
+    if (fs.existsSync(unpackedPath)) {
+      try {
+        const unpackedContents = fs.readdirSync(unpackedPath);
+        console.log('Contents of app.asar.unpacked:', unpackedContents);
+      } catch (e) {
+        console.log('Error reading unpacked folder:', e.message);
+      }
+    }
+    
     const possibleDistPaths = [
-      path.join(process.resourcesPath, 'app.asar.unpacked', 'dist'),
+      path.join(unpackedPath, 'dist'),
+      path.join(resourcesPath, 'app.asar.unpacked', 'dist'),
       path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'dist'),
-      path.join(app.getAppPath(), 'dist'),
       path.join(__dirname, '..', 'dist'),
-      path.join(process.resourcesPath, 'app', 'dist'),
+      path.join(app.getAppPath(), 'dist'),
     ];
+    
+    console.log('Possible dist paths to check:', possibleDistPaths);
     
     let distPath = null;
     
     for (const p of possibleDistPaths) {
-      const indexPath = path.join(p, 'index.html');
-      console.log('Checking path:', indexPath);
+      console.log('Checking:', p);
       try {
-        if (fs.existsSync(indexPath)) {
-          distPath = p;
-          console.log('Found dist folder at:', p);
-          break;
+        const exists = fs.existsSync(p);
+        console.log('  exists:', exists);
+        if (exists) {
+          const indexPath = path.join(p, 'index.html');
+          const indexExists = fs.existsSync(indexPath);
+          console.log('  index.html exists:', indexExists);
+          if (indexExists) {
+            distPath = p;
+            console.log('*** Found valid dist folder at:', p);
+            break;
+          }
         }
       } catch (e) {
-        // Path doesn't exist, try next
+        console.log('  error:', e.message);
       }
     }
     
