@@ -15,7 +15,7 @@ import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { supabase } from "@/integrations/supabase/client";
-import { isElectronApp } from "@/hooks/useIsElectron";
+import { isElectronApp, useIsElectron } from "@/hooks/useIsElectron";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -141,6 +141,8 @@ const App = () => (
                       <div className="flex h-screen w-full overflow-hidden">
                         <Sidebar />
                         <div className="flex-1 flex flex-col overflow-hidden">
+                          {/* Electron title bar spacer to prevent content overlap with window controls */}
+                          {isElectronApp() && <div className="h-8 flex-shrink-0" />}
                           <Header />
                           <main className="flex-1 overflow-auto">
                             <PageTransition>

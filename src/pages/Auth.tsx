@@ -273,7 +273,9 @@ const Auth = () => {
   // Show MFA verification within the login card if required
   if (mfaRequired && mfaFactorId) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      <div className={`min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background ${isElectron ? 'pt-12' : ''}`}>
+        {/* Electron title bar spacer */}
+        {isElectron && <div className="absolute top-0 left-0 right-0 h-8 z-50" />}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
@@ -300,7 +302,10 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
+    <div className={`min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background ${isElectron ? 'pt-12' : ''}`}>
+      {/* Electron title bar spacer - prevents content overlap with window controls */}
+      {isElectron && <div className="absolute top-0 left-0 right-0 h-8 z-50" />}
+      
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
@@ -315,9 +320,6 @@ const Auth = () => {
           </Button>
         </div>
       )}
-      
-      {/* Electron title bar spacer */}
-      {isElectron && <div className="h-8" />}
       
       <motion.div
         initial={{ opacity: 0, y: 20 }}
