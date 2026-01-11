@@ -10,7 +10,11 @@
   },
   "files": [
     "dist/**/*",
-    "electron/**/*"
+    "electron/**/*",
+    {
+      "from": "public/icon.png",
+      "to": "dist/icon.png"
+    }
   ],
   "extraMetadata": {
     "main": "electron/main.cjs",

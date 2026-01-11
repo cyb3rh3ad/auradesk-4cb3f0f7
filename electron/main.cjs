@@ -111,13 +111,33 @@ function getDistPath() {
   return null;
 }
 
+// Get the correct icon path
+function getIconPath() {
+  if (app.isPackaged) {
+    // In packaged app, icon is in resources or app directory
+    const possiblePaths = [
+      path.join(process.resourcesPath || '', 'app', 'dist', 'icon.png'),
+      path.join(app.getAppPath(), 'dist', 'icon.png'),
+      path.join(__dirname, '..', 'dist', 'icon.png')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  // Development or fallback
+  return path.join(__dirname, '..', 'public', 'icon.png');
+}
+
 function createWindow() {
+  const iconPath = getIconPath();
+  console.log('Using icon path:', iconPath, 'exists:', fs.existsSync(iconPath));
+  
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    icon: path.join(__dirname, '..', 'public', 'icon.png'),
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
