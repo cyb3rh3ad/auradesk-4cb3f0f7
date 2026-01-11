@@ -209,8 +209,14 @@ const Auth = () => {
         description: error.message,
         variant: "destructive",
       });
-      setLoading(false);
+    } else if (isElectron) {
+      // Show helpful message for Electron users
+      toast({
+        title: "Browser opened",
+        description: "Complete Google sign-in in your browser. Once done, you'll be logged in on the web version.",
+      });
     }
+    setLoading(false);
   };
 
   const handleMfaSuccess = async () => {

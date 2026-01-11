@@ -258,21 +258,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
-    // Check if we're in Electron - OAuth requires a browser redirect
+    // Check if we're in Electron - OAuth requires opening in system browser
     const isElectron = typeof window !== 'undefined' && 
-      (window.location.protocol === 'file:' || (window as any).electronAPI?.isElectron);
+      (window as any).electronAPI?.isElectron;
     
     if (isElectron) {
-      // In Electron, open the web version for OAuth
-      const webUrl = 'https://auradesk.lovable.app/auth';
-      if ((window as any).electronAPI?.openExternal) {
-        (window as any).electronAPI.openExternal(webUrl);
-      } else {
-        window.open(webUrl, '_blank');
+      // For Electron: Generate OAuth URL and open in system browser
+      // The user will complete auth there and can then use email/password login
+      // or we can use a deep link callback (future enhancement)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://auradesk.lovable.app/#/dashboard',
+          skipBrowserRedirect: true, // Don't redirect in-app, we'll open externally
+        }
+      });
+      
+      if (error) {
+        return { error };
       }
-      return { error: { message: 'Please complete Google sign-in in your browser, then sign in with your email here.' } };
+      
+      if (data?.url) {
+        // Open the OAuth URL in the system's default browser
+        if ((window as any).electronAPI?.openExternal) {
+          (window as any).electronAPI.openExternal(data.url);
+        } else {
+          window.open(data.url, '_blank');
+        }
+      }
+      
+      // Return a friendly message - not an error
+      return { error: null };
     }
     
+    // Web: Normal OAuth flow
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
