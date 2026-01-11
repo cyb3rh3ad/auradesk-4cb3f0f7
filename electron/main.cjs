@@ -15,6 +15,76 @@ if (app.isPackaged) {
 
 let mainWindow = null;
 
+// Deep link protocol for OAuth callbacks
+const PROTOCOL_NAME = 'auradesk';
+
+// Register as default protocol handler (for OAuth redirects)
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL_NAME, process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL_NAME);
+}
+
+// Handle the protocol URL (OAuth callback)
+function handleProtocolUrl(protocolUrl) {
+  if (!protocolUrl) return;
+  
+  console.log('Received protocol URL:', protocolUrl);
+  
+  // Extract tokens from the URL (format: auradesk://auth#access_token=...&refresh_token=...)
+  try {
+    const urlObj = new URL(protocolUrl);
+    const hash = urlObj.hash.substring(1); // Remove the # prefix
+    const params = new URLSearchParams(hash);
+    
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    
+    if (accessToken && refreshToken && mainWindow) {
+      // Send tokens to the renderer process
+      mainWindow.webContents.executeJavaScript(`
+        window.postMessage({
+          type: 'OAUTH_CALLBACK',
+          accessToken: '${accessToken}',
+          refreshToken: '${refreshToken}'
+        }, '*');
+      `);
+      
+      // Focus the app window
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  } catch (e) {
+    console.error('Failed to parse protocol URL:', e);
+  }
+}
+
+// macOS: Handle protocol URL when app is already running
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleProtocolUrl(url);
+});
+
+// Windows/Linux: Handle protocol URL via second instance
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine) => {
+    // Find the protocol URL in command line arguments
+    const protocolUrl = commandLine.find(arg => arg.startsWith(`${PROTOCOL_NAME}://`));
+    handleProtocolUrl(protocolUrl);
+    
+    // Focus existing window
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 // Get the correct path to dist folder - with debugging
 function getDistPath() {
   const possiblePaths = [
@@ -101,6 +171,15 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+  
+  // Handle protocol URL that was used to launch the app (Windows/Linux)
+  const protocolUrl = process.argv.find(arg => arg.startsWith(`${PROTOCOL_NAME}://`));
+  if (protocolUrl) {
+    // Delay to ensure window is ready
+    mainWindow.once('ready-to-show', () => {
+      setTimeout(() => handleProtocolUrl(protocolUrl), 500);
+    });
+  }
 }
 
 app.whenReady().then(createWindow);

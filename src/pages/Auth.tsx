@@ -212,8 +212,8 @@ const Auth = () => {
     } else if (isElectron) {
       // Show helpful message for Electron users
       toast({
-        title: "Browser opened",
-        description: "Complete Google sign-in in your browser. Once done, you'll be logged in on the web version.",
+        title: "Complete sign-in in browser",
+        description: "After signing in with Google, you'll be automatically logged in here.",
       });
     }
     setLoading(false);

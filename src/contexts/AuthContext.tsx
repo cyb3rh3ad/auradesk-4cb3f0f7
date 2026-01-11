@@ -258,19 +258,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
-    // Check if we're in Electron - OAuth requires opening in system browser
+    // Check if we're in Electron
     const isElectron = typeof window !== 'undefined' && 
       (window as any).electronAPI?.isElectron;
     
     if (isElectron) {
-      // For Electron: Generate OAuth URL and open in system browser
-      // The user will complete auth there and can then use email/password login
-      // or we can use a deep link callback (future enhancement)
+      // For Electron: Use custom protocol redirect
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://auradesk.lovable.app/#/dashboard',
-          skipBrowserRedirect: true, // Don't redirect in-app, we'll open externally
+          redirectTo: 'auradesk://auth',
+          skipBrowserRedirect: true,
         }
       });
       
@@ -287,7 +285,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Return a friendly message - not an error
       return { error: null };
     }
     
@@ -300,6 +297,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     return { error };
   };
+
+  // Listen for OAuth callback from Electron deep link
+  useEffect(() => {
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_CALLBACK') {
+        const { accessToken, refreshToken } = event.data;
+        
+        if (accessToken && refreshToken) {
+          try {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (!error) {
+              navigate('/dashboard');
+            }
+          } catch (err) {
+            console.error('Failed to set session from OAuth callback:', err);
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, [navigate]);
 
   const signOut = async () => {
     localStorage.removeItem('aura_remember_me');
