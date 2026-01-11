@@ -195,14 +195,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [navigate]);
 
+  // Get redirect URL that works for both web and Electron
+  const getRedirectUrl = () => {
+    // In Electron (file:// protocol), we can't use OAuth redirects properly
+    // So we use the deployed web URL instead
+    const isElectron = typeof window !== 'undefined' && 
+      (window.location.protocol === 'file:' || (window as any).electronAPI?.isElectron);
+    
+    if (isElectron) {
+      // For Electron, OAuth won't work - return null to skip redirects
+      return null;
+    }
+    
+    return `${window.location.origin}/#/dashboard`;
+  };
+
   const signUp = async (email: string, password: string, fullName: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/dashboard`;
+    const redirectUrl = getRedirectUrl();
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
+        ...(redirectUrl && { emailRedirectTo: redirectUrl }),
         data: {
           full_name: fullName,
           username: username,
@@ -243,10 +258,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
+    // Check if we're in Electron - OAuth requires a browser redirect
+    const isElectron = typeof window !== 'undefined' && 
+      (window.location.protocol === 'file:' || (window as any).electronAPI?.isElectron);
+    
+    if (isElectron) {
+      // In Electron, open the web version for OAuth
+      const webUrl = 'https://auradesk.lovable.app/auth';
+      if ((window as any).electronAPI?.openExternal) {
+        (window as any).electronAPI.openExternal(webUrl);
+      } else {
+        window.open(webUrl, '_blank');
+      }
+      return { error: { message: 'Please complete Google sign-in in your browser, then sign in with your email here.' } };
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/#/dashboard`,
       }
     });
     return { error };

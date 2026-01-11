@@ -30,7 +30,10 @@ export const AIModelSelector = ({
   
   const availableModels = getAvailableModels(subscriptionPlan);
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
-  const canUseLocal = subscriptionPlan !== 'free';
+  const isElectron = typeof window !== 'undefined' && 
+    ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
+  // Disable local mode in Electron (WebGPU not available)
+  const canUseLocal = subscriptionPlan !== 'free' && !isElectron;
 
   const groupedModels = AI_MODELS.reduce((acc, model) => {
     if (!acc[model.provider]) acc[model.provider] = [];

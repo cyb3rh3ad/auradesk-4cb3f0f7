@@ -23,6 +23,23 @@ export const useLocalAI = () => {
   const { toast } = useToast();
 
   const loadModel = useCallback(async (modelId: string) => {
+    // Check for Electron environment first
+    const isElectron = typeof window !== 'undefined' && 
+      ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
+    
+    if (isElectron) {
+      setState(prev => ({ 
+        ...prev, 
+        error: 'Local AI is not available in the desktop app. Please use cloud mode.' 
+      }));
+      toast({
+        title: 'Local AI Unavailable',
+        description: 'Local AI requires WebGPU which is not available in the desktop app. Using cloud mode instead.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     if (state.currentModel === modelId && generatorRef.current) {
       return true;
     }
@@ -35,6 +52,11 @@ export const useLocalAI = () => {
     }));
 
     try {
+      // Check WebGPU support
+      if (!('gpu' in navigator)) {
+        throw new Error('WebGPU is not supported in this browser');
+      }
+
       toast({
         title: 'Loading Local AI Model',
         description: 'This may take a moment on first use...',
@@ -131,6 +153,15 @@ export const useLocalAI = () => {
   }, []);
 
   const isWebGPUSupported = useCallback((): boolean => {
+    // Check if we're in Electron or if WebGPU is not available
+    const isElectron = typeof window !== 'undefined' && 
+      ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
+    
+    // WebGPU is often not available in Electron
+    if (isElectron) {
+      return false;
+    }
+    
     return 'gpu' in navigator;
   }, []);
 
