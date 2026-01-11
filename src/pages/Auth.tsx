@@ -119,6 +119,7 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const isElectron = isElectronApp();
   
   // Login state
@@ -200,13 +201,13 @@ const Auth = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     
     // Set a timeout for Electron - reset loading after 8 seconds if OAuth doesn't complete
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     if (isElectron) {
       timeoutId = setTimeout(() => {
-        setLoading(false);
+        setGoogleLoading(false);
         toast({
           title: "Google sign-in timed out",
           description: "The browser window may not have opened. Please try again.",
@@ -224,7 +225,7 @@ const Auth = () => {
         description: error.message,
         variant: "destructive",
       });
-      setLoading(false);
+      setGoogleLoading(false);
     } else if (isElectron) {
       // Show helpful message for Electron users - loading will reset via timeout or OAuth callback
       toast({
@@ -233,7 +234,7 @@ const Auth = () => {
       });
       // Don't set loading to false here - let the timeout or OAuth callback handle it
     } else {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -466,10 +467,10 @@ const Auth = () => {
               variant="outline"
               className="w-full h-11 gap-2"
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={googleLoading}
             >
               <img src={googleLogo} alt="Google" className="w-5 h-5" />
-              Sign in with Google
+              {googleLoading ? "Opening browser..." : "Sign in with Google"}
             </Button>
           </CardContent>
         </Card>
