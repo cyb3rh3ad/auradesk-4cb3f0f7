@@ -13,6 +13,8 @@ import googleLogo from '@/assets/google-g-logo.png';
 import auraLogo from '@/assets/auradesk-logo.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
+import { isElectronApp } from '@/hooks/useIsElectron';
+import { Monitor, ArrowLeft, ExternalLink } from 'lucide-react';
 
 // Interactive Logo Component with creative effects
 const InteractiveLogo = () => {
@@ -117,6 +119,7 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const isElectron = isElectronApp();
   
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -202,9 +205,9 @@ const Auth = () => {
     
     if (error) {
       toast({
-        title: "Google sign-in failed",
+        title: "Google sign-in",
         description: error.message,
-        variant: "destructive",
+        variant: isElectron ? "default" : "destructive",
       });
       setLoading(false);
     }
@@ -249,160 +252,239 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-background">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
       <div className="absolute bottom-20 right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
       
-      <Card className="w-full max-w-md relative border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
-        <CardHeader className="text-center space-y-3">
-          <div className="flex justify-center">
-            <InteractiveLogo />
-          </div>
-          <CardTitle className="text-3xl font-bold">Welcome to AuraDesk</CardTitle>
-          <CardDescription>Sign in to access your workspace</CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="name@example.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    disabled={loading}
-                  />
-                  <Label htmlFor="remember" className="text-sm cursor-pointer">
-                    Remember me
-                  </Label>
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={signupName}
-                    onChange={(e) => setSignupName(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-username">Username</Label>
-                  <Input
-                    id="signup-username"
-                    type="text"
-                    placeholder="johndoe123"
-                    value={signupUsername}
-                    onChange={(e) => setSignupUsername(e.target.value)}
-                    required
-                    disabled={loading}
-                    pattern="[a-zA-Z0-9_]{3,20}"
-                    title="3-20 characters: letters, numbers, and underscores only"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    3-20 characters: letters, numbers, and underscores only
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="name@example.com"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                    minLength={8}
-                  />
-                  <PasswordStrengthValidator password={signupPassword} />
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating account..." : "Create Account"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-          
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border/50"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-          
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-          >
-            <img src={googleLogo} alt="Google" className="w-5 h-5" />
-            Sign in with Google
+      {/* Back button for web only */}
+      {!isElectron && (
+        <div className="absolute top-4 left-4 z-10">
+          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+      
+      {/* Electron title bar spacer */}
+      {isElectron && <div className="h-8" />}
+      
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md relative"
+      >
+        <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
+          <CardHeader className="text-center space-y-3">
+            <div className="flex justify-center">
+              <InteractiveLogo />
+            </div>
+            <CardTitle className="text-3xl font-bold">Welcome to AuraDesk</CardTitle>
+            
+            {/* Desktop app indicator */}
+            {isElectron && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Monitor className="h-4 w-4" />
+                <span>Desktop App</span>
+              </div>
+            )}
+            
+            <CardDescription>Sign in to access your workspace</CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="h-11"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">Password</Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="h-11"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember"
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                      disabled={loading}
+                    />
+                    <Label htmlFor="remember" className="text-sm cursor-pointer">
+                      Remember me
+                    </Label>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25" 
+                    disabled={loading}
+                  >
+                    {loading ? "Signing in..." : "Sign In"}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="h-11"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-username">Username</Label>
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      placeholder="johndoe123"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
+                      required
+                      disabled={loading}
+                      pattern="[a-zA-Z0-9_]{3,20}"
+                      title="3-20 characters: letters, numbers, and underscores only"
+                      className="h-11"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      3-20 characters: letters, numbers, and underscores only
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="h-11"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      minLength={8}
+                      className="h-11"
+                    />
+                    <PasswordStrengthValidator password={signupPassword} />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25" 
+                    disabled={loading}
+                  >
+                    {loading ? "Creating account..." : "Create Account"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+            
+            {/* Google Sign In - different handling for Electron */}
+            {!isElectron ? (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/50"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  className="w-full h-11 gap-2"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                >
+                  <img src={googleLogo} alt="Google" className="w-5 h-5" />
+                  Sign in with Google
+                </Button>
+              </>
+            ) : (
+              <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border/50">
+                <p className="text-sm text-center text-muted-foreground mb-3">
+                  Need to sign in with Google?
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    const webUrl = 'https://auradesk.lovable.app/#/auth';
+                    if ((window as any).electronAPI?.openExternal) {
+                      (window as any).electronAPI.openExternal(webUrl);
+                    } else {
+                      window.open(webUrl, '_blank');
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open Web Version
+                </Button>
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  Sign in via browser, then use your email here
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Version info for desktop */}
+        {isElectron && (
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            AuraDesk Desktop v1.0.0
+          </p>
+        )}
+      </motion.div>
     </div>
   );
 };

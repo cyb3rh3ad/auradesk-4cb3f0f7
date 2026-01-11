@@ -54,9 +54,14 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: false // Allow loading local files
     },
-    titleBarStyle: 'default',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#0a0a0f',
+      symbolColor: '#ffffff',
+      height: 32
+    },
     autoHideMenuBar: true,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0a0a0f',
     show: false
   });
 
