@@ -15,19 +15,29 @@ if (app.isPackaged) {
 
 let mainWindow = null;
 
-// Get the correct path to dist folder - SIMPLE approach
+// Get the correct path to dist folder - with debugging
 function getDistPath() {
   const possiblePaths = [
-    path.join(process.resourcesPath, 'app', 'dist'),
+    path.join(process.resourcesPath || '', 'app', 'dist'),
     path.join(app.getAppPath(), 'dist'),
-    path.join(__dirname, '..', 'dist')
+    path.join(__dirname, '..', 'dist'),
+    path.join(__dirname, 'dist')
   ];
 
+  console.log('Checking dist paths:');
   for (const p of possiblePaths) {
-    if (fs.existsSync(path.join(p, 'index.html'))) {
+    const indexPath = path.join(p, 'index.html');
+    const exists = fs.existsSync(indexPath);
+    console.log(`  ${p} -> ${exists ? 'FOUND' : 'not found'}`);
+    if (exists) {
       return p;
     }
   }
+  
+  console.log('App path:', app.getAppPath());
+  console.log('Resources path:', process.resourcesPath);
+  console.log('__dirname:', __dirname);
+  
   return null;
 }
 
