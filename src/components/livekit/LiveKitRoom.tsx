@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "@/hooks/useLiveKit";
 import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -365,7 +366,7 @@ export function LiveKitRoom({
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize`,
+        `${getSupabaseFunctionsUrl()}/summarize`,
         {
           method: "POST",
           headers: {
