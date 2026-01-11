@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot, Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseFunctionsUrl } from '@/lib/supabase-config';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -53,7 +54,7 @@ export const AIAssistant = ({ transcriptContext }: AIAssistantProps) => {
         return;
       }
 
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
+      const CHAT_URL = `${getSupabaseFunctionsUrl()}/ai-assistant`;
       
       const resp = await fetch(CHAT_URL, {
         method: 'POST',

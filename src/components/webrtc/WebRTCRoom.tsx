@@ -10,6 +10,7 @@ import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
 import {
   Tooltip,
   TooltipContent,
@@ -257,7 +258,7 @@ export function WebRTCRoom({
       if (!session) throw new Error("Not authenticated");
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize`,
+        `${getSupabaseFunctionsUrl()}/summarize`,
         {
           method: "POST",
           headers: {

@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useDaily } from "@/hooks/useDaily";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
 
 export interface DailyRoomProps {
   roomName: string;
@@ -237,7 +238,7 @@ export function DailyRoom({
       if (!session) throw new Error("Not authenticated");
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize`,
+        `${getSupabaseFunctionsUrl()}/summarize`,
         {
           method: "POST",
           headers: {

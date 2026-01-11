@@ -4,6 +4,7 @@ import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useLocalAI } from '@/hooks/useLocalAI';
 import { getModelById } from '@/lib/ai-models';
 import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseFunctionsUrl, isElectron } from '@/lib/supabase-config';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
@@ -98,8 +99,13 @@ export const useAIChat = () => {
     onDone: () => void,
     modelId: string
   ) => {
-    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+    const CHAT_URL = `${getSupabaseFunctionsUrl()}/chat`;
     const isImageGeneration = modelId === 'gemini-image';
+    
+    // In Electron, local AI is disabled, so we always use cloud
+    if (isElectron()) {
+      console.log('Running in Electron, using cloud AI');
+    }
     
     try {
       setIsLoading(true);
@@ -250,7 +256,7 @@ export const useAIChat = () => {
   }, [toast]);
 
   const summarize = useCallback(async (text: string): Promise<string> => {
-    const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize`;
+    const SUMMARIZE_URL = `${getSupabaseFunctionsUrl()}/summarize`;
     
     try {
       setIsLoading(true);
