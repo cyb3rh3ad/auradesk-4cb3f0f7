@@ -205,9 +205,9 @@ const Auth = () => {
     
     if (error) {
       toast({
-        title: "Google sign-in",
+        title: "Google sign-in failed",
         description: error.message,
-        variant: isElectron ? "default" : "destructive",
+        variant: "destructive",
       });
       setLoading(false);
     }
@@ -428,53 +428,25 @@ const Auth = () => {
               </TabsContent>
             </Tabs>
             
-            {/* Google Sign In - different handling for Electron */}
-            {!isElectron ? (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border/50"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-                
-                <Button
-                  variant="outline"
-                  className="w-full h-11 gap-2"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                >
-                  <img src={googleLogo} alt="Google" className="w-5 h-5" />
-                  Sign in with Google
-                </Button>
-              </>
-            ) : (
-              <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border/50">
-                <p className="text-sm text-center text-muted-foreground mb-3">
-                  Need to sign in with Google?
-                </p>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    const webUrl = 'https://auradesk.lovable.app/#/auth';
-                    if ((window as any).electronAPI?.openExternal) {
-                      (window as any).electronAPI.openExternal(webUrl);
-                    } else {
-                      window.open(webUrl, '_blank');
-                    }
-                  }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open Web Version
-                </Button>
-                <p className="text-xs text-center text-muted-foreground mt-2">
-                  Sign in via browser, then use your email here
-                </p>
+            {/* Google Sign In */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/50"></div>
               </div>
-            )}
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+            
+            <Button
+              variant="outline"
+              className="w-full h-11 gap-2"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <img src={googleLogo} alt="Google" className="w-5 h-5" />
+              Sign in with Google
+            </Button>
           </CardContent>
         </Card>
         
