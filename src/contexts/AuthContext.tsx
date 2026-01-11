@@ -306,16 +306,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (accessToken && refreshToken) {
           try {
-            const { error } = await supabase.auth.setSession({
+            // Mark as OAuth login for MFA handling
+            sessionStorage.setItem('oauth_login_pending', 'true');
+            
+            const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
             
-            if (!error) {
-              navigate('/dashboard');
+            if (error) {
+              console.error('Failed to set session from OAuth callback:', error);
+              // Dispatch event to notify Auth.tsx to reset loading state
+              window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: false } }));
+              return;
             }
+            
+            // Session set successfully - check if MFA is required
+            if (data.session) {
+              const mfaNeeded = await checkAndHandleMfa(data.session);
+              
+              if (mfaNeeded) {
+                // MFA required - mfaRequired and mfaFactorId are already set
+                // Keep user/session null until MFA is verified
+                setSession(null);
+                setUser(null);
+              } else {
+                // No MFA required - set session and navigate
+                sessionStorage.removeItem('oauth_login_pending');
+                setSession(data.session);
+                setUser(data.session.user);
+                navigate('/dashboard');
+              }
+            }
+            
+            // Dispatch event to notify Auth.tsx OAuth is complete
+            window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: true } }));
           } catch (err) {
             console.error('Failed to set session from OAuth callback:', err);
+            window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: false } }));
           }
         }
       }
