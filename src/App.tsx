@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { supabase } from "@/integrations/supabase/client";
+import { isElectronApp } from "@/hooks/useIsElectron";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -30,6 +31,21 @@ import Auth from "./pages/Auth";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+
+// Component to handle root route - redirect Electron users to auth
+const RootRoute = () => {
+  const { user, loading } = useAuth();
+  const isElectron = isElectronApp();
+  
+  // If Electron app, skip landing page entirely
+  if (isElectron) {
+    if (loading) return null;
+    return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
+  }
+  
+  // Web users see the landing page
+  return <Landing />;
+};
 
 // Always use HashRouter - works with both web and Electron (file:// protocol)
 
@@ -112,7 +128,7 @@ const App = () => (
             <OwnerInitializer />
             <HelpNotification />
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
