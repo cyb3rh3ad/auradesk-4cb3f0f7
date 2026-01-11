@@ -201,22 +201,40 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    
+    // Set a timeout for Electron - reset loading after 8 seconds if OAuth doesn't complete
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (isElectron) {
+      timeoutId = setTimeout(() => {
+        setLoading(false);
+        toast({
+          title: "Google sign-in timed out",
+          description: "The browser window may not have opened. Please try again.",
+          variant: "destructive",
+        });
+      }, 8000);
+    }
+    
     const { error } = await signInWithGoogle();
     
     if (error) {
+      if (timeoutId) clearTimeout(timeoutId);
       toast({
         title: "Google sign-in failed",
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
     } else if (isElectron) {
-      // Show helpful message for Electron users
+      // Show helpful message for Electron users - loading will reset via timeout or OAuth callback
       toast({
-        title: "Complete sign-in in browser",
-        description: "After signing in with Google, you'll be automatically logged in here.",
+        title: "Browser opened",
+        description: "Complete sign-in in your browser. Waiting for response...",
       });
+      // Don't set loading to false here - let the timeout or OAuth callback handle it
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleMfaSuccess = async () => {
