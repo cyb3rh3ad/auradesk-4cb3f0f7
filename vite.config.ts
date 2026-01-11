@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    envPrefix: ["VITE_"],
     build: {
       outDir: "dist",
       assetsDir: "assets",
@@ -29,8 +30,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
-      'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_SUPABASE_PUBLISHABLE_KEY),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || 'https://jtbxuiyhuyvqvdkqqioo.supabase.co'),
+      'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0Ynh1aXlodXl2cXZka3FxaW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5NTczNjksImV4cCI6MjA3NjUzMzM2OX0.-vQi3Y6GxKtybnf5mB-DIAosQLGRruwq5FR3VFlLFpw'),
     },
   };
 });
