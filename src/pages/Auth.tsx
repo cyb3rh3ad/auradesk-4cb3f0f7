@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -132,7 +132,22 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupUsername, setSignupUsername] = useState('');
-
+  
+  // Listen for OAuth completion event from AuthContext (Electron deep link callback)
+  useEffect(() => {
+    const handleOAuthComplete = (event: CustomEvent<{ success: boolean }>) => {
+      setGoogleLoading(false);
+      if (event.detail.success) {
+        toast({
+          title: "Google sign-in successful",
+          description: mfaRequired ? "Please complete 2FA verification." : "Welcome back!",
+        });
+      }
+    };
+    
+    window.addEventListener('oauth-complete', handleOAuthComplete as EventListener);
+    return () => window.removeEventListener('oauth-complete', handleOAuthComplete as EventListener);
+  }, [mfaRequired, toast]);
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -203,17 +218,25 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     
-    // Set a timeout for Electron - reset loading after 8 seconds if OAuth doesn't complete
+    // For Electron: Set up cleanup when OAuth completes (success or failure)
+    // The oauth-complete event from AuthContext will reset googleLoading
+    // We only timeout if no response is received at all (browser didn't open, etc.)
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     if (isElectron) {
       timeoutId = setTimeout(() => {
         setGoogleLoading(false);
         toast({
           title: "Google sign-in timed out",
-          description: "The browser window may not have opened. Please try again.",
+          description: "No response received. Please try again.",
           variant: "destructive",
         });
-      }, 8000);
+      }, 60000); // 60 second timeout - gives user plenty of time to complete OAuth
+      
+      // Clear timeout when oauth-complete is received
+      const clearTimeoutOnComplete = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+      window.addEventListener('oauth-complete', clearTimeoutOnComplete, { once: true });
     }
     
     const { error } = await signInWithGoogle();
@@ -227,12 +250,12 @@ const Auth = () => {
       });
       setGoogleLoading(false);
     } else if (isElectron) {
-      // Show helpful message for Electron users - loading will reset via timeout or OAuth callback
+      // Show helpful message for Electron users
       toast({
         title: "Browser opened",
-        description: "Complete sign-in in your browser. Waiting for response...",
+        description: "Complete sign-in in your browser. You'll be redirected automatically.",
       });
-      // Don't set loading to false here - let the timeout or OAuth callback handle it
+      // Loading will be reset by oauth-complete event or timeout
     } else {
       setGoogleLoading(false);
     }
