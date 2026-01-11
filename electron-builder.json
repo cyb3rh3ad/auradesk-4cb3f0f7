@@ -14,6 +14,10 @@
     {
       "from": "public/icon.png",
       "to": "dist/icon.png"
+    },
+    {
+      "from": "public/favicon.png",
+      "to": "dist/favicon.png"
     }
   ],
   "extraMetadata": {
