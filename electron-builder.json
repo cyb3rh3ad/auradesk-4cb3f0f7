@@ -13,7 +13,9 @@
     "electron/**/*"
   ],
   "extraMetadata": {
-    "main": "electron/main.cjs"
+    "main": "electron/main.cjs",
+    "description": "AuraDesk - Your productivity workspace",
+    "author": "AuraDesk Team"
   },
   "win": {
     "target": "nsis",
