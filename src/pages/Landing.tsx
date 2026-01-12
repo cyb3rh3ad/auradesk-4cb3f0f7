@@ -111,14 +111,14 @@ const Landing = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-              <Button 
-                size="lg" 
-                className="text-xl font-medium px-10 py-7 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white border-0 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 rounded-xl"
-                onClick={() => window.open('https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe', '_blank')}
+              <a 
+                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe"
+                download
+                className="inline-flex items-center justify-center text-xl font-medium px-10 py-7 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white border-0 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 rounded-xl"
               >
                 <Download className="w-6 h-6 mr-3" />
                 Download
-              </Button>
+              </a>
               
               <Button 
                 size="lg" 
