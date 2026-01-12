@@ -63,7 +63,7 @@ const Landing = () => {
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10">The all-in-one platform for team collaboration and AI-powered productivity.</p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-xl font-medium px-10 bg-gradient-to-r from-violet-600 to-blue-600 text-white rounded-xl hover:scale-105 transition-all shadow-lg py-[12px]">
+              <a href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-xl font-medium bg-gradient-to-r from-violet-600 to-blue-600 text-white rounded-xl hover:scale-105 transition-all shadow-lg py-[13px] px-[50px]">
                 <Download className="w-6 h-6 mr-3" />
                 Download
               </a>
