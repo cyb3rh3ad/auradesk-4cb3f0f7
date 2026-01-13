@@ -121,6 +121,38 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_messages: {
+        Row: {
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          channel_id: string
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          channel_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "team_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_members: {
         Row: {
           conversation_id: string
@@ -537,6 +569,50 @@ export type Database = {
         }
         Relationships: []
       }
+      team_channels: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          position: number
+          team_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          position?: number
+          team_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          position?: number
+          team_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_channels_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           id: string
@@ -724,6 +800,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      voice_channel_participants: {
+        Row: {
+          channel_id: string
+          id: string
+          is_camera_off: boolean
+          is_muted: boolean
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          id?: string
+          is_camera_off?: boolean
+          is_muted?: boolean
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          id?: string
+          is_camera_off?: boolean
+          is_muted?: boolean
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_channel_participants_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "team_channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
