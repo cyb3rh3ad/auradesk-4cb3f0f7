@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock, Download, Mail } from "lucide-react";
+import { Globe, MessageSquare, Video, Users, Brain, FileText, Zap, Shield, Clock, Download, Mail, Check, Star, Headphones, Lock, Sparkles, ArrowRight, Play } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,8 +18,8 @@ const Landing = () => {
     },
     {
       icon: Video,
-      title: "Video Meetings",
-      description: "High-quality video calls with screen sharing, transcription, and AI-powered summaries.",
+      title: "HD Video Meetings",
+      description: "Crystal-clear video calls with screen sharing, transcription, and AI-powered summaries.",
       gradient: "from-purple-500 to-pink-500"
     },
     {
@@ -30,8 +30,8 @@ const Landing = () => {
     },
     {
       icon: Users,
-      title: "Team Management",
-      description: "Create teams, manage channels, and collaborate with powerful role-based access.",
+      title: "Discord-style Teams",
+      description: "Create teams with text & voice channels, categories, and unlimited participants.",
       gradient: "from-green-500 to-emerald-500"
     },
     {
@@ -48,23 +48,81 @@ const Landing = () => {
     }
   ];
 
+  const highlights = [
+    { icon: Zap, label: "Lightning Fast", desc: "Sub-second message delivery" },
+    { icon: Lock, label: "Secure by Default", desc: "End-to-end encryption" },
+    { icon: Headphones, label: "Voice Channels", desc: "High-quality audio" },
+    { icon: Sparkles, label: "AI Powered", desc: "Smart transcriptions" },
+  ];
+
+  const stats = [
+    { value: "99.9%", label: "Uptime" },
+    { value: "< 50ms", label: "Latency" },
+    { value: "Unlimited", label: "Messages" },
+    { value: "Free", label: "Forever Tier" },
+  ];
+
+  const useCases = [
+    {
+      title: "For Remote Teams",
+      description: "Stay connected with your distributed team through voice channels, video meetings, and instant messaging.",
+      image: "👥"
+    },
+    {
+      title: "For Gamers",
+      description: "Create servers with voice channels for your gaming community, just like Discord but with more power.",
+      image: "🎮"
+    },
+    {
+      title: "For Developers",
+      description: "Built-in AI assistant helps with code review, documentation, and pair programming sessions.",
+      image: "💻"
+    },
+    {
+      title: "For Support Teams",
+      description: "One-click remote assistance with connection codes makes helping others a breeze.",
+      image: "🛠️"
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: "Alex Chen",
+      role: "Engineering Lead",
+      content: "AuraDesk replaced 4 different apps for our team. The Discord-style channels combined with video meetings is exactly what we needed.",
+      avatar: "AC"
+    },
+    {
+      name: "Sarah Miller",
+      role: "Product Manager",
+      content: "The AI transcription feature saves us hours every week. No more manual meeting notes!",
+      avatar: "SM"
+    },
+    {
+      name: "James Wilson",
+      role: "Startup Founder",
+      content: "Finally, a tool that combines Slack, Discord, and Zoom into one seamless experience.",
+      avatar: "JW"
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+          <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
             AuraDesk
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <a 
               href="mailto:info.auradesk@gmail.com" 
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
             >
               <Mail className="w-4 h-4" />
-              <span className="hidden sm:inline">info.auradesk@gmail.com</span>
+              <span className="hidden md:inline">info.auradesk@gmail.com</span>
             </a>
-            <Button variant="outline" onClick={() => navigate('/auth')}>
+            <Button variant="outline" size="sm" onClick={() => navigate('/auth')}>
               Sign In
             </Button>
           </div>
@@ -72,31 +130,40 @@ const Landing = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 relative overflow-hidden">
+      <section className="pt-28 md:pt-36 pb-16 md:pb-24 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10" />
+        <div className="absolute top-40 left-10 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-20 right-10 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl opacity-50" />
+        
         <div className="container mx-auto max-w-6xl relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center space-y-8"
+            className="text-center space-y-6 md:space-y-8"
           >
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <Sparkles className="w-4 h-4" />
+              Now with Discord-style voice channels
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
               Work Smarter with{" "}
-              <span className="bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
                 AuraDesk
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-              The all-in-one platform for team collaboration, video conferencing, and AI-powered productivity.
+            
+            <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              The all-in-one platform for team collaboration, video conferencing, and AI-powered productivity. 
+              Like Discord meets Zoom, but better.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
               <a
                 href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 px-8 py-4"
+                download
+                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 px-8 py-4 w-full sm:w-auto"
               >
                 <Download className="w-5 h-5 mr-2" />
                 Download for Windows
@@ -105,28 +172,94 @@ const Landing = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg px-8 py-6 rounded-xl border-2"
+                className="text-lg px-8 py-6 rounded-xl border-2 w-full sm:w-auto"
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
               >
                 <Globe className="w-5 h-5 mr-2" />
                 Use in Browser
               </Button>
             </div>
+
+            {/* Quick Email Access */}
+            <div className="pt-4">
+              <a 
+                href="mailto:info.auradesk@gmail.com" 
+                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Questions? Contact us at info.auradesk@gmail.com</span>
+              </a>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-6 bg-muted/30">
+      {/* Stats Bar */}
+      <section className="py-8 px-6 bg-muted/30 border-y border-border/50">
         <div className="container mx-auto max-w-6xl">
-          <motion.h2
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            {stats.map((stat, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="text-center"
+              >
+                <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+                  {stat.value}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Highlights */}
+      <section className="py-12 md:py-16 px-6">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {highlights.map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center gap-3 p-4 rounded-xl bg-card/50 border border-border/50"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <item.icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 md:py-24 px-6 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl md:text-4xl font-bold text-center mb-12"
+            className="text-center mb-12 md:mb-16"
           >
-            Everything you need in one place
-          </motion.h2>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+              Everything you need, <span className="text-primary">in one place</span>
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Stop juggling between Slack, Discord, Zoom, and Google Meet. AuraDesk brings it all together.
+            </p>
+          </motion.div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
               <motion.div
@@ -136,13 +269,13 @@ const Landing = () => {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:-translate-y-2 transition-all duration-300 h-full">
-                  <CardContent className="pt-6">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4`}>
-                      <feature.icon className="w-6 h-6 text-white" />
+                <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 h-full group">
+                  <CardContent className="pt-6 pb-6">
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
+                      <feature.icon className="w-7 h-7 text-white" />
                     </div>
                     <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -151,28 +284,150 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Use Cases */}
+      <section className="py-16 md:py-24 px-6">
+        <div className="container mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for everyone</h2>
+            <p className="text-muted-foreground text-lg">From startups to gaming communities</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {useCases.map((useCase, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="flex gap-4 p-6 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/30 transition-colors"
+              >
+                <div className="text-4xl">{useCase.image}</div>
+                <div>
+                  <h3 className="font-bold text-lg mb-2">{useCase.title}</h3>
+                  <p className="text-muted-foreground">{useCase.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-16 md:py-24 px-6 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Loved by teams worldwide</h2>
+            <p className="text-muted-foreground text-lg">See what others are saying</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="bg-card/50 border-border/50 h-full">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-1 mb-4">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground mb-6 leading-relaxed">"{testimonial.content}"</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                        {testimonial.avatar}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{testimonial.name}</p>
+                        <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 md:py-24 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-blue-500/10" />
+        <div className="container mx-auto max-w-4xl relative">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center space-y-6"
+          >
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
+              Ready to transform your workflow?
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Join thousands of teams already using AuraDesk. Free forever tier available.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <a
+                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk_Setup.exe"
+                download
+                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg px-8 py-4"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Download Now
+              </a>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 py-6 rounded-xl"
+                onClick={() => navigate('/auth')}
+              >
+                Get Started Free
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Contact Section */}
-      <section className="py-16 px-6">
+      <section className="py-12 md:py-16 px-6 border-t border-border/50">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-2xl font-bold mb-4">Get in Touch</h2>
           <p className="text-muted-foreground mb-6">
-            Have questions or need support? Reach out to us anytime.
+            Have questions or need support? We're here to help!
           </p>
-          <a
-            href="mailto:info.auradesk@gmail.com"
-            className="inline-flex items-center gap-2 text-lg text-primary hover:underline"
-          >
-            <Mail className="w-5 h-5" />
-            info.auradesk@gmail.com
-          </a>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="mailto:info.auradesk@gmail.com"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-medium transition-colors"
+            >
+              <Mail className="w-5 h-5" />
+              info.auradesk@gmail.com
+            </a>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border/50">
+      <footer className="py-8 md:py-12 px-6 border-t border-border/50 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-4">
               <span className="text-xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
                 AuraDesk
               </span>
@@ -180,20 +435,22 @@ const Landing = () => {
                 © 2026 All rights reserved.
               </span>
             </div>
-            <div className="flex items-center gap-6">
-              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Terms
-              </Link>
-              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Privacy
-              </Link>
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
               <a
                 href="mailto:info.auradesk@gmail.com"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                Contact
+                info.auradesk@gmail.com
               </a>
+              <div className="flex items-center gap-4">
+                <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Terms
+                </Link>
+                <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Privacy
+                </Link>
+              </div>
             </div>
           </div>
         </div>

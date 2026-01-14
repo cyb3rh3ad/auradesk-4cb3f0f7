@@ -478,25 +478,29 @@ const Auth = () => {
               </TabsContent>
             </Tabs>
             
-            {/* Google Sign In */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-            
-            <Button
-              variant="outline"
-              className="w-full h-11 gap-2"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading}
-            >
-              <img src={googleLogo} alt="Google" className="w-5 h-5" />
-              {googleLoading ? "Opening browser..." : "Sign in with Google"}
-            </Button>
+            {/* Google Sign In - Hidden in Electron since OAuth doesn't work reliably */}
+            {!isElectron && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/50"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  className="w-full h-11 gap-2"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading}
+                >
+                  <img src={googleLogo} alt="Google" className="w-5 h-5" />
+                  {googleLoading ? "Signing in..." : "Sign in with Google"}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
         
