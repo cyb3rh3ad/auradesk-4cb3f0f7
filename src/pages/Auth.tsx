@@ -115,7 +115,7 @@ const InteractiveLogo = () => {
 };
 
 const Auth = () => {
-  const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState, completeMfaVerification } = useAuth();
+  const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState, completeMfaVerification, user, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -132,6 +132,14 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupUsername, setSignupUsername] = useState('');
+  
+  // If user is already authenticated (session + user), redirect to dashboard
+  // This handles OAuth redirects that complete with full authentication
+  useEffect(() => {
+    if (!authLoading && user && session && !mfaRequired) {
+      navigate('/dashboard');
+    }
+  }, [authLoading, user, session, mfaRequired, navigate]);
   
   // Listen for OAuth completion event from AuthContext (Electron deep link callback)
   useEffect(() => {
