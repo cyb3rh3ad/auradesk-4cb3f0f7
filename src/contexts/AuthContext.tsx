@@ -30,25 +30,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Core MFA check function - returns true if MFA is required but not verified
   const checkAndHandleMfa = async (currentSession: Session): Promise<boolean> => {
     try {
-      const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      // First check if user has any verified TOTP factors
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
       
-      // MFA is required if current level is aal1 and next level is aal2
-      if (aal.data?.currentLevel === 'aal1' && aal.data?.nextLevel === 'aal2') {
-        const { data: factorsData } = await supabase.auth.mfa.listFactors();
-        const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
-        
-        if (verifiedFactor) {
-          // MFA required but not verified
-          setMfaRequired(true);
-          setMfaFactorId(verifiedFactor.id);
-          return true;
-        }
+      if (!verifiedFactor) {
+        // No MFA configured - allow access
+        console.log('MFA check: No verified TOTP factors found');
+        return false;
+      }
+
+      // User has MFA configured - check current AAL level
+      const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      console.log('MFA check: AAL level', aal.data?.currentLevel, 'next level', aal.data?.nextLevel);
+      
+      // MFA is required if we're at aal1 and user has verified factors
+      if (aal.data?.currentLevel === 'aal1') {
+        // MFA required but not verified - BLOCK access
+        console.log('MFA check: MFA required, blocking access until verified');
+        setMfaRequired(true);
+        setMfaFactorId(verifiedFactor.id);
+        return true;
       }
       
-      // MFA not required or already verified
+      // User has completed MFA (aal2) - allow access
+      console.log('MFA check: AAL2 verified, allowing access');
       return false;
     } catch (err) {
       console.error('MFA check failed:', err);
+      // On error, be safe and require MFA if factors exist
       return false;
     }
   };
@@ -288,11 +298,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     }
     
-    // Web: Normal OAuth flow
+    // Mark OAuth login as pending BEFORE redirect - this ensures MFA check runs
+    sessionStorage.setItem('oauth_login_pending', 'true');
+    
+    // Web: Normal OAuth flow - redirect to auth page for MFA check
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/#/dashboard`,
+        redirectTo: `${window.location.origin}/#/auth`,
       }
     });
     return { error };
