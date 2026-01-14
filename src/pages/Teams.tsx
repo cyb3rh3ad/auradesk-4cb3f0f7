@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTeams, Team } from '@/hooks/useTeams';
 import { useFriends, Friend } from '@/hooks/useFriends';
 import { useTeamCallInvitations } from '@/hooks/useTeamCallInvitations';
+import { useTeamChannels, TeamChannel } from '@/hooks/useTeamChannels';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -9,12 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft, Hash, Volume2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { TeamChat } from '@/components/teams/TeamChat';
 import { TeamCallDialog } from '@/components/teams/TeamCallDialog';
 import { IncomingTeamCallDialog } from '@/components/teams/IncomingTeamCallDialog';
+import { TeamChannelsSidebar } from '@/components/teams/TeamChannelsSidebar';
+import { ChannelChat } from '@/components/teams/ChannelChat';
+import { VoiceChannelRoom } from '@/components/teams/VoiceChannelRoom';
 
 const Teams = () => {
   const { teams, loading, createTeam, addMember } = useTeams();
@@ -28,6 +32,7 @@ const Teams = () => {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<TeamChannel | null>(null);
   const [teamName, setTeamName] = useState('');
   const [teamDescription, setTeamDescription] = useState('');
   const [memberUsername, setMemberUsername] = useState('');
@@ -105,6 +110,10 @@ const Teams = () => {
     return friend.email.slice(0, 2).toUpperCase();
   };
 
+  const canManageTeam = (team: Team) => {
+    return team.user_role === 'owner' || team.user_role === 'admin';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -113,52 +122,105 @@ const Teams = () => {
     );
   }
 
-  // Show team chat view when a team is selected
+  // Show team view with Discord-like channels when a team is selected
   if (selectedTeam) {
     return (
       <>
         <div className="flex h-full">
-          {/* Sidebar - hidden on mobile when in chat */}
-          <div className="hidden md:flex md:w-80 lg:w-96 border-r flex-col">
-            <div className="p-4 border-b">
-              <h2 className="text-xl font-bold">Teams</h2>
+          {/* Channels Sidebar */}
+          <div className="w-60 lg:w-64 border-r flex-col hidden md:flex bg-muted/30">
+            <TeamChannelsSidebar
+              team={selectedTeam}
+              selectedChannel={selectedChannel}
+              onSelectChannel={setSelectedChannel}
+              canManage={canManageTeam(selectedTeam)}
+            />
+            {/* Back button at bottom */}
+            <div className="p-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setSelectedTeam(null);
+                  setSelectedChannel(null);
+                }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                All Teams
+              </Button>
             </div>
-            <ScrollArea className="flex-1">
-              <div className="p-2 space-y-1">
-                {teams.map((team) => (
-                  <button
-                    key={team.id}
-                    onClick={() => setSelectedTeam(team)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all',
-                      'hover:bg-muted/50',
-                      selectedTeam?.id === team.id && 'bg-primary/10'
-                    )}
-                  >
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                        {team.name.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="font-medium truncate">{team.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
           </div>
 
-          {/* Chat area */}
+          {/* Main Content Area */}
           <div className="flex-1 flex flex-col">
-            <TeamChat team={selectedTeam} onBack={() => setSelectedTeam(null)} />
+            {/* Mobile header with back button */}
+            <div className="md:hidden flex items-center gap-2 p-3 border-b">
+              <Button variant="ghost" size="icon" onClick={() => {
+                if (selectedChannel) {
+                  setSelectedChannel(null);
+                } else {
+                  setSelectedTeam(null);
+                }
+              }}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedChannel ? (
+                  <>
+                    {selectedChannel.type === 'text' ? (
+                      <Hash className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <Volume2 className="w-5 h-5 text-muted-foreground" />
+                    )}
+                    <span className="font-semibold">{selectedChannel.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                        {selectedTeam.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-semibold">{selectedTeam.name}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Channel Content or Channel List (mobile) */}
+            {selectedChannel ? (
+              selectedChannel.type === 'text' ? (
+                <ChannelChat channel={selectedChannel} teamName={selectedTeam.name} />
+              ) : (
+                <VoiceChannelRoom channel={selectedChannel} teamName={selectedTeam.name} onLeave={() => setSelectedChannel(null)} />
+              )
+            ) : (
+              /* Mobile: show channel list, Desktop: show TeamChat as default */
+              <div className="md:hidden flex-1">
+                <TeamChannelsSidebar
+                  team={selectedTeam}
+                  selectedChannel={selectedChannel}
+                  onSelectChannel={setSelectedChannel}
+                  canManage={canManageTeam(selectedTeam)}
+                />
+              </div>
+            )}
+            
+            {/* Desktop: Show placeholder when no channel selected */}
+            {!selectedChannel && (
+              <div className="hidden md:flex flex-1 items-center justify-center text-muted-foreground">
+                <div className="text-center space-y-2">
+                  <Hash className="w-12 h-12 mx-auto opacity-50" />
+                  <p className="font-medium">Select a channel</p>
+                  <p className="text-sm">Choose a text or voice channel to get started</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Incoming Team Call Dialog - must be outside the conditional */}
+        {/* Incoming Team Call Dialog */}
         <IncomingTeamCallDialog
           open={!!incomingTeamCall}
           callerName={incomingTeamCall?.callerName || ''}
@@ -187,7 +249,7 @@ const Teams = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold">Teams</h2>
-          <p className="text-sm md:text-base text-muted-foreground">Manage your teams and collaborate</p>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your teams and collaborate with channels</p>
         </div>
         <Dialog open={createOpen} onOpenChange={(open) => {
           setCreateOpen(open);
@@ -206,7 +268,7 @@ const Teams = () => {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Team</DialogTitle>
-              <DialogDescription>Create a team and add members</DialogDescription>
+              <DialogDescription>Create a team with text and voice channels</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -309,7 +371,7 @@ const Teams = () => {
               <Users className="w-12 h-12 mx-auto text-muted-foreground" />
               <h3 className="text-lg font-semibold">No teams yet</h3>
               <p className="text-sm text-muted-foreground">
-                Create your first team to start collaborating
+                Create your first team to start collaborating with channels
               </p>
             </CardContent>
           </Card>
