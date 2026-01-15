@@ -379,8 +379,8 @@ const Landing = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Loved by teams worldwide</h2>
-            <p className="text-muted-foreground text-lg">See what others are saying</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet the Team Behind AuraDesk</h2>
+            <p className="text-muted-foreground text-lg">Built with passion by people who care</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
