@@ -4,7 +4,6 @@ import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video, Users, Volume2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface IncomingTeamCallDialogProps {
   open: boolean;
@@ -119,7 +118,10 @@ export const IncomingTeamCallDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
-      <DialogContent className="max-w-sm p-0 gap-0 border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden">
+      <DialogContent 
+        className="max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999]"
+        style={{ transform: 'translate(-50%, -50%)' }}
+      >
         <VisuallyHidden.Root>
           <DialogTitle>Incoming team call from {callerName}</DialogTitle>
           <DialogDescription>Join or decline the {isVideo ? 'video' : 'voice'} call in {teamName}</DialogDescription>
@@ -130,7 +132,7 @@ export const IncomingTeamCallDialog = ({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="absolute top-2 right-2 text-muted-foreground"
+              className="absolute top-2 right-2 text-muted-foreground z-10"
               onClick={handleUnblockAudio}
             >
               <Volume2 className="w-4 h-4 mr-1" />
@@ -175,12 +177,16 @@ export const IncomingTeamCallDialog = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-6 pt-2">
+          <div className="flex items-center gap-6 pt-2 relative z-50">
             <Button
               variant="ghost"
               size="icon"
-              className="w-16 h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-500"
-              onClick={onDecline}
+              className="w-16 h-16 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all hover:scale-105 active:scale-95"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDecline();
+              }}
             >
               <PhoneOff className="w-7 h-7" />
             </Button>
@@ -188,11 +194,12 @@ export const IncomingTeamCallDialog = ({
             <Button
               variant="ghost"
               size="icon"
-              className={cn(
-                "w-16 h-16 rounded-full",
-                "bg-green-500 hover:bg-green-600 text-white"
-              )}
-              onClick={onAccept}
+              className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-green-500/30"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAccept();
+              }}
             >
               {isVideo ? <Video className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
             </Button>
