@@ -12,6 +12,10 @@ import {
   PhoneOff,
   Volume2,
   Loader2,
+  Settings,
+  Headphones,
+  MonitorSpeaker,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +39,7 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
   } = useWebRTC(`voice-${channel.id}`, user?.email?.split('@')[0] || 'User');
 
   const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(true);
   const [hasJoined, setHasJoined] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -90,6 +95,17 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
     // Fire and forget database update
     updateStatus(newMuted, isCameraOff).catch(() => {});
   }, [isMuted, isCameraOff, toggleAudio, updateStatus]);
+
+  // Toggle deafen
+  const handleToggleDeafen = useCallback(() => {
+    const newDeafened = !isDeafened;
+    setIsDeafened(newDeafened);
+    // When deafened, also mute
+    if (newDeafened && !isMuted) {
+      setIsMuted(true);
+      toggleAudio(true);
+    }
+  }, [isDeafened, isMuted, toggleAudio]);
 
   // Toggle camera - optimistic UI update
   const handleToggleCamera = useCallback(() => {
@@ -160,134 +176,213 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
     return profile.email.slice(0, 2).toUpperCase();
   };
 
+  const getName = (profile: typeof participants[0]['profile']) => {
+    if (!profile) return 'Unknown';
+    return profile.full_name || profile.username || profile.email?.split('@')[0] || 'Unknown';
+  };
+
   if (isConnecting || isLeaving) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div className="flex flex-col items-center justify-center h-full gap-4 bg-[hsl(var(--sidebar-background))]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           {isLeaving ? 'Disconnecting...' : 'Connecting to voice channel...'}
         </p>
       </div>
     );
   }
 
+  // Discord-style voice channel layout
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-card/50">
-        <Volume2 className="w-5 h-5 text-green-500" />
+    <div className="flex flex-col h-full bg-[hsl(var(--sidebar-background))]">
+      {/* Header - Discord style */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-[hsl(var(--sidebar-background))]">
+        <Volume2 className="w-5 h-5 text-muted-foreground" />
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold truncate">{channel.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {participants.length} connected • {teamName}
-          </p>
+          <h3 className="font-semibold text-foreground truncate">{channel.name}</h3>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Users className="w-4 h-4" />
+          <span>{participants.length + (hasJoined ? 1 : 0)}</span>
         </div>
       </div>
 
-      {/* Participants Grid */}
+      {/* Main content area - Grid of video/avatars */}
       <div className="flex-1 p-4 overflow-auto">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {/* Local participant */}
-          {hasJoined && (
-            <div className="relative aspect-video rounded-xl bg-muted flex items-center justify-center border-2 border-green-500/50">
-              {localStream && !isCameraOff ? (
-                <video
-                  autoPlay
-                  muted
-                  playsInline
-                  ref={(el) => {
-                    if (el && localStream) el.srcObject = localStream;
-                  }}
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <Avatar className="w-16 h-16">
-                    <AvatarFallback className="bg-primary/20 text-primary text-lg">
-                      {user?.email?.slice(0, 2).toUpperCase() || 'ME'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs text-muted-foreground">You</span>
-                </div>
-              )}
-              {isMuted && (
-                <div className="absolute bottom-2 right-2 p-1 rounded-full bg-destructive/80">
-                  <MicOff className="w-3 h-3 text-white" />
-                </div>
-              )}
+        {!hasJoined && participants.length === 0 ? (
+          // Empty state - Nobody in channel
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+            <div className="w-20 h-20 rounded-full bg-muted/30 flex items-center justify-center">
+              <Volume2 className="w-10 h-10 opacity-30" />
             </div>
-          )}
-
-          {/* Remote participants */}
-          {participants
-            .filter((p) => p.user_id !== user?.id)
-            .map((participant) => (
-              <div
-                key={participant.id}
-                className="relative aspect-video rounded-xl bg-muted flex items-center justify-center"
-              >
-                <div className="flex flex-col items-center gap-2">
-                  <Avatar className="w-16 h-16">
-                    {participant.profile?.avatar_url ? (
-                      <AvatarImage src={participant.profile.avatar_url} />
-                    ) : null}
-                    <AvatarFallback className="bg-secondary text-lg">
-                      {getInitials(participant.profile)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs text-muted-foreground truncate max-w-full px-2">
-                    {participant.profile?.full_name ||
-                      participant.profile?.username ||
-                      participant.profile?.email?.split('@')[0]}
-                  </span>
-                </div>
-                {participant.is_muted && (
-                  <div className="absolute bottom-2 right-2 p-1 rounded-full bg-destructive/80">
-                    <MicOff className="w-3 h-3 text-white" />
+            <p className="text-sm">No one is in this voice channel</p>
+            <Button 
+              onClick={handleJoin}
+              className="bg-green-600 hover:bg-green-500 text-white"
+            >
+              Join Voice
+            </Button>
+          </div>
+        ) : (
+          // Participants grid - Discord style tiles
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {/* Local participant */}
+            {hasJoined && (
+              <div className={cn(
+                "relative aspect-video rounded-lg overflow-hidden bg-[hsl(220,10%,18%)] border border-border/30",
+                "hover:border-primary/50 transition-colors group",
+                !isMuted && "ring-2 ring-green-500/50"
+              )}>
+                {localStream && !isCameraOff ? (
+                  <video
+                    autoPlay
+                    muted
+                    playsInline
+                    ref={(el) => {
+                      if (el && localStream) el.srcObject = localStream;
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-2">
+                    <Avatar className="w-16 h-16 ring-2 ring-green-500/30">
+                      <AvatarFallback className="bg-green-600 text-white text-lg">
+                        {user?.email?.slice(0, 2).toUpperCase() || 'ME'}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
                 )}
+                {/* Name overlay */}
+                <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="flex items-center gap-1.5">
+                    {isMuted ? (
+                      <MicOff className="w-3.5 h-3.5 text-red-400" />
+                    ) : (
+                      <Mic className="w-3.5 h-3.5 text-green-400" />
+                    )}
+                    <span className="text-xs text-white font-medium truncate">You</span>
+                  </div>
+                </div>
               </div>
-            ))}
-        </div>
+            )}
 
-        {/* Empty state */}
-        {!hasJoined && participants.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-            <Volume2 className="w-12 h-12 opacity-30" />
-            <p>No one is in this voice channel</p>
-            <Button onClick={handleJoin}>Join Voice</Button>
+            {/* Remote participants */}
+            {participants
+              .filter((p) => p.user_id !== user?.id)
+              .map((participant) => (
+                <div
+                  key={participant.id}
+                  className={cn(
+                    "relative aspect-video rounded-lg overflow-hidden bg-[hsl(220,10%,18%)] border border-border/30",
+                    "hover:border-primary/50 transition-colors group",
+                    !participant.is_muted && "ring-2 ring-green-500/50"
+                  )}
+                >
+                  <div className="flex flex-col items-center justify-center h-full gap-2">
+                    <Avatar className="w-16 h-16">
+                      {participant.profile?.avatar_url ? (
+                        <AvatarImage src={participant.profile.avatar_url} />
+                      ) : null}
+                      <AvatarFallback className="bg-primary/80 text-primary-foreground text-lg">
+                        {getInitials(participant.profile)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  {/* Name overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
+                    <div className="flex items-center gap-1.5">
+                      {participant.is_muted ? (
+                        <MicOff className="w-3.5 h-3.5 text-red-400" />
+                      ) : (
+                        <Mic className="w-3.5 h-3.5 text-green-400" />
+                      )}
+                      <span className="text-xs text-white font-medium truncate">
+                        {getName(participant.profile)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls bar - Discord style at bottom */}
       {hasJoined && (
-        <div className="flex justify-center gap-2 p-4 bg-muted border-t">
+        <div className="flex items-center justify-center gap-2 p-3 bg-[hsl(220,10%,12%)] border-t border-border/30">
+          {/* Mute button */}
           <Button
-            onClick={handleToggleMute}
-            variant={isMuted ? 'destructive' : 'secondary'}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleMute();
+            }}
+            variant="ghost"
             size="icon"
             disabled={isLeaving}
+            className={cn(
+              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              isMuted 
+                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300" 
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+            )}
           >
-            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
 
+          {/* Deafen button */}
           <Button
-            onClick={handleToggleCamera}
-            variant={isCameraOff ? 'destructive' : 'secondary'}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleDeafen();
+            }}
+            variant="ghost"
             size="icon"
             disabled={isLeaving}
+            className={cn(
+              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              isDeafened 
+                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300" 
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+            )}
           >
-            {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+            {isDeafened ? <MonitorSpeaker className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
           </Button>
 
+          {/* Camera button */}
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleCamera();
+            }}
+            variant="ghost"
+            size="icon"
+            disabled={isLeaving}
+            className={cn(
+              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              isCameraOff 
+                ? "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground" 
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            )}
+          >
+            {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </Button>
+
+          {/* Disconnect button */}
           <Button 
-            onClick={handleLeave} 
-            variant="destructive" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleLeave();
+            }} 
+            variant="ghost" 
             size="icon"
             disabled={isLeaving}
+            className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all hover:scale-105 active:scale-95"
           >
-            <PhoneOff className="h-5 w-5" />
+            <PhoneOff className="w-5 h-5" />
           </Button>
         </div>
       )}
