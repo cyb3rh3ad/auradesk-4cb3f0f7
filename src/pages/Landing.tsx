@@ -136,23 +136,23 @@ const Landing = () => {
 
   const testimonials = [
     {
-      name: "Alex Chen",
-      role: "Engineering Lead",
+      name: "Blaž Germič",
+      role: "CEO & Founder",
       content:
-        "AuraDesk replaced 4 different apps for our team. The Discord-style channels combined with video meetings is exactly what we needed.",
-      avatar: "AC",
+        "Building AuraDesk has been an incredible journey. We set out to create a tool that actually makes communication simpler, not more complicated. Seeing teams use it daily to collaborate seamlessly is exactly what we envisioned.",
+      avatar: "BG",
     },
     {
-      name: "Sarah Miller",
-      role: "Product Manager",
-      content: "The AI transcription feature saves us hours every week. No more manual meeting notes!",
-      avatar: "SM",
+      name: "Albina Fela Germič",
+      role: "Creative Advisor & Tester",
+      content: "Every detail matters when it comes to user experience. I've tested every feature extensively to make sure AuraDesk feels intuitive and polished. The result is something we're truly proud of.",
+      avatar: "AG",
     },
     {
-      name: "James Wilson",
-      role: "Startup Founder",
-      content: "Finally, a tool that combines Slack, Discord, and Zoom into one seamless experience.",
-      avatar: "JW",
+      name: "Patricija Turnšek",
+      role: "Co-Founder",
+      content: "From day one, I believed in this vision. AuraDesk isn't just another app—it's a platform built with passion, late nights, and unwavering dedication to helping people connect better.",
+      avatar: "PT",
     },
   ];
 
