@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVoiceChannel, TeamChannel } from '@/hooks/useTeamChannels';
 import { useWebRTC } from '@/hooks/useWebRTC';
@@ -10,8 +10,6 @@ import {
   Video,
   VideoOff,
   PhoneOff,
-  Monitor,
-  MonitorOff,
   Volume2,
   Loader2,
 } from 'lucide-react';
@@ -28,7 +26,6 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
   const { participants, isJoined, joinChannel, leaveChannel, updateStatus } = useVoiceChannel(channel.id);
   const {
     localStream,
-    participants: webrtcParticipants,
     isConnecting,
     isConnected,
     joinRoom,
@@ -39,59 +36,113 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
 
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(true);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  
+  // Use refs to track state for cleanup
+  const hasJoinedRef = useRef(false);
+  const isLeavingRef = useRef(false);
+  const hasInitialized = useRef(false);
 
   // Join the voice channel
   const handleJoin = useCallback(async () => {
-    const success = await joinChannel();
-    if (success) {
-      setHasJoined(true);
-      // Join WebRTC room with audio only by default
-      await joinRoom(false, true);
+    if (hasJoinedRef.current || isLeavingRef.current) return;
+    
+    try {
+      const success = await joinChannel();
+      if (success) {
+        setHasJoined(true);
+        hasJoinedRef.current = true;
+        // Join WebRTC room with audio only by default
+        await joinRoom(false, true);
+      }
+    } catch (err) {
+      console.error('[VoiceChannel] Error joining:', err);
     }
   }, [joinChannel, joinRoom]);
 
-  // Leave the voice channel
-  const handleLeave = useCallback(async () => {
+  // Leave the voice channel - fire and forget for responsiveness
+  const handleLeave = useCallback(() => {
+    if (isLeavingRef.current) return;
+    
+    isLeavingRef.current = true;
+    setIsLeaving(true);
+    
+    // Immediately stop local WebRTC and update UI
     leaveRoom();
-    await leaveChannel();
     setHasJoined(false);
+    hasJoinedRef.current = false;
+    
+    // Fire database cleanup without waiting
+    leaveChannel().catch(err => {
+      console.error('[VoiceChannel] Error leaving channel:', err);
+    });
+    
+    // Call onLeave immediately for responsive UI
     onLeave();
   }, [leaveRoom, leaveChannel, onLeave]);
 
-  // Toggle mute
+  // Toggle mute - optimistic UI update
   const handleToggleMute = useCallback(() => {
     const newMuted = !isMuted;
     setIsMuted(newMuted);
     toggleAudio(newMuted);
-    updateStatus(newMuted, isCameraOff);
+    // Fire and forget database update
+    updateStatus(newMuted, isCameraOff).catch(() => {});
   }, [isMuted, isCameraOff, toggleAudio, updateStatus]);
 
-  // Toggle camera
+  // Toggle camera - optimistic UI update
   const handleToggleCamera = useCallback(() => {
     const newCameraOff = !isCameraOff;
     setIsCameraOff(newCameraOff);
     toggleVideo(newCameraOff);
-    updateStatus(isMuted, newCameraOff);
+    // Fire and forget database update
+    updateStatus(isMuted, newCameraOff).catch(() => {});
   }, [isCameraOff, isMuted, toggleVideo, updateStatus]);
 
-  // Clean up on unmount
+  // Clean up on unmount - use refs to avoid stale closures
   useEffect(() => {
     return () => {
-      if (hasJoined) {
+      if (hasJoinedRef.current && !isLeavingRef.current) {
         leaveRoom();
-        leaveChannel();
+        leaveChannel().catch(() => {});
       }
     };
-  }, [hasJoined, leaveRoom, leaveChannel]);
+  }, [leaveRoom, leaveChannel]);
 
-  // Auto-join on mount
+  // Auto-join on mount - only once
   useEffect(() => {
-    if (!hasJoined && !isJoined) {
+    if (!hasInitialized.current && !hasJoinedRef.current && !isJoined) {
+      hasInitialized.current = true;
       handleJoin();
     }
-  }, [hasJoined, isJoined, handleJoin]);
+  }, [handleJoin, isJoined]);
+
+  // Handle page unload/refresh - use navigator.sendBeacon for reliability
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasJoinedRef.current && user) {
+        // Use sendBeacon for reliable cleanup during page unload
+        const data = JSON.stringify({
+          channel_id: channel.id,
+          user_id: user.id,
+        });
+        
+        // Try to clean up via REST API if available
+        try {
+          navigator.sendBeacon(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/voice_channel_participants?channel_id=eq.${channel.id}&user_id=eq.${user.id}`,
+            data
+          );
+        } catch {
+          // Fallback - the realtime subscription will eventually clean up stale entries
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [channel.id, user]);
 
   const getInitials = (profile: typeof participants[0]['profile']) => {
     if (!profile) return '?';
@@ -109,11 +160,13 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
     return profile.email.slice(0, 2).toUpperCase();
   };
 
-  if (isConnecting) {
+  if (isConnecting || isLeaving) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Connecting to voice channel...</p>
+        <p className="text-muted-foreground">
+          {isLeaving ? 'Disconnecting...' : 'Connecting to voice channel...'}
+        </p>
       </div>
     );
   }
@@ -139,57 +192,69 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             <div className="relative aspect-video rounded-xl bg-muted flex items-center justify-center border-2 border-green-500/50">
               {localStream && !isCameraOff ? (
                 <video
+                  autoPlay
+                  muted
+                  playsInline
                   ref={(el) => {
                     if (el && localStream) el.srcObject = localStream;
                   }}
-                  autoPlay
-                  playsInline
-                  muted
                   className="w-full h-full object-cover rounded-xl"
                 />
               ) : (
-                <Avatar className="w-16 h-16">
-                  <AvatarFallback className="text-2xl">You</AvatarFallback>
-                </Avatar>
+                <div className="flex flex-col items-center gap-2">
+                  <Avatar className="w-16 h-16">
+                    <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                      {user?.email?.slice(0, 2).toUpperCase() || 'ME'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground">You</span>
+                </div>
               )}
-              <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 rounded text-sm flex items-center gap-2">
-                <span>You</span>
-                {isMuted && <MicOff className="w-3 h-3 text-red-500" />}
-              </div>
+              {isMuted && (
+                <div className="absolute bottom-2 right-2 p-1 rounded-full bg-destructive/80">
+                  <MicOff className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
           )}
 
-          {/* Other participants */}
+          {/* Remote participants */}
           {participants
             .filter((p) => p.user_id !== user?.id)
             .map((participant) => (
               <div
                 key={participant.id}
-                className="relative aspect-video rounded-xl bg-muted flex items-center justify-center border-2 border-border"
+                className="relative aspect-video rounded-xl bg-muted flex items-center justify-center"
               >
-                <Avatar className="w-16 h-16">
-                  <AvatarImage src={participant.profile?.avatar_url || undefined} />
-                  <AvatarFallback className="text-2xl">
-                    {getInitials(participant.profile)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 rounded text-sm flex items-center gap-2">
-                  <span className="truncate max-w-[100px]">
+                <div className="flex flex-col items-center gap-2">
+                  <Avatar className="w-16 h-16">
+                    {participant.profile?.avatar_url ? (
+                      <AvatarImage src={participant.profile.avatar_url} />
+                    ) : null}
+                    <AvatarFallback className="bg-secondary text-lg">
+                      {getInitials(participant.profile)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground truncate max-w-full px-2">
                     {participant.profile?.full_name ||
                       participant.profile?.username ||
-                      'User'}
+                      participant.profile?.email?.split('@')[0]}
                   </span>
-                  {participant.is_muted && <MicOff className="w-3 h-3 text-red-500" />}
                 </div>
+                {participant.is_muted && (
+                  <div className="absolute bottom-2 right-2 p-1 rounded-full bg-destructive/80">
+                    <MicOff className="w-3 h-3 text-white" />
+                  </div>
+                )}
               </div>
             ))}
         </div>
 
-        {participants.length === 0 && !hasJoined && (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <Volume2 className="w-12 h-12 mb-2 opacity-50" />
-            <p className="font-medium">Voice Channel Empty</p>
-            <p className="text-sm mb-4">Be the first to join!</p>
+        {/* Empty state */}
+        {!hasJoined && participants.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+            <Volume2 className="w-12 h-12 opacity-30" />
+            <p>No one is in this voice channel</p>
             <Button onClick={handleJoin}>Join Voice</Button>
           </div>
         )}
@@ -202,6 +267,7 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             onClick={handleToggleMute}
             variant={isMuted ? 'destructive' : 'secondary'}
             size="icon"
+            disabled={isLeaving}
           >
             {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
@@ -210,11 +276,17 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             onClick={handleToggleCamera}
             variant={isCameraOff ? 'destructive' : 'secondary'}
             size="icon"
+            disabled={isLeaving}
           >
             {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
           </Button>
 
-          <Button onClick={handleLeave} variant="destructive" size="icon">
+          <Button 
+            onClick={handleLeave} 
+            variant="destructive" 
+            size="icon"
+            disabled={isLeaving}
+          >
             <PhoneOff className="h-5 w-5" />
           </Button>
         </div>

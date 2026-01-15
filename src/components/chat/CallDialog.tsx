@@ -28,22 +28,44 @@ export const CallDialog = ({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [hasUserMoved, setHasUserMoved] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
 
+  // Calculate centered position
+  const getCenteredPosition = () => {
+    const width = Math.min(800, window.innerWidth * 0.9);
+    const height = Math.min(600, window.innerHeight * 0.8);
+    const centerX = (window.innerWidth - width) / 2;
+    const centerY = (window.innerHeight - height) / 2;
+    return { x: Math.max(0, centerX), y: Math.max(20, centerY) };
+  };
+
   // Center the dialog on mount
   useEffect(() => {
     if (open && !isInitialized) {
-      const centerX = (window.innerWidth - 800) / 2;
-      const centerY = (window.innerHeight - 600) / 2;
-      setPosition({ x: centerX, y: Math.max(20, centerY) });
+      setPosition(getCenteredPosition());
       setIsInitialized(true);
+      setHasUserMoved(false);
     }
     if (!open) {
       setIsInitialized(false);
+      setHasUserMoved(false);
     }
   }, [open, isInitialized]);
+
+  // Re-center on window resize if user hasn't moved the dialog
+  useEffect(() => {
+    if (!open || hasUserMoved) return;
+
+    const handleResize = () => {
+      setPosition(getCenteredPosition());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [open, hasUserMoved]);
 
   // Fetch user profile name
   useEffect(() => {
@@ -65,6 +87,7 @@ export const CallDialog = ({
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
+    setHasUserMoved(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     positionRef.current = position;
   };
