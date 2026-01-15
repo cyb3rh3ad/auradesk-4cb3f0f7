@@ -392,15 +392,15 @@ const Landing = () => {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="bg-card/50 border-border/50 h-full">
-                  <CardContent className="pt-6">
+                <Card className="bg-card/50 border-border/50 h-full flex flex-col">
+                  <CardContent className="pt-6 flex flex-col flex-1">
                     <div className="flex items-center gap-1 mb-4">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
                       ))}
                     </div>
-                    <p className="text-muted-foreground mb-6 leading-relaxed">"{testimonial.content}"</p>
-                    <div className="flex items-center gap-3">
+                    <p className="text-muted-foreground mb-6 leading-relaxed flex-1">"{testimonial.content}"</p>
+                    <div className="flex items-center gap-3 mt-auto">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
                         {testimonial.avatar}
                       </div>
