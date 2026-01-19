@@ -119,13 +119,13 @@ export const AddFriendDialog = () => {
         <DialogHeader>
           <DialogTitle>Add Friend</DialogTitle>
           <DialogDescription>
-            Search for users by username to send a friend request.
+            Search for users by name or username to send a friend request.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Enter username (min 3 characters)..."
+              placeholder="Enter name or username (min 3 characters)..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
