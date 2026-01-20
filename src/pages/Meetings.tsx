@@ -18,10 +18,13 @@ import { TranscriptViewer } from '@/components/meetings/TranscriptViewer';
 import { AIAssistant } from '@/components/meetings/AIAssistant';
 import { MeetingRoom } from '@/components/meetings/MeetingRoom';
 import { cn } from '@/lib/utils';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Meetings = () => {
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { meetings, loading, createMeeting } = useMeetings();
+  const { meetings, loading, createMeeting, refetch } = useMeetings();
   const { teams } = useTeams();
   const { isRecording, startRecording, stopRecording } = useTranscription();
   const [createOpen, setCreateOpen] = useState(false);
@@ -142,7 +145,11 @@ const Meetings = () => {
     );
   }
 
-  return (
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
+  const content = (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 md:px-6 py-6 border-b border-border/40 bg-gradient-to-b from-card/50 to-transparent">
@@ -475,6 +482,16 @@ const Meetings = () => {
       </Dialog>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 };
 
 export default Meetings;

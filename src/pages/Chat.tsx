@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchParams } from 'react-router-dom';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 
 const Chat = () => {
   const isMobile = useIsMobile();
@@ -20,7 +21,14 @@ const Chat = () => {
   // Initialize from URL param immediately
   const initialConversation = searchParams.get('conversation');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
-  const { messages, sendMessage, loading: messagesLoading } = useMessages(selectedConversationId);
+  const { messages, sendMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
+
+  const handleRefresh = async () => {
+    await refetch();
+    if (selectedConversationId) {
+      await refetchMessages();
+    }
+  };
 
   // Handle URL param changes (for navigation from other pages)
   useEffect(() => {
@@ -60,61 +68,63 @@ const Chat = () => {
   // Mobile: Show either friends list or chat, not both
   if (isMobile) {
     return (
-      <div className="flex flex-col h-full overflow-hidden">
-        {selectedConversationId ? (
-          // Mobile Chat View
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="h-14 px-3 flex items-center gap-3 border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBackToList}
-                className="h-9 w-9"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  {selectedConversation?.is_group ? (
-                    <Users className="w-4 h-4 text-primary" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4 text-primary" />
-                  )}
+      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
+          {selectedConversationId ? (
+            // Mobile Chat View
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="h-14 px-3 flex items-center gap-3 border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleBackToList}
+                  className="h-9 w-9"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    {selectedConversation?.is_group ? (
+                      <Users className="w-4 h-4 text-primary" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4 text-primary" />
+                    )}
+                  </div>
+                  <span className="font-semibold text-sm truncate">{getConversationName()}</span>
                 </div>
-                <span className="font-semibold text-sm truncate">{getConversationName()}</span>
+              </div>
+              <div className="flex-1 min-h-0">
+                <MessageArea
+                  messages={messages}
+                  onSendMessage={sendMessage}
+                  conversationName={getConversationName()}
+                  isGroup={selectedConversation?.is_group || false}
+                  conversationId={selectedConversationId}
+                  otherUserId={getOtherUserId()}
+                />
               </div>
             </div>
-            <div className="flex-1 min-h-0">
-              <MessageArea
-                messages={messages}
-                onSendMessage={sendMessage}
-                conversationName={getConversationName()}
-                isGroup={selectedConversation?.is_group || false}
-                conversationId={selectedConversationId}
-                otherUserId={getOtherUserId()}
-              />
-            </div>
-          </div>
-        ) : (
-          // Mobile Friends List View
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <h2 className="text-base font-semibold">Messages</h2>
+          ) : (
+            // Mobile Friends List View
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  <h2 className="text-base font-semibold">Messages</h2>
+                </div>
+                <AddFriendDialog />
               </div>
-              <AddFriendDialog />
+              <div className="flex-1 overflow-hidden">
+                <FriendsList
+                  onSelectConversation={handleSelectConversation}
+                  selectedConversationId={selectedConversationId}
+                  conversations={conversations}
+                />
+              </div>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <FriendsList
-                onSelectConversation={handleSelectConversation}
-                selectedConversationId={selectedConversationId}
-                conversations={conversations}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </PullToRefresh>
     );
   }
 

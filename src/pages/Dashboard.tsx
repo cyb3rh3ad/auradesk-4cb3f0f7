@@ -5,11 +5,19 @@ import { useMeetings } from "@/hooks/useMeetings";
 import { useRecentContacts } from "@/hooks/useRecentContacts";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { meetings } = useMeetings();
-  const { contacts, loading: contactsLoading } = useRecentContacts(5);
+  const isMobile = useIsMobile();
+  const { meetings, refetch: refetchMeetings } = useMeetings();
+  const { contacts, loading: contactsLoading, refetch: refetchContacts } = useRecentContacts(5);
+  
+  const handleRefresh = async () => {
+    await Promise.all([refetchMeetings(), refetchContacts()]);
+  };
+
   // Get the next upcoming meeting
   const upcomingMeeting = meetings
     ?.filter(m => new Date(m.scheduled_at) > new Date())
@@ -45,7 +53,7 @@ const Dashboard = () => {
     },
   ];
 
-  return (
+  const content = (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
       <div className="relative">
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
@@ -189,6 +197,16 @@ const Dashboard = () => {
       </Card>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 };
 
 export default Dashboard;
