@@ -333,28 +333,53 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className={cn("w-full gap-2", isMobile ? "flex overflow-x-auto justify-start" : "grid grid-cols-5")}>
-          <TabsTrigger value="profile" className={cn("gap-2", isMobile && "shrink-0")}>
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className={cn("gap-2", isMobile && "shrink-0")}>
-            <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">Appearance</span>
-          </TabsTrigger>
-          <TabsTrigger value="security" className={cn("gap-2", isMobile && "shrink-0")}>
-            <Lock className="w-4 h-4" />
-            <span className="hidden sm:inline">Security</span>
-          </TabsTrigger>
-          <TabsTrigger value="audio-video" className={cn("gap-2", isMobile && "shrink-0")}>
-            <Mic className="w-4 h-4" />
-            <span className="hidden sm:inline">Voice & Video</span>
-          </TabsTrigger>
-          <TabsTrigger value="nicknames" className={cn("gap-2", isMobile && "shrink-0")}>
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Nicknames</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className={cn(
+          isMobile && "relative",
+          isMobile && "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent after:pointer-events-none after:z-10"
+        )}>
+          <TabsList className={cn(
+            "w-full gap-1.5",
+            isMobile 
+              ? "flex overflow-x-auto justify-start pb-1 scrollbar-hide scroll-smooth snap-x snap-mandatory" 
+              : "grid grid-cols-5"
+          )}>
+            <TabsTrigger value="profile" className={cn(
+              "gap-2 min-h-[44px] transition-all",
+              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+            )}>
+              <User className="w-5 h-5" />
+              <span className="hidden sm:inline">Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className={cn(
+              "gap-2 min-h-[44px] transition-all",
+              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+            )}>
+              <Palette className="w-5 h-5" />
+              <span className="hidden sm:inline">Appearance</span>
+            </TabsTrigger>
+            <TabsTrigger value="security" className={cn(
+              "gap-2 min-h-[44px] transition-all",
+              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+            )}>
+              <Lock className="w-5 h-5" />
+              <span className="hidden sm:inline">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="audio-video" className={cn(
+              "gap-2 min-h-[44px] transition-all",
+              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+            )}>
+              <Mic className="w-5 h-5" />
+              <span className="hidden sm:inline">Voice & Video</span>
+            </TabsTrigger>
+            <TabsTrigger value="nicknames" className={cn(
+              "gap-2 min-h-[44px] transition-all",
+              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+            )}>
+              <Users className="w-5 h-5" />
+              <span className="hidden sm:inline">Nicknames</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="profile" className="space-y-4">
           <Card>

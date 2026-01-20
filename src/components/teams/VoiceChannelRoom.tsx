@@ -224,8 +224,8 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             </Button>
           </div>
         ) : (
-          // Participants grid - Discord style tiles
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          // Participants grid - Discord style tiles - Responsive for mobile
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
             {/* Local participant */}
             {hasJoined && (
               <div className={cn(
@@ -307,10 +307,10 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
         )}
       </div>
 
-      {/* Controls bar - Discord style at bottom */}
+      {/* Controls bar - Discord style at bottom - Mobile optimized */}
       {hasJoined && (
-        <div className="flex items-center justify-center gap-2 p-3 bg-[hsl(220,10%,12%)] border-t border-border/30">
-          {/* Mute button */}
+        <div className="flex items-center justify-center gap-3 p-4 bg-[hsl(220,10%,12%)] border-t border-border/30 safe-area-pb">
+          {/* Mute button - 44px minimum touch target */}
           <Button
             onClick={(e) => {
               e.preventDefault();
@@ -321,13 +321,13 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             size="icon"
             disabled={isLeaving}
             className={cn(
-              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              "w-12 h-12 md:w-11 md:h-11 rounded-full transition-all hover:scale-105 active:scale-95 touch-manipulation",
               isMuted 
                 ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300" 
                 : "bg-secondary/50 text-foreground hover:bg-secondary"
             )}
           >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </Button>
 
           {/* Deafen button */}
@@ -341,13 +341,13 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             size="icon"
             disabled={isLeaving}
             className={cn(
-              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              "w-12 h-12 md:w-11 md:h-11 rounded-full transition-all hover:scale-105 active:scale-95 touch-manipulation",
               isDeafened 
                 ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300" 
                 : "bg-secondary/50 text-foreground hover:bg-secondary"
             )}
           >
-            {isDeafened ? <MonitorSpeaker className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
+            {isDeafened ? <MonitorSpeaker className="w-6 h-6" /> : <Headphones className="w-6 h-6" />}
           </Button>
 
           {/* Camera button */}
@@ -361,13 +361,13 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             size="icon"
             disabled={isLeaving}
             className={cn(
-              "w-10 h-10 rounded-full transition-all hover:scale-105 active:scale-95",
+              "w-12 h-12 md:w-11 md:h-11 rounded-full transition-all hover:scale-105 active:scale-95 touch-manipulation",
               isCameraOff 
                 ? "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground" 
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
             )}
           >
-            {isCameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
           </Button>
 
           {/* Disconnect button */}
@@ -380,9 +380,9 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
             variant="ghost" 
             size="icon"
             disabled={isLeaving}
-            className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all hover:scale-105 active:scale-95"
+            className="w-12 h-12 md:w-11 md:h-11 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all hover:scale-105 active:scale-95 touch-manipulation"
           >
-            <PhoneOff className="w-5 h-5" />
+            <PhoneOff className="w-6 h-6" />
           </Button>
         </div>
       )}

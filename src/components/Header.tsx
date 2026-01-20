@@ -91,8 +91,18 @@ export const Header = () => {
         </div>
       )}
 
-      <div className={cn("flex items-center relative z-10", isMobile && "ml-auto")}>
-        {!isMobile && (
+      <div className={cn("flex items-center gap-1 relative z-10", isMobile && "ml-auto")}>
+        {/* Mobile: Icon-only help button */}
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHelpDialogOpen(true)}
+            className="w-10 h-10 rounded-xl hover:bg-accent/10 transition-all duration-200"
+          >
+            <AnimatedHeadphonesIcon className="h-5 w-5" />
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
@@ -104,7 +114,7 @@ export const Header = () => {
           </Button>
         )}
 
-        <div className="mx-2">
+        <div className={cn(isMobile ? "mx-1" : "mx-2")}>
           <NotificationsDropdown />
         </div>
 

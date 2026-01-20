@@ -114,8 +114,13 @@ export const Sidebar = () => {
   }];
   if (isMobile) {
     return <>
-        <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="fixed top-4 left-4 z-50 md:hidden bg-background/80 backdrop-blur-sm hover:bg-accent">
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setIsOpen(!isOpen)} 
+          className="fixed top-4 left-4 z-50 md:hidden bg-background/90 backdrop-blur-sm hover:bg-accent shadow-lg border border-border/50 w-11 h-11 touch-manipulation"
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </Button>
 
         {isOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsOpen(false)} />}
