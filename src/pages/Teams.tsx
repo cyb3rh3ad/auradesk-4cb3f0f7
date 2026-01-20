@@ -19,9 +19,12 @@ import { IncomingTeamCallDialog } from '@/components/teams/IncomingTeamCallDialo
 import { TeamChannelsSidebar } from '@/components/teams/TeamChannelsSidebar';
 import { ChannelChat } from '@/components/teams/ChannelChat';
 import { VoiceChannelRoom } from '@/components/teams/VoiceChannelRoom';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Teams = () => {
-  const { teams, loading, createTeam, addMember } = useTeams();
+  const isMobile = useIsMobile();
+  const { teams, loading, createTeam, addMember, refetch } = useTeams();
   const { friends, loading: friendsLoading } = useFriends();
   const { 
     incomingTeamCall, 
@@ -112,6 +115,10 @@ const Teams = () => {
 
   const canManageTeam = (team: Team) => {
     return team.user_role === 'owner' || team.user_role === 'admin';
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
   };
 
   if (loading) {
@@ -244,7 +251,7 @@ const Teams = () => {
     );
   }
 
-  return (
+  const teamsListContent = (
     <div className="flex flex-col h-full p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
@@ -481,6 +488,16 @@ const Teams = () => {
       )}
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
+        {teamsListContent}
+      </PullToRefresh>
+    );
+  }
+
+  return teamsListContent;
 };
 
 export default Teams;

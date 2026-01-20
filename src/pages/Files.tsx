@@ -17,12 +17,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Files = () => {
-  const { files, loading, storageUsage, uploadFile, downloadFile, deleteFile } = useFiles();
+  const isMobile = useIsMobile();
+  const { files, loading, storageUsage, uploadFile, downloadFile, deleteFile, refetch } = useFiles();
   const [deleteFileData, setDeleteFileData] = useState<{ name: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRefresh = async () => {
+    await refetch();
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -58,12 +65,12 @@ const Files = () => {
 
   const storagePercentage = (storageUsage.usedGB / storageUsage.limitGB) * 100;
 
-  return (
-    <div className="flex flex-col h-full p-6 space-y-6">
-      <div className="flex items-center justify-between">
+  const content = (
+    <div className="flex flex-col h-full p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">Cloud Storage</h2>
-          <p className="text-muted-foreground">Store and manage your files securely</p>
+          <h2 className="text-2xl md:text-3xl font-bold">Cloud Storage</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Store and manage your files securely</p>
         </div>
         <div>
           <input
@@ -144,14 +151,16 @@ const Files = () => {
                         <p className="font-medium truncate">{file.name}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>{formatFileSize(file.metadata?.size || 0)}</span>
-                          <span>{format(new Date(file.created_at), 'PPp')}</span>
+                          <span className="hidden sm:inline">{format(new Date(file.created_at), 'PPp')}</span>
+                          <span className="sm:hidden">{format(new Date(file.created_at), 'PP')}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-10 w-10"
                         onClick={() => downloadFile(file.name)}
                       >
                         <Download className="w-4 h-4" />
@@ -159,6 +168,7 @@ const Files = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-10 w-10"
                         onClick={() => setDeleteFileData({ name: file.name, size: file.metadata?.size || 0 })}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
@@ -188,6 +198,16 @@ const Files = () => {
       </AlertDialog>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 };
 
 export default Files;
