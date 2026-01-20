@@ -121,7 +121,7 @@ export const IncomingCallDialog = ({
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
       <DialogContent 
-        className="max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999]"
+        className="max-w-[90vw] sm:max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] mx-4 safe-area-inset"
         style={{ transform: 'translate(-50%, -50%)' }}
       >
         <VisuallyHidden.Root>
@@ -172,32 +172,32 @@ export const IncomingCallDialog = ({
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-6 pt-2 relative z-50">
+          {/* Action Buttons - Mobile optimized with larger touch targets */}
+          <div className="flex items-center gap-8 pt-2 relative z-50">
             <Button
               variant="ghost"
               size="icon"
-              className="w-16 h-16 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all hover:scale-105 active:scale-95"
+              className="w-18 h-18 min-w-[72px] min-h-[72px] rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all hover:scale-105 active:scale-95 touch-manipulation"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onDecline();
               }}
             >
-              <PhoneOff className="w-7 h-7" />
+              <PhoneOff className="w-8 h-8" />
             </Button>
             
             <Button
               variant="ghost"
               size="icon"
-              className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-green-500/30"
+              className="w-18 h-18 min-w-[72px] min-h-[72px] rounded-full bg-green-500 hover:bg-green-400 text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-green-500/30 touch-manipulation"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onAccept();
               }}
             >
-              {isVideo ? <Video className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
+              {isVideo ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
             </Button>
           </div>
         </div>
