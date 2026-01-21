@@ -112,33 +112,11 @@ export const Sidebar = () => {
     label: "Settings",
     path: "/settings"
   }];
+  // Mobile view is now handled by MobileNavBar, so we return null on mobile
   if (isMobile) {
-    return <>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setIsOpen(!isOpen)} 
-          className="fixed top-4 left-4 z-50 md:hidden bg-background/90 backdrop-blur-sm hover:bg-accent shadow-lg border border-border/50 w-11 h-11 touch-manipulation"
-        >
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </Button>
-
-        {isOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsOpen(false)} />}
-
-        <aside className={cn("fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-40 transition-transform duration-300 md:hidden", isOpen ? "translate-x-0" : "-translate-x-full")}>
-          <div className="flex flex-col h-full py-6 px-4 space-y-8">
-            <div className="flex items-center gap-3 px-2">
-              <AuraLogo size="sm" />
-              <span className="text-lg font-bold">AuraDesk</span>
-            </div>
-
-            <nav className="flex-1 flex flex-col space-y-2">
-              {navItems.map(item => <SidebarNavItem key={item.path} icon={item.icon} label={item.label} path={item.path} onClick={() => setIsOpen(false)} variant="mobile" />)}
-            </nav>
-          </div>
-        </aside>
-      </>;
+    return null;
   }
+  
   return <aside className="w-20 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-6 space-y-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
       

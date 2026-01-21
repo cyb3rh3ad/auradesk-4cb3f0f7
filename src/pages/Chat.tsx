@@ -65,32 +65,40 @@ const Chat = () => {
     setSelectedConversationId(null);
   };
 
-  // Mobile: Show either friends list or chat, not both
+  // Mobile: Show either friends list or chat, not both - Discord/Snap style
   if (isMobile) {
     return (
       <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-hidden">
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden bg-background">
           {selectedConversationId ? (
-            // Mobile Chat View
+            // Mobile Chat View - Full screen messaging
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="h-14 px-3 flex items-center gap-3 border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
+              {/* Chat Header - Compact like Snap/Discord */}
+              <div className="h-14 px-2 flex items-center gap-2 border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0 safe-area-pt">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleBackToList}
-                  className="h-9 w-9"
+                  className="h-10 w-10 touch-manipulation shrink-0"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
                     {selectedConversation?.is_group ? (
-                      <Users className="w-4 h-4 text-primary" />
+                      <Users className="w-5 h-5 text-primary-foreground" />
                     ) : (
-                      <MessageSquare className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-bold text-primary-foreground">
+                        {getConversationName().slice(0, 2).toUpperCase()}
+                      </span>
                     )}
                   </div>
-                  <span className="font-semibold text-sm truncate">{getConversationName()}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm truncate">{getConversationName()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedConversation?.is_group ? 'Group' : 'Active now'}
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex-1 min-h-0">
@@ -105,12 +113,14 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            // Mobile Friends List View
+            // Mobile Friends List View - Clean like Discord/Snap
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                  <h2 className="text-base font-semibold">Messages</h2>
+              <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0 safe-area-pt">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                  </div>
+                  <h2 className="text-lg font-bold">Chats</h2>
                 </div>
                 <AddFriendDialog />
               </div>
