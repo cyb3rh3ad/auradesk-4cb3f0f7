@@ -94,8 +94,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Conversation Header */}
-      <div className="h-16 px-6 flex items-center justify-between border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0">
+      {/* Conversation Header - Hidden on mobile since Chat.tsx shows its own */}
+      <div className="h-16 px-4 md:px-6 hidden md:flex items-center justify-between border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
           <Avatar className="w-10 h-10">
             <AvatarFallback className={cn(
@@ -151,7 +151,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
 
       {/* Messages */}
       <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="p-4 md:p-6 space-y-6">
+        <div className="p-3 md:p-6 space-y-4 md:space-y-6">
           {groupedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
               <div className="text-center space-y-2">
@@ -168,9 +168,9 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
               return (
                 <div
                   key={`group-${groupIndex}`}
-                  className={cn('flex gap-3', isOwn && 'flex-row-reverse')}
+                  className={cn('flex gap-2 md:gap-3', isOwn && 'flex-row-reverse')}
                 >
-                  <Avatar className="w-8 h-8 mt-1 shrink-0">
+                  <Avatar className="w-7 h-7 md:w-8 md:h-8 mt-1 shrink-0">
                     <AvatarImage src={group.sender?.avatar_url} />
                     <AvatarFallback className={cn(
                       "text-xs font-medium",
@@ -181,7 +181,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                       {getInitials(senderName)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className={cn('flex flex-col max-w-[75%] gap-1', isOwn && 'items-end')}>
+                  <div className={cn('flex flex-col max-w-[80%] md:max-w-[75%] gap-0.5', isOwn && 'items-end')}>
                     <div className={cn('flex items-center gap-2', isOwn && 'flex-row-reverse')}>
                       <span className="text-xs font-medium text-foreground/80">{isOwn ? 'You' : senderName}</span>
                       <span className="text-[10px] text-muted-foreground">
@@ -192,7 +192,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                       <div
                         key={message.id}
                         className={cn(
-                          'px-4 py-2.5 rounded-2xl shadow-sm',
+                          'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm',
                           isOwn
                             ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
                             : 'bg-card border border-border/50 rounded-tl-md'
@@ -210,10 +210,10 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       </ScrollArea>
 
       {/* Typing Indicator & Input */}
-      <div className="border-t border-border/40 bg-card/30 backdrop-blur-sm shrink-0">
+      <div className="border-t border-border/40 bg-card/30 backdrop-blur-sm shrink-0 safe-area-pb">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
-          <div className="px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <span className="font-medium text-foreground/70">
                 {typingUsers.map(u => u.username).join(', ')}
@@ -228,20 +228,20 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="p-4 flex gap-3 items-center">
+        <form onSubmit={handleSubmit} className="p-3 md:p-4 flex gap-2 md:gap-3 items-center">
           <Input
             value={input}
             onChange={handleInputChange}
-            placeholder="Type a message..."
-            className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30"
+            placeholder="Message..."
+            className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30 h-11 text-base"
           />
           <Button 
             type="submit" 
             size="icon" 
             disabled={!input.trim()}
-            className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+            className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-11 w-11 touch-manipulation"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-5 h-5" />
           </Button>
         </form>
       </div>

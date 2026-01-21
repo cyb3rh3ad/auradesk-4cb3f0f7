@@ -9,13 +9,15 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
+import { MobileNavBar } from "@/components/MobileNavBar";
 import { Header } from "@/components/Header";
 import { HelpNotification } from "@/components/HelpNotification";
 import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { supabase } from "@/integrations/supabase/client";
-import { isElectronApp, useIsElectron } from "@/hooks/useIsElectron";
+import { isElectronApp } from "@/hooks/useIsElectron";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -116,6 +118,31 @@ const PageTransition = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Layout wrapper component to use hooks
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  const isMobile = useIsMobile();
+  
+  return (
+    <div className="flex h-screen w-full overflow-hidden">
+      {!isMobile && <Sidebar />}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {isElectronApp() && <div className="h-8 flex-shrink-0" />}
+        <Header />
+        <main className={cn("flex-1 overflow-auto", isMobile && "pb-16")}>
+          <PageTransition>
+            {children}
+          </PageTransition>
+        </main>
+      </div>
+      {isMobile && <MobileNavBar />}
+    </div>
+  );
+};
+
+// Utility for className concatenation
+const cn = (...classes: (string | boolean | undefined)[]) => 
+  classes.filter(Boolean).join(' ');
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -138,31 +165,21 @@ const App = () => (
                 <ProtectedRoute>
                     <OnboardingCheck />
                     <CallProvider>
-                      <div className="flex h-screen w-full overflow-hidden">
-                        <Sidebar />
-                        <div className="flex-1 flex flex-col overflow-hidden">
-                          {/* Electron title bar spacer to prevent content overlap with window controls */}
-                          {isElectronApp() && <div className="h-8 flex-shrink-0" />}
-                          <Header />
-                          <main className="flex-1 overflow-auto">
-                            <PageTransition>
-                              <Routes>
-                                <Route path="/dashboard" element={<Dashboard />} />
-                                <Route path="/chat" element={<Chat />} />
-                                <Route path="/teams" element={<Teams />} />
-                                <Route path="/meetings" element={<Meetings />} />
-                                <Route path="/files" element={<Files />} />
-                                <Route path="/ai" element={<AI />} />
-                                <Route path="/ai-settings" element={<AISettings />} />
-                                <Route path="/settings" element={<Settings />} />
-                                <Route path="/subscription" element={<Subscription />} />
-                                <Route path="/admin" element={<Admin />} />
-                                <Route path="*" element={<NotFound />} />
-                              </Routes>
-                            </PageTransition>
-                          </main>
-                        </div>
-                      </div>
+                      <AppLayout>
+                        <Routes>
+                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/chat" element={<Chat />} />
+                          <Route path="/teams" element={<Teams />} />
+                          <Route path="/meetings" element={<Meetings />} />
+                          <Route path="/files" element={<Files />} />
+                          <Route path="/ai" element={<AI />} />
+                          <Route path="/ai-settings" element={<AISettings />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="/subscription" element={<Subscription />} />
+                          <Route path="/admin" element={<Admin />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </AppLayout>
                     </CallProvider>
                   </ProtectedRoute>
                 }

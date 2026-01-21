@@ -4,8 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { Users, Circle } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Conversation } from '@/hooks/useConversations';
+import { triggerHaptic } from '@/utils/haptics';
 
 interface Friend {
   id: string;
@@ -139,6 +140,8 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
   }, [user]);
 
   const handleFriendClick = async (friend: Friend) => {
+    triggerHaptic('light');
+    
     if (friend.conversation_id) {
       onSelectConversation(friend.conversation_id);
       return;
@@ -245,7 +248,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       <div className="py-2 px-2">
         {/* Friends Section */}
         {friends.length > 0 && (
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {friends.map((friend) => {
               const isSelected = friend.conversation_id === selectedConversationId;
               const unread = hasUnreadMessages(friend);
@@ -255,16 +258,16 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                   key={friend.id}
                   onClick={() => handleFriendClick(friend)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
+                    'w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 touch-manipulation',
                     'hover:bg-muted/50 active:scale-[0.98]',
                     isSelected && 'bg-primary/10 hover:bg-primary/15'
                   )}
                 >
                   <div className="relative">
-                    <Avatar className="w-10 h-10 ring-2 ring-transparent transition-all">
+                    <Avatar className="w-12 h-12 ring-2 ring-transparent transition-all">
                       <AvatarImage src={friend.avatar_url || undefined} />
                       <AvatarFallback className={cn(
-                        "text-xs font-semibold",
+                        "text-sm font-semibold",
                         isSelected 
                           ? "bg-gradient-to-br from-primary to-accent text-primary-foreground"
                           : "bg-muted text-muted-foreground"
@@ -273,19 +276,19 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                       </AvatarFallback>
                     </Avatar>
                     {unread && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full border-2 border-background animate-pulse" />
                     )}
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <p className={cn(
-                      'text-sm truncate transition-colors',
+                      'text-base truncate transition-colors',
                       isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
                       unread && 'font-semibold'
                     )}>
                       {friend.full_name || friend.username || friend.email}
                     </p>
                     {friend.username && friend.full_name && (
-                      <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+                      <p className="text-sm text-muted-foreground truncate">@{friend.username}</p>
                     )}
                   </div>
                 </button>
@@ -298,9 +301,9 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         {groupConversations.length > 0 && (
           <>
             <div className="px-3 pt-5 pb-2">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Groups</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Groups</span>
             </div>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {groupConversations.map((group) => {
                 const isSelected = group.id === selectedConversationId;
                 const unread = !readConversations.has(group.id);
@@ -308,38 +311,41 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                 return (
                   <button
                     key={group.id}
-                    onClick={() => onSelectConversation(group.id)}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      onSelectConversation(group.id);
+                    }}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
+                      'w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 touch-manipulation',
                       'hover:bg-muted/50 active:scale-[0.98]',
                       isSelected && 'bg-primary/10 hover:bg-primary/15'
                     )}
                   >
                     <div className="relative">
                       <div className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-all",
                         isSelected 
                           ? "bg-gradient-to-br from-primary to-accent"
                           : "bg-muted"
                       )}>
                         <Users className={cn(
-                          "w-5 h-5",
+                          "w-6 h-6",
                           isSelected ? "text-primary-foreground" : "text-muted-foreground"
                         )} />
                       </div>
                       {unread && (
-                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
+                        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full border-2 border-background animate-pulse" />
                       )}
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className={cn(
-                        'text-sm truncate transition-colors',
+                        'text-base truncate transition-colors',
                         isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
                         unread && 'font-semibold'
                       )}>
                         {group.name || 'Unnamed Group'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {group.members?.length || 0} members
                       </p>
                     </div>
@@ -352,12 +358,12 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
         {/* Empty State */}
         {friends.length === 0 && groupConversations.length === 0 && (
-          <div className="px-4 py-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
-              <Users className="w-8 h-8 text-muted-foreground/50" />
+          <div className="px-4 py-16 text-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+              <Users className="w-10 h-10 text-muted-foreground/50" />
             </div>
-            <p className="text-sm font-medium text-foreground/80">No friends yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Add friends to start chatting!</p>
+            <p className="text-base font-medium text-foreground/80">No friends yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Add friends to start chatting!</p>
           </div>
         )}
       </div>
