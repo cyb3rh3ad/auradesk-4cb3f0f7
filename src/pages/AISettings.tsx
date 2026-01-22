@@ -1,6 +1,7 @@
 import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useLocalAI } from '@/hooks/useLocalAI';
+import { useOllamaAI, RECOMMENDED_OLLAMA_MODELS } from '@/hooks/useOllamaAI';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -9,19 +10,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Settings, Cloud, Cpu, Lock, Sparkles, Zap, Brain, Image } from 'lucide-react';
+import { Loader2, Settings, Cloud, Cpu, Lock, Sparkles, Zap, Brain, Image, Server, RefreshCw, Download, Check, Wifi, WifiOff, ExternalLink } from 'lucide-react';
 import { AI_MODELS, getAvailableModels, canUseLocalExecution, getModelById } from '@/lib/ai-models';
+import { isElectron } from '@/lib/supabase-config';
 import { cn } from '@/lib/utils';
 
 const AISettings = () => {
   const { preferences, loading, updatePreferences } = useAIPreferences();
   const { plan } = useSubscription();
   const localAI = useLocalAI();
+  const ollamaAI = useOllamaAI();
   
   const availableModels = getAvailableModels(plan);
   const canUseLocal = canUseLocalExecution(plan);
   const selectedModel = getModelById(preferences?.selected_model || 'gemini-flash-lite');
   const webGPUSupported = localAI.isWebGPUSupported();
+  const inElectron = isElectron();
 
   if (loading || !preferences) {
     return (
@@ -55,6 +59,12 @@ const AISettings = () => {
       default:
         return null;
     }
+  };
+
+  const handlePullModel = async (modelName: string) => {
+    await ollamaAI.pullModel(modelName, (status) => {
+      console.log('Pull status:', status);
+    });
   };
 
   return (
@@ -144,14 +154,14 @@ const AISettings = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!canUseLocal && (
+            {!canUseLocal && !inElectron && (
               <div className="p-3 rounded-lg bg-muted text-sm">
                 <Lock className="w-4 h-4 inline mr-2" />
                 Local execution is available for Advanced and Professional subscribers
               </div>
             )}
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
               <div
                 onClick={() => updatePreferences({ execution_mode: 'cloud' })}
                 className={cn(
@@ -163,35 +173,54 @@ const AISettings = () => {
                 <Cloud className="w-8 h-8 mb-2 text-blue-500" />
                 <h4 className="font-medium">Cloud</h4>
                 <p className="text-sm text-muted-foreground">
-                  Fast, powerful servers handle AI processing
+                  Fast, powerful servers
                 </p>
               </div>
               
-              <div
-                onClick={() => canUseLocal && selectedModel?.supportsLocal && updatePreferences({ execution_mode: 'local' })}
-                className={cn(
-                  "p-4 rounded-lg border-2 transition-all",
-                  preferences.execution_mode === 'local' && "border-primary bg-primary/5",
-                  preferences.execution_mode !== 'local' && canUseLocal && selectedModel?.supportsLocal && "border-border hover:border-primary/50 cursor-pointer",
-                  (!canUseLocal || !selectedModel?.supportsLocal) && "border-border/50 opacity-60 cursor-not-allowed"
-                )}
-              >
-                <Cpu className="w-8 h-8 mb-2 text-green-500" />
-                <h4 className="font-medium">Local</h4>
-                <p className="text-sm text-muted-foreground">
-                  Run AI on your device for privacy
-                </p>
-                {!webGPUSupported && canUseLocal && (
-                  <p className="text-xs text-destructive mt-1">
-                    WebGPU not supported in your browser
+              {inElectron ? (
+                <div
+                  onClick={() => updatePreferences({ execution_mode: 'ollama' })}
+                  className={cn(
+                    "p-4 rounded-lg border-2 cursor-pointer transition-all",
+                    preferences.execution_mode === 'ollama' && "border-primary bg-primary/5",
+                    preferences.execution_mode !== 'ollama' && "border-border hover:border-primary/50"
+                  )}
+                >
+                  <Server className="w-8 h-8 mb-2 text-orange-500" />
+                  <h4 className="font-medium flex items-center gap-2">
+                    Ollama
+                    {ollamaAI.isConnected ? (
+                      <Wifi className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <WifiOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Offline AI, no internet
                   </p>
-                )}
-                {canUseLocal && !selectedModel?.supportsLocal && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Selected model doesn't support local execution
+                </div>
+              ) : (
+                <div
+                  onClick={() => canUseLocal && selectedModel?.supportsLocal && updatePreferences({ execution_mode: 'local' })}
+                  className={cn(
+                    "p-4 rounded-lg border-2 transition-all",
+                    preferences.execution_mode === 'local' && "border-primary bg-primary/5",
+                    preferences.execution_mode !== 'local' && canUseLocal && selectedModel?.supportsLocal && "border-border hover:border-primary/50 cursor-pointer",
+                    (!canUseLocal || !selectedModel?.supportsLocal) && "border-border/50 opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <Cpu className="w-8 h-8 mb-2 text-green-500" />
+                  <h4 className="font-medium">Local</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Run AI on your device
                   </p>
-                )}
-              </div>
+                  {!webGPUSupported && canUseLocal && (
+                    <p className="text-xs text-destructive mt-1">
+                      WebGPU not supported
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             
             {localAI.isModelLoading && (
@@ -205,6 +234,143 @@ const AISettings = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Ollama Configuration - Only show in Electron */}
+        {inElectron && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="w-5 h-5" />
+                Ollama Configuration
+                {ollamaAI.isConnected ? (
+                  <Badge className="bg-green-500 ml-auto">Connected</Badge>
+                ) : (
+                  <Badge variant="secondary" className="ml-auto">Disconnected</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Run AI models locally without internet connection
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Connection Status */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                <div className="flex items-center gap-3">
+                  {ollamaAI.isConnected ? (
+                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                  ) : (
+                    <div className="w-3 h-3 rounded-full bg-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">
+                      {ollamaAI.isConnected ? 'Ollama Running' : 'Ollama Not Running'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {ollamaAI.isConnected 
+                        ? `${ollamaAI.availableModels.length} models available`
+                        : 'Start Ollama to use offline AI'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => ollamaAI.checkConnection()}
+                    disabled={ollamaAI.isCheckingConnection}
+                  >
+                    {ollamaAI.isCheckingConnection ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <a
+                    href="https://ollama.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm flex items-center gap-1"
+                  >
+                    Get Ollama
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Installed Models */}
+              {ollamaAI.isConnected && ollamaAI.availableModels.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Installed Models</Label>
+                  <div className="grid gap-2">
+                    {ollamaAI.availableModels.map((model) => (
+                      <div
+                        key={model.name}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{model.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ollamaAI.formatModelSize(model.size)}
+                          </p>
+                        </div>
+                        <Check className="w-4 h-4 text-green-500" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommended Models to Download */}
+              {ollamaAI.isConnected && (
+                <div className="space-y-2">
+                  <Label>Recommended Models</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Click to download a model for offline use
+                  </p>
+                  <div className="grid gap-2">
+                    {RECOMMENDED_OLLAMA_MODELS.map((model) => {
+                      const isInstalled = ollamaAI.availableModels.some(
+                        m => m.name.startsWith(model.name.split(':')[0])
+                      );
+                      
+                      return (
+                        <div
+                          key={model.name}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                            isInstalled ? "bg-muted/50" : "hover:bg-muted/50 cursor-pointer"
+                          )}
+                          onClick={() => !isInstalled && !ollamaAI.isLoading && handlePullModel(model.name)}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{model.displayName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {model.description} • {model.size}
+                            </p>
+                          </div>
+                          {isInstalled ? (
+                            <Check className="w-4 h-4 text-green-500" />
+                          ) : ollamaAI.isLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {ollamaAI.error && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  {ollamaAI.error}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Transcript Processing */}
         <Card>

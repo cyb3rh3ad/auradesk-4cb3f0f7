@@ -2,17 +2,19 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Sparkles, Cpu, Cloud, Lock, Check } from 'lucide-react';
-import { AI_MODELS, getAvailableModels, type AIModel, type SubscriptionPlan } from '@/lib/ai-models';
+import { ChevronDown, Sparkles, Cpu, Cloud, Lock, Check, Server, Wifi, WifiOff } from 'lucide-react';
+import { AI_MODELS, getAvailableModels, type AIModel, type SubscriptionPlan, type ExecutionMode } from '@/lib/ai-models';
 import { cn } from '@/lib/utils';
+import { isElectron } from '@/lib/supabase-config';
 
 interface AIModelSelectorProps {
   selectedModel: string;
-  executionMode: 'cloud' | 'local';
+  executionMode: ExecutionMode;
   subscriptionPlan: SubscriptionPlan;
   onModelChange: (modelId: string) => void;
-  onModeChange: (mode: 'cloud' | 'local') => void;
+  onModeChange: (mode: ExecutionMode) => void;
   disabled?: boolean;
+  ollamaConnected?: boolean;
 }
 
 export const AIModelSelector = ({
@@ -22,6 +24,7 @@ export const AIModelSelector = ({
   onModelChange,
   onModeChange,
   disabled,
+  ollamaConnected = false,
 }: AIModelSelectorProps) => {
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -30,18 +33,30 @@ export const AIModelSelector = ({
   
   const availableModels = getAvailableModels(subscriptionPlan);
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
-  const isElectron = typeof window !== 'undefined' && 
-    ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
-  // Disable local mode in Electron (WebGPU not available)
-  const canUseLocal = subscriptionPlan !== 'free' && !isElectron;
+  const inElectron = isElectron();
+  // Disable WebGPU local mode in Electron (WebGPU not available)
+  const canUseLocal = subscriptionPlan !== 'free' && !inElectron;
+  // Ollama is available in Electron desktop app
+  const canUseOllama = inElectron;
 
-  const groupedModels = AI_MODELS.reduce((acc, model) => {
+  // Filter models based on execution mode
+  const getDisplayModels = () => {
+    if (executionMode === 'ollama') {
+      return AI_MODELS.filter(m => m.provider === 'ollama');
+    }
+    // For cloud/local modes, filter out ollama models
+    return AI_MODELS.filter(m => m.provider !== 'ollama');
+  };
+
+  const displayModels = getDisplayModels();
+  const groupedModels = displayModels.reduce((acc, model) => {
     if (!acc[model.provider]) acc[model.provider] = [];
     acc[model.provider].push(model);
     return acc;
   }, {} as Record<string, AIModel[]>);
 
   const getModelIcon = (model: AIModel) => {
+    if (model.provider === 'ollama') return '🦙';
     if (model.capabilities.includes('image')) return '🎨';
     if (model.tier === 'professional') return '⚡';
     if (model.tier === 'advanced') return '✨';
@@ -132,7 +147,7 @@ export const AIModelSelector = ({
                 <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
                   <button
                     className={cn(
-                      "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
+                      "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
                       executionMode === 'cloud' 
                         ? "bg-background text-foreground shadow-sm" 
                         : "text-muted-foreground hover:text-foreground"
@@ -142,22 +157,48 @@ export const AIModelSelector = ({
                     <Cloud className="h-3.5 w-3.5" />
                     Cloud
                   </button>
-                  <button
-                    className={cn(
-                      "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
-                      executionMode === 'local' 
-                        ? "bg-background text-foreground shadow-sm" 
-                        : "text-muted-foreground hover:text-foreground",
-                      !canUseLocal && "opacity-50 cursor-not-allowed"
-                    )}
-                    disabled={!canUseLocal}
-                    onClick={() => canUseLocal && onModeChange('local')}
-                  >
-                    <Cpu className="h-3.5 w-3.5" />
-                    Local
-                    {!canUseLocal && <Lock className="h-3 w-3" />}
-                  </button>
+                  {canUseOllama && (
+                    <button
+                      className={cn(
+                        "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
+                        executionMode === 'ollama' 
+                          ? "bg-background text-foreground shadow-sm" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => onModeChange('ollama')}
+                    >
+                      <Server className="h-3.5 w-3.5" />
+                      Ollama
+                      {ollamaConnected ? (
+                        <Wifi className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <WifiOff className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
+                  {!canUseOllama && (
+                    <button
+                      className={cn(
+                        "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
+                        executionMode === 'local' 
+                          ? "bg-background text-foreground shadow-sm" 
+                          : "text-muted-foreground hover:text-foreground",
+                        !canUseLocal && "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={!canUseLocal}
+                      onClick={() => canUseLocal && onModeChange('local')}
+                    >
+                      <Cpu className="h-3.5 w-3.5" />
+                      Local
+                      {!canUseLocal && <Lock className="h-3 w-3" />}
+                    </button>
+                  )}
                 </div>
+                {executionMode === 'ollama' && !ollamaConnected && (
+                  <p className="text-xs text-muted-foreground mt-2 px-1">
+                    Start Ollama to use offline AI. <a href="https://ollama.ai" target="_blank" rel="noopener" className="text-primary underline">Download</a>
+                  </p>
+                )}
               </div>
 
               {/* Models List */}

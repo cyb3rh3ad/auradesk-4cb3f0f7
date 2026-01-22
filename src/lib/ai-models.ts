@@ -1,17 +1,19 @@
 // AI Model definitions and tier restrictions
 
-export type ExecutionMode = 'cloud' | 'local';
+export type ExecutionMode = 'cloud' | 'local' | 'ollama';
 
 export interface AIModel {
   id: string;
   name: string;
   description: string;
-  provider: 'google' | 'openai' | 'local';
+  provider: 'google' | 'openai' | 'local' | 'ollama';
   capabilities: ('text' | 'image' | 'reasoning')[];
   tier: 'free' | 'advanced' | 'professional';
   supportsLocal: boolean;
+  supportsOllama?: boolean; // For Ollama desktop integration
   cloudModelId?: string; // For Lovable AI gateway
   localModelId?: string; // For HuggingFace transformers
+  ollamaModelId?: string; // For Ollama local server
 }
 
 export const AI_MODELS: AIModel[] = [
@@ -120,6 +122,52 @@ export const AI_MODELS: AIModel[] = [
     supportsLocal: true,
     localModelId: 'Xenova/Phi-3-mini-4k-instruct',
   },
+  
+  // Ollama models (desktop offline)
+  {
+    id: 'ollama-llama3',
+    name: 'Ollama: Llama 3.2',
+    description: 'Offline AI - fast and capable',
+    provider: 'ollama',
+    capabilities: ['text'],
+    tier: 'free',
+    supportsLocal: false,
+    supportsOllama: true,
+    ollamaModelId: 'llama3.2:3b',
+  },
+  {
+    id: 'ollama-mistral',
+    name: 'Ollama: Mistral',
+    description: 'Offline AI - powerful reasoning',
+    provider: 'ollama',
+    capabilities: ['text', 'reasoning'],
+    tier: 'free',
+    supportsLocal: false,
+    supportsOllama: true,
+    ollamaModelId: 'mistral:7b',
+  },
+  {
+    id: 'ollama-phi3',
+    name: 'Ollama: Phi-3',
+    description: 'Offline AI - compact and efficient',
+    provider: 'ollama',
+    capabilities: ['text'],
+    tier: 'free',
+    supportsLocal: false,
+    supportsOllama: true,
+    ollamaModelId: 'phi3:mini',
+  },
+  {
+    id: 'ollama-custom',
+    name: 'Ollama: Custom Model',
+    description: 'Use any Ollama model you have installed',
+    provider: 'ollama',
+    capabilities: ['text'],
+    tier: 'free',
+    supportsLocal: false,
+    supportsOllama: true,
+    ollamaModelId: '', // Will be set dynamically
+  },
 ];
 
 export type SubscriptionPlan = 'free' | 'advanced' | 'professional';
@@ -145,6 +193,10 @@ export const canUseLocalExecution = (plan: SubscriptionPlan): boolean => {
 
 export const getModelById = (id: string): AIModel | undefined => {
   return AI_MODELS.find(model => model.id === id);
+};
+
+export const getOllamaModels = (): AIModel[] => {
+  return AI_MODELS.filter(model => model.provider === 'ollama');
 };
 
 export const getDefaultModelForPlan = (plan: SubscriptionPlan): string => {
