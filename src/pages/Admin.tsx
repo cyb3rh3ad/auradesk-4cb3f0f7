@@ -176,11 +176,11 @@ const Admin = () => {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 overflow-y-auto h-full">
+      <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 pb-8">
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage promo codes and promotions</p>
+          <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">Admin Panel</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage promo codes and promotions</p>
         </div>
 
         {/* Create Promo Code */}
@@ -324,18 +324,19 @@ const Admin = () => {
             ) : promoCodes.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No promo codes created yet</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {promoCodes.map((promo) => (
                   <div
                     key={promo.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-card"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between p-3 md:p-4 border rounded-lg bg-card"
                   >
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <code className="text-lg font-bold">{promo.code}</code>
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-base md:text-lg font-bold break-all">{promo.code}</code>
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="h-8 w-8 p-0"
                           onClick={() => copyToClipboard(promo.code)}
                         >
                           <Copy className="h-4 w-4" />
@@ -344,18 +345,18 @@ const Admin = () => {
                           <Badge variant="secondary">Inactive</Badge>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Percent className="h-4 w-4" />
+                          <Percent className="h-3 w-3 md:h-4 md:w-4" />
                           {promo.discount_percent}% off
                         </span>
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {promo.duration_months} months
+                          <Calendar className="h-3 w-3 md:h-4 md:w-4" />
+                          {promo.duration_months} mo
                         </span>
                         <span className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          {promo.current_uses} / {promo.max_uses || '∞'} uses
+                          <Users className="h-3 w-3 md:h-4 md:w-4" />
+                          {promo.current_uses}/{promo.max_uses || '∞'}
                         </span>
                       </div>
                       {promo.expires_at && (
@@ -364,7 +365,7 @@ const Admin = () => {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-end sm:self-center">
                       <Switch
                         checked={promo.active}
                         onCheckedChange={() => togglePromoCode(promo.id, promo.active)}
@@ -372,6 +373,7 @@ const Admin = () => {
                       <Button
                         size="sm"
                         variant="destructive"
+                        className="h-9 w-9 p-0"
                         onClick={() => deletePromoCode(promo.id)}
                       >
                         <Trash2 className="h-4 w-4" />

@@ -326,57 +326,57 @@ const Settings = () => {
 
 
   return (
-    <div className="container max-w-4xl mx-auto p-6 space-y-6">
+    <div className="container max-w-4xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-y-auto h-full pb-8">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Customize your AuraDesk experience</p>
+        <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Customize your AuraDesk experience</p>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <div className={cn(
-          isMobile && "relative",
-          isMobile && "after:absolute after:right-0 after:top-0 after:bottom-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent after:pointer-events-none after:z-10"
-        )}>
+        <div className="relative">
+          {isMobile && (
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+          )}
           <TabsList className={cn(
-            "w-full gap-1.5",
+            "w-full gap-1 md:gap-1.5 bg-muted/50 p-1 rounded-lg",
             isMobile 
-              ? "flex overflow-x-auto justify-start pb-1 scrollbar-hide scroll-smooth snap-x snap-mandatory" 
+              ? "flex overflow-x-auto justify-start scrollbar-hide scroll-smooth" 
               : "grid grid-cols-5"
           )}>
             <TabsTrigger value="profile" className={cn(
-              "gap-2 min-h-[44px] transition-all",
-              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
             )}>
-              <User className="w-5 h-5" />
-              <span className="hidden sm:inline">Profile</span>
+              <User className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">Profile</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className={cn(
-              "gap-2 min-h-[44px] transition-all",
-              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
             )}>
-              <Palette className="w-5 h-5" />
-              <span className="hidden sm:inline">Appearance</span>
+              <Palette className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">Appearance</span>
             </TabsTrigger>
             <TabsTrigger value="security" className={cn(
-              "gap-2 min-h-[44px] transition-all",
-              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
             )}>
-              <Lock className="w-5 h-5" />
-              <span className="hidden sm:inline">Security</span>
+              <Lock className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">Security</span>
             </TabsTrigger>
             <TabsTrigger value="audio-video" className={cn(
-              "gap-2 min-h-[44px] transition-all",
-              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
             )}>
-              <Mic className="w-5 h-5" />
-              <span className="hidden sm:inline">Voice & Video</span>
+              <Mic className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">Voice</span>
             </TabsTrigger>
             <TabsTrigger value="nicknames" className={cn(
-              "gap-2 min-h-[44px] transition-all",
-              isMobile && "shrink-0 snap-start px-4 min-w-[44px] active:scale-95"
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
             )}>
-              <Users className="w-5 h-5" />
-              <span className="hidden sm:inline">Nicknames</span>
+              <Users className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">Nicknames</span>
             </TabsTrigger>
           </TabsList>
         </div>

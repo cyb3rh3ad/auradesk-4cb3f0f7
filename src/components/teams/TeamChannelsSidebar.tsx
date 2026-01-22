@@ -323,9 +323,9 @@ function ChannelItem({ channel, isSelected, onSelect, onDelete }: ChannelItemPro
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-1 top-[calc(50%-2px)] -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
             >
-              <MoreVertical className="w-3 h-3" />
+              <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

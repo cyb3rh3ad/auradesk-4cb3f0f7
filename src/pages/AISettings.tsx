@@ -58,16 +58,16 @@ const AISettings = () => {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 overflow-auto">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold flex items-center gap-2">
-          <Settings className="w-8 h-8" />
+    <div className="flex flex-col h-full p-4 md:p-6 overflow-y-auto overflow-x-hidden">
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+          <Settings className="w-6 h-6 md:w-8 md:h-8" />
           AI Settings
         </h2>
-        <p className="text-muted-foreground">Configure AI models and execution preferences</p>
+        <p className="text-sm md:text-base text-muted-foreground">Configure AI models and execution preferences</p>
       </div>
 
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-4 md:space-y-6 max-w-3xl pb-6">
         {/* Model Selection */}
         <Card>
           <CardHeader>
@@ -151,7 +151,7 @@ const AISettings = () => {
               </div>
             )}
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div
                 onClick={() => updatePreferences({ execution_mode: 'cloud' })}
                 className={cn(

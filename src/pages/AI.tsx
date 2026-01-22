@@ -262,7 +262,7 @@ const AI = () => {
                   </div>
                 </motion.div>
               ) : (
-                <div className="space-y-6 pb-4">
+                <div className="space-y-6 pb-4 relative">
                   {messages.map((message, index) => (
                     <motion.div
                       key={message.id || index}
@@ -325,26 +325,47 @@ const AI = () => {
                       className="flex gap-3 justify-start"
                     >
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-600 shadow-md shadow-primary/20">
-                        <Sparkles className="h-4 w-4 text-primary-foreground" />
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Sparkles className="h-4 w-4 text-primary-foreground" />
+                        </motion.div>
                       </div>
                       <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-muted/80">
-                        <div className="flex items-center gap-1.5">
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                            className="h-2 w-2 rounded-full bg-primary/60"
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                            className="h-2 w-2 rounded-full bg-primary/60"
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                            className="h-2 w-2 rounded-full bg-primary/60"
-                          />
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Thinking</span>
+                          <div className="flex items-center gap-1">
+                            <motion.div
+                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
+                              transition={{ duration: 1.4, repeat: Infinity, delay: 0 }}
+                              className="h-1.5 w-1.5 rounded-full bg-primary"
+                            />
+                            <motion.div
+                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
+                              transition={{ duration: 1.4, repeat: Infinity, delay: 0.2 }}
+                              className="h-1.5 w-1.5 rounded-full bg-primary"
+                            />
+                            <motion.div
+                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
+                              transition={{ duration: 1.4, repeat: Infinity, delay: 0.4 }}
+                              className="h-1.5 w-1.5 rounded-full bg-primary"
+                            />
+                          </div>
                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  {/* Streaming message animation */}
+                  {isLoading && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content && (
+                    <motion.div
+                      className="absolute bottom-2 right-4"
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Generating...</span>
                       </div>
                     </motion.div>
                   )}
