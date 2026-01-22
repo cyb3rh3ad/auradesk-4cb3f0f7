@@ -6,18 +6,21 @@ import { useAIChat } from '@/hooks/useAIChat';
 import { useAIChatSessions } from '@/hooks/useAIChatSessions';
 import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useOllamaAI } from '@/hooks/useOllamaAI';
 import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
 import { AIModelSelector } from '@/components/ai/AIModelSelector';
 import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import type { SubscriptionPlan } from '@/lib/ai-models';
+import type { SubscriptionPlan, ExecutionMode } from '@/lib/ai-models';
+import { getModelById } from '@/lib/ai-models';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AI = () => {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false); // Closed by default on mobile
   const { isLoading, sendMessage } = useAIChat();
+  const ollamaAI = useOllamaAI();
   const {
     sessions,
     currentSessionId,
@@ -62,7 +65,7 @@ const AI = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || ollamaAI.isLoading) return;
 
     const userInput = input.trim();
     setInput('');
@@ -81,7 +84,26 @@ const AI = () => {
       updateLastAssistantMessage(assistantContent);
     };
 
+    const executionMode = preferences?.execution_mode || 'cloud';
+
     try {
+      // Handle Ollama mode
+      if (executionMode === 'ollama' && ollamaAI.isConnected) {
+        const modelId = preferences?.selected_model || 'ollama-llama3';
+        const model = getModelById(modelId);
+        const ollamaModelName = model?.ollamaModelId || 'llama3.2:3b';
+        
+        const messagesForAI = [
+          ...messages.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content })),
+          { role: 'user' as const, content: userInput }
+        ];
+
+        await ollamaAI.sendChatMessage(messagesForAI, ollamaModelName, upsertAssistant);
+        await saveAssistantMessage(assistantContent);
+        return;
+      }
+
+      // Handle cloud/local mode
       const messagesForAI = [
         ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content: userInput }
@@ -108,8 +130,20 @@ const AI = () => {
     }
   };
 
-  const handleModeChange = (mode: 'cloud' | 'local') => {
+  const handleModeChange = (mode: ExecutionMode) => {
     updatePreferences({ execution_mode: mode });
+    // When switching to ollama, select an ollama model
+    if (mode === 'ollama') {
+      const currentModel = getModelById(preferences?.selected_model || '');
+      if (currentModel?.provider !== 'ollama') {
+        updatePreferences({ selected_model: 'ollama-llama3' });
+      }
+    } else if (mode === 'cloud') {
+      const currentModel = getModelById(preferences?.selected_model || '');
+      if (currentModel?.provider === 'ollama') {
+        updatePreferences({ selected_model: 'gemini-flash-lite' });
+      }
+    }
   };
 
   const suggestionCards = [
@@ -188,11 +222,12 @@ const AI = () => {
             <div className="flex items-center gap-1 md:gap-2">
               <AIModelSelector
                 selectedModel={preferences?.selected_model || 'gemini-flash-lite'}
-                executionMode={preferences?.execution_mode || 'cloud'}
+                executionMode={(preferences?.execution_mode as ExecutionMode) || 'cloud'}
                 subscriptionPlan={subscriptionPlan}
                 onModelChange={handleModelChange}
                 onModeChange={handleModeChange}
-                disabled={isLoading}
+                disabled={isLoading || ollamaAI.isLoading}
+                ollamaConnected={ollamaAI.isConnected}
               />
               <Button
                 variant="ghost"
@@ -357,7 +392,7 @@ const AI = () => {
                     </motion.div>
                   )}
                   {/* Streaming message animation */}
-                  {isLoading && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content && (
+                  {(isLoading || ollamaAI.isLoading) && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content && (
                     <motion.div
                       className="absolute bottom-2 right-4"
                       animate={{ opacity: [0.5, 1, 0.5] }}
@@ -385,16 +420,16 @@ const AI = () => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Message Aura..."
-                  disabled={isLoading}
+                  disabled={isLoading || ollamaAI.isLoading}
                   className="pr-11 md:pr-12 py-5 md:py-6 rounded-xl bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/50 text-sm md:text-base"
                 />
                 <Button
                   onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim() || isLoading || ollamaAI.isLoading}
                   size="icon"
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 md:h-8 md:w-8 rounded-lg"
                 >
-                  {isLoading ? (
+                  {(isLoading || ollamaAI.isLoading) ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Send className="h-4 w-4" />
