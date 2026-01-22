@@ -38,31 +38,7 @@ jobs:
         run: npm run build
 
       - name: Update Capacitor config for production
-        run: |
-          cat > capacitor.config.ts << 'EOFCONFIG'
-          import type { CapacitorConfig } from '@capacitor/cli';
-          const config: CapacitorConfig = {
-            appId: 'app.lovable.fc4bd383e19d4e41b174125d10b92719',
-            appName: 'AuraDesk',
-            webDir: 'dist',
-            ios: { contentInset: 'automatic' },
-            android: { allowMixedContent: true },
-            plugins: {
-              SplashScreen: {
-                launchShowDuration: 2000,
-                launchAutoHide: true,
-                launchFadeOutDuration: 500,
-                backgroundColor: "#0a0a0f",
-                androidSplashResourceName: "splash",
-                androidScaleType: "CENTER_CROP",
-                showSpinner: false,
-                splashFullScreen: true,
-                splashImmersive: true
-              }
-            }
-          };
-          export default config;
-          EOFCONFIG
+        run: node -e "const fs=require('fs');fs.writeFileSync('capacitor.config.ts',\`import type { CapacitorConfig } from '@capacitor/cli';const config:CapacitorConfig={appId:'app.lovable.fc4bd383e19d4e41b174125d10b92719',appName:'AuraDesk',webDir:'dist',ios:{contentInset:'automatic'},android:{allowMixedContent:true},plugins:{SplashScreen:{launchShowDuration:2000,launchAutoHide:true,launchFadeOutDuration:500,backgroundColor:'#0a0a0f',androidSplashResourceName:'splash',androidScaleType:'CENTER_CROP',showSpinner:false,splashFullScreen:true,splashImmersive:true}}};export default config;\`);"
 
       - name: Sync Capacitor with Android
         run: npx cap sync android
