@@ -98,7 +98,7 @@ export const MessageArea = memo(({ messages, onSendMessage, conversationName, is
   }, [messages]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Conversation Header - Hidden on mobile since Chat.tsx shows its own */}
       <div className="h-16 px-4 md:px-6 hidden md:flex items-center justify-between border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
@@ -154,8 +154,8 @@ export const MessageArea = memo(({ messages, onSendMessage, conversationName, is
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      {/* Messages - Takes all available space */}
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="p-3 md:p-6 space-y-4 md:space-y-6">
           {groupedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -214,8 +214,8 @@ export const MessageArea = memo(({ messages, onSendMessage, conversationName, is
         </div>
       </ScrollArea>
 
-      {/* Typing Indicator & Input */}
-      <div className="border-t border-border/40 bg-card/30 backdrop-blur-sm shrink-0 safe-area-pb">
+      {/* Typing Indicator & Input - Fixed at bottom */}
+      <div className="border-t border-border/40 bg-card/30 shrink-0">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
