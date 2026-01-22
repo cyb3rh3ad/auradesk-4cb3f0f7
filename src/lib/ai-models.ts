@@ -62,13 +62,13 @@ export const AI_MODELS: AIModel[] = [
   },
   {
     id: 'local-small',
-    name: 'Local Assistant (Small)',
-    description: 'Run on your device - fast, private',
+    name: 'Local: Qwen 1.5B',
+    description: 'Offline AI - fast, 1.5B params',
     provider: 'local',
     capabilities: ['text'],
     tier: 'advanced',
     supportsLocal: true,
-    localModelId: 'Xenova/Qwen1.5-0.5B-Chat',
+    localModelId: 'onnx-community/Qwen2.5-1.5B-Instruct',
   },
   
   // Professional tier models
@@ -113,14 +113,14 @@ export const AI_MODELS: AIModel[] = [
     cloudModelId: 'openai/gpt-5',
   },
   {
-    id: 'local-medium',
-    name: 'Local Assistant (Medium)',
-    description: 'Run on your device - balanced performance',
+    id: 'local-large',
+    name: 'Local: Llama 8B',
+    description: 'Offline AI - powerful, 8B params',
     provider: 'local',
-    capabilities: ['text'],
+    capabilities: ['text', 'reasoning'],
     tier: 'professional',
     supportsLocal: true,
-    localModelId: 'Xenova/Phi-3-mini-4k-instruct',
+    localModelId: 'onnx-community/Llama-3.1-8B-Instruct',
   },
   
   // Ollama models (desktop offline)
