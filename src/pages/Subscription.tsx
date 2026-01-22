@@ -157,11 +157,11 @@ const Subscription = () => {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 overflow-y-auto h-full">
+      <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 pb-8">
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Subscription Plans</h1>
-          <p className="text-muted-foreground">Choose the perfect plan for your needs</p>
+          <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">Subscription Plans</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Choose the perfect plan for your needs</p>
         </div>
 
         {subscribed && subscriptionEnd && (
@@ -246,7 +246,7 @@ const Subscription = () => {
           </Card>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {plans.map((planOption) => {
             const Icon = planOption.icon;
             const hasDiscount = validPromoCode && planOption.plan !== 'free' && planOption.originalPrice !== planOption.price;

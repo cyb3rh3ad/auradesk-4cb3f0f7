@@ -150,9 +150,9 @@ const Meetings = () => {
   };
 
   const content = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-4 md:px-6 py-6 border-b border-border/40 bg-gradient-to-b from-card/50 to-transparent">
+      <div className="px-4 md:px-6 py-4 md:py-6 border-b border-border/40 bg-gradient-to-b from-card/50 to-transparent shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-6xl mx-auto">
           <div className="space-y-1">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Meetings</h2>
@@ -278,8 +278,8 @@ const Meetings = () => {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-8">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6 md:space-y-8 pb-6">
           {/* Upcoming Meetings */}
           <section>
             <div className="flex items-center gap-2 mb-4">
@@ -446,7 +446,7 @@ const Meetings = () => {
             )}
           </section>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Transcript Dialog */}
       <Dialog open={viewTranscriptOpen} onOpenChange={setViewTranscriptOpen}>
