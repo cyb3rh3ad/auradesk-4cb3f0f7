@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, protocol, dialog } = require('electron');
+const { app, BrowserWindow, shell, protocol, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
@@ -8,6 +8,8 @@ let autoUpdater = null;
 if (app.isPackaged) {
   try {
     autoUpdater = require('electron-updater').autoUpdater;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
   } catch (e) {
     console.log('Auto-updater not available');
   }
@@ -172,9 +174,59 @@ function createWindow() {
     const indexPath = path.join(distPath, 'index.html');
     mainWindow.loadFile(indexPath);
     
-    // Setup auto-updater
+    // Setup auto-updater with progress events
     if (autoUpdater) {
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+      autoUpdater.on('checking-for-update', () => {
+        console.log('Checking for updates...');
+      });
+      
+      autoUpdater.on('update-available', (info) => {
+        console.log('Update available:', info.version);
+        if (mainWindow) {
+          mainWindow.webContents.send('update-available', {
+            version: info.version,
+            releaseDate: info.releaseDate
+          });
+        }
+      });
+      
+      autoUpdater.on('update-not-available', () => {
+        console.log('No updates available');
+      });
+      
+      autoUpdater.on('download-progress', (progress) => {
+        console.log(`Download progress: ${progress.percent.toFixed(1)}%`);
+        if (mainWindow) {
+          mainWindow.webContents.send('update-download-progress', {
+            percent: progress.percent,
+            bytesPerSecond: progress.bytesPerSecond,
+            transferred: progress.transferred,
+            total: progress.total
+          });
+        }
+      });
+      
+      autoUpdater.on('update-downloaded', (info) => {
+        console.log('Update downloaded:', info.version);
+        if (mainWindow) {
+          mainWindow.webContents.send('update-downloaded', {
+            version: info.version,
+            releaseDate: info.releaseDate
+          });
+        }
+      });
+      
+      autoUpdater.on('error', (error) => {
+        console.error('Auto-updater error:', error);
+        if (mainWindow) {
+          mainWindow.webContents.send('update-error', {
+            message: error.message || 'Update failed'
+          });
+        }
+      });
+      
+      // Check for updates
+      autoUpdater.checkForUpdates().catch(() => {});
     }
   }
 
@@ -213,5 +265,18 @@ app.on('activate', () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// IPC handlers for update actions
+ipcMain.on('install-update', () => {
+  if (autoUpdater) {
+    autoUpdater.quitAndInstall(false, true);
+  }
+});
+
+ipcMain.on('check-for-updates', () => {
+  if (autoUpdater) {
+    autoUpdater.checkForUpdates().catch(() => {});
   }
 });
