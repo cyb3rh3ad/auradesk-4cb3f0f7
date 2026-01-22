@@ -142,7 +142,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {isElectronApp() && <div className="h-8 flex-shrink-0" />}
         <Header />
-        <main className={cn("flex-1 overflow-auto", isMobile && "pb-16")}>
+        <main className={cn("flex-1 overflow-hidden", isMobile && "pb-16")}>
           <PageTransition>
             {children}
           </PageTransition>
