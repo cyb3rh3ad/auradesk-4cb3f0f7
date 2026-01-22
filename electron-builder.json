@@ -25,6 +25,12 @@
     "description": "AuraDesk - Your productivity workspace",
     "author": "AuraDesk Team"
   },
+  "publish": {
+    "provider": "github",
+    "owner": "cyb3rh3ad",
+    "repo": "auradesk-4cb3f0f7",
+    "releaseType": "release"
+  },
   "win": {
     "target": "nsis",
     "icon": "public/icon.png"
