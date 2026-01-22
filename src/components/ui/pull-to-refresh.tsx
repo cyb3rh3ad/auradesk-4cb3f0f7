@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Loader2, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { isNativeApp } from '@/utils/platform';
 
 interface PullToRefreshProps {
   children: ReactNode;
@@ -16,11 +17,20 @@ export const PullToRefresh = ({
   className,
   disabled = false,
 }: PullToRefreshProps) => {
+  // Only enable pull-to-refresh on native apps (iOS/Android), not web
+  const isNative = isNativeApp();
+  const effectivelyDisabled = disabled || !isNative;
+
   const { pullDistance, isRefreshing, handlers } = usePullToRefresh({
     onRefresh,
-    disabled,
+    disabled: effectivelyDisabled,
     threshold: 80,
   });
+
+  // On web, just render children without pull-to-refresh functionality
+  if (!isNative) {
+    return <div className={cn('h-full', className)}>{children}</div>;
+  }
 
   const showIndicator = pullDistance > 10 || isRefreshing;
   const isReady = pullDistance >= 80;

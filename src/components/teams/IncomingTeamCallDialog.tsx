@@ -4,6 +4,7 @@ import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video, Users, Volume2 } from 'lucide-react';
+import { getTeamRingtone } from '@/utils/ringtone';
 
 interface IncomingTeamCallDialogProps {
   open: boolean;
@@ -14,53 +15,6 @@ interface IncomingTeamCallDialogProps {
   onAccept: () => void;
   onDecline: () => void;
 }
-
-// Generate a team call ringtone (two-tone) as base64 WAV
-const generateTeamRingtoneDataUrl = (): string => {
-  const sampleRate = 8000;
-  const duration = 0.6;
-  const samples = Math.floor(sampleRate * duration);
-  
-  const buffer = new ArrayBuffer(44 + samples * 2);
-  const view = new DataView(buffer);
-  
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-  
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + samples * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, samples * 2, true);
-  
-  // Generate two-tone wave (C5 then E5)
-  for (let i = 0; i < samples; i++) {
-    const t = i / sampleRate;
-    const freq = t < 0.3 ? 523.25 : 659.25; // C5 then E5
-    const localT = t < 0.3 ? t : t - 0.3;
-    const envelope = Math.min(1, (0.3 - localT) * 5) * Math.min(1, localT * 20);
-    const sample = Math.sin(2 * Math.PI * freq * t) * envelope * 0.3;
-    view.setInt16(44 + i * 2, sample * 32767, true);
-  }
-  
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return 'data:audio/wav;base64,' + btoa(binary);
-};
 
 export const IncomingTeamCallDialog = ({ 
   open, 
@@ -82,12 +36,12 @@ export const IncomingTeamCallDialog = ({
     if (!open) return;
 
     let intervalId: NodeJS.Timeout | null = null;
-    const ringtoneUrl = generateTeamRingtoneDataUrl();
+    const ringtoneUrl = getTeamRingtone();
     
     const playRing = async () => {
       try {
         const audio = new Audio(ringtoneUrl);
-        audio.volume = 0.5;
+        audio.volume = 0.6;
         await audio.play();
         setAudioBlocked(false);
       } catch (e) {
@@ -106,9 +60,9 @@ export const IncomingTeamCallDialog = ({
 
   const handleUnblockAudio = async () => {
     try {
-      const ringtoneUrl = generateTeamRingtoneDataUrl();
+      const ringtoneUrl = getTeamRingtone();
       const audio = new Audio(ringtoneUrl);
-      audio.volume = 0.5;
+      audio.volume = 0.6;
       await audio.play();
       setAudioBlocked(false);
     } catch (e) {
