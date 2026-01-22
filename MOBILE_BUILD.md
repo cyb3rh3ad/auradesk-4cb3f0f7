@@ -51,32 +51,39 @@ This guide explains how to build AuraDesk for iOS and Android using Capacitor.
 
 ## Setting Up App Icon & Splash Screen
 
-After running `npx cap add android`, you need to replace the default icons:
+**All icons and splash screen are pre-generated for you!** After running `npx cap add android`, simply copy the assets:
 
-### App Icon (Required)
-Replace the following files in `android/app/src/main/res/` with your icon:
-- `mipmap-mdpi/ic_launcher.png` (48x48)
-- `mipmap-hdpi/ic_launcher.png` (72x72)
-- `mipmap-xhdpi/ic_launcher.png` (96x96)
-- `mipmap-xxhdpi/ic_launcher.png` (144x144)
-- `mipmap-xxxhdpi/ic_launcher.png` (192x192)
+### Quick Setup (Recommended)
+Copy the pre-made icons from this repo to your Android project:
 
-Also replace the round icons:
-- `mipmap-mdpi/ic_launcher_round.png` (48x48)
-- `mipmap-hdpi/ic_launcher_round.png` (72x72)
-- `mipmap-xhdpi/ic_launcher_round.png` (96x96)
-- `mipmap-xxhdpi/ic_launcher_round.png` (144x144)
-- `mipmap-xxxhdpi/ic_launcher_round.png` (192x192)
+```bash
+# From your project root, after running 'npx cap add android':
 
-**Quick method**: Use the `public/icon.png` (512x512) and resize it for each folder, or use Android Studio's Image Asset Studio:
-1. Right-click `res` folder → New → Image Asset
-2. Select your icon from `public/icon.png`
-3. Android Studio will generate all sizes automatically
+# Copy app icons
+cp public/android-icons/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/
+cp public/android-icons/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/
+cp public/android-icons/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/
+cp public/android-icons/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/
+cp public/android-icons/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/
 
-### Splash Screen (Required)
-Create splash screen images in `android/app/src/main/res/`:
-- `drawable/splash.png` (your logo, transparent background recommended)
-- `drawable-land/splash.png` (landscape version)
+# Copy round icons (same as regular for now)
+cp public/android-icons/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+cp public/android-icons/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+cp public/android-icons/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+cp public/android-icons/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+cp public/android-icons/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+# Copy splash screen
+mkdir -p android/app/src/main/res/drawable
+cp public/android-icons/drawable/splash.png android/app/src/main/res/drawable/
+```
+
+### Icon Sizes Reference
+- `mipmap-mdpi`: 48x48px
+- `mipmap-hdpi`: 72x72px
+- `mipmap-xhdpi`: 96x96px
+- `mipmap-xxhdpi`: 144x144px
+- `mipmap-xxxhdpi`: 192x192px
 
 The splash screen uses a dark background (#0a0a0f) configured in `capacitor.config.ts`.
 
