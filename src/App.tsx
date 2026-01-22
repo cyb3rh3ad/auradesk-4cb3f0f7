@@ -15,6 +15,7 @@ import { HelpNotification } from "@/components/HelpNotification";
 import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
+import { PushNotificationInit } from "@/components/PushNotificationInit";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronApp } from "@/hooks/useIsElectron";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -164,6 +165,7 @@ const App = () => (
                 element={
                 <ProtectedRoute>
                     <OnboardingCheck />
+                    <PushNotificationInit />
                     <CallProvider>
                       <AppLayout>
                         <Routes>
