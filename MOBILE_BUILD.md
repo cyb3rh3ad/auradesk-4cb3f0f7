@@ -49,6 +49,37 @@ This guide explains how to build AuraDesk for iOS and Android using Capacitor.
    npx cap sync
    ```
 
+## Setting Up App Icon & Splash Screen
+
+After running `npx cap add android`, you need to replace the default icons:
+
+### App Icon (Required)
+Replace the following files in `android/app/src/main/res/` with your icon:
+- `mipmap-mdpi/ic_launcher.png` (48x48)
+- `mipmap-hdpi/ic_launcher.png` (72x72)
+- `mipmap-xhdpi/ic_launcher.png` (96x96)
+- `mipmap-xxhdpi/ic_launcher.png` (144x144)
+- `mipmap-xxxhdpi/ic_launcher.png` (192x192)
+
+Also replace the round icons:
+- `mipmap-mdpi/ic_launcher_round.png` (48x48)
+- `mipmap-hdpi/ic_launcher_round.png` (72x72)
+- `mipmap-xhdpi/ic_launcher_round.png` (96x96)
+- `mipmap-xxhdpi/ic_launcher_round.png` (144x144)
+- `mipmap-xxxhdpi/ic_launcher_round.png` (192x192)
+
+**Quick method**: Use the `public/icon.png` (512x512) and resize it for each folder, or use Android Studio's Image Asset Studio:
+1. Right-click `res` folder → New → Image Asset
+2. Select your icon from `public/icon.png`
+3. Android Studio will generate all sizes automatically
+
+### Splash Screen (Required)
+Create splash screen images in `android/app/src/main/res/`:
+- `drawable/splash.png` (your logo, transparent background recommended)
+- `drawable-land/splash.png` (landscape version)
+
+The splash screen uses a dark background (#0a0a0f) configured in `capacitor.config.ts`.
+
 ## Development with Hot Reload
 
 The `capacitor.config.ts` is configured to load from the Lovable sandbox URL. This means:
