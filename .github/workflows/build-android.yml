@@ -39,20 +39,14 @@ jobs:
 
       - name: Update Capacitor config for production
         run: |
-          # Remove the dev server URL for production build - use bundled local files instead
-          cat > capacitor.config.ts << 'EOF'
+          cat > capacitor.config.ts << 'EOFCONFIG'
           import type { CapacitorConfig } from '@capacitor/cli';
-
           const config: CapacitorConfig = {
             appId: 'app.lovable.fc4bd383e19d4e41b174125d10b92719',
             appName: 'AuraDesk',
             webDir: 'dist',
-            ios: {
-              contentInset: 'automatic'
-            },
-            android: {
-              allowMixedContent: true
-            },
+            ios: { contentInset: 'automatic' },
+            android: { allowMixedContent: true },
             plugins: {
               SplashScreen: {
                 launchShowDuration: 2000,
@@ -67,9 +61,8 @@ jobs:
               }
             }
           };
-
           export default config;
-          EOF
+          EOFCONFIG
 
       - name: Sync Capacitor with Android
         run: npx cap sync android
