@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,7 +17,7 @@ export const useConversations = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user) return;
 
     const { data: conversationMembers } = await supabase
@@ -39,39 +39,45 @@ export const useConversations = () => {
         .map((cm: any) => cm.conversations)
         .filter(Boolean);
       
-      // Fetch members for each conversation
-      const convosWithMembers = await Promise.all(
-        convos.map(async (convo: any) => {
-          // Get member user_ids first
-          const { data: memberData } = await supabase
-            .from('conversation_members')
-            .select('user_id')
-            .eq('conversation_id', convo.id);
+      // Get all conversation IDs in one batch
+      const convoIds = convos.map((c: any) => c.id);
+      
+      if (convoIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
 
-          if (!memberData) return { ...convo, members: [] };
+      // Batch fetch all members for all conversations
+      const { data: allMembers } = await supabase
+        .from('conversation_members')
+        .select('conversation_id, user_id')
+        .in('conversation_id', convoIds);
 
-          const userIds = memberData.map(m => m.user_id);
-          
-          // Fetch profiles separately
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .in('id', userIds);
+      // Batch fetch all relevant profiles
+      const userIds = [...new Set((allMembers || []).map(m => m.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url')
+        .in('id', userIds);
 
-          // Map profiles back to members format
-          const members = memberData.map(m => ({
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Map members to conversations
+      const convosWithMembers = convos.map((convo: any) => {
+        const members = (allMembers || [])
+          .filter(m => m.conversation_id === convo.id)
+          .map(m => ({
             user_id: m.user_id,
-            profiles: profiles?.find(p => p.id === m.user_id) || null
+            profiles: profileMap.get(m.user_id) || null
           }));
-
-          return { ...convo, members };
-        })
-      );
+        return { ...convo, members };
+      });
 
       setConversations(convosWithMembers);
     }
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchConversations();
@@ -96,7 +102,7 @@ export const useConversations = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchConversations]);
 
   return { conversations, loading, refetch: fetchConversations };
 };

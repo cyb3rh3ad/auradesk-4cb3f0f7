@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
@@ -19,36 +19,48 @@ import { PushNotificationInit } from "@/components/PushNotificationInit";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronApp } from "@/hooks/useIsElectron";
 import { useIsMobile } from "@/hooks/use-mobile";
-import Landing from "./pages/Landing";
-import Dashboard from "./pages/Dashboard";
-import Chat from "./pages/Chat";
-import Teams from "./pages/Teams";
-import Meetings from "./pages/Meetings";
-import Files from "./pages/Files";
-import AI from "./pages/AI";
-import Settings from "./pages/Settings";
-import Subscription from "./pages/Subscription";
-import AISettings from "./pages/AISettings";
-import Admin from "./pages/Admin";
-import Auth from "./pages/Auth";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
+
+// Lazy load heavy pages for better initial load performance
+const Landing = lazy(() => import("./pages/Landing"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Teams = lazy(() => import("./pages/Teams"));
+const Meetings = lazy(() => import("./pages/Meetings"));
+const Files = lazy(() => import("./pages/Files"));
+const AI = lazy(() => import("./pages/AI"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Subscription = lazy(() => import("./pages/Subscription"));
+const AISettings = lazy(() => import("./pages/AISettings"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Loading fallback component
+const PageLoader = memo(() => (
+  <div className="flex items-center justify-center h-full min-h-[200px]">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+));
+PageLoader.displayName = 'PageLoader';
 
 // Component to handle root route - redirect Electron users to auth
-const RootRoute = () => {
+const RootRoute = memo(() => {
   const { user, loading } = useAuth();
   const isElectron = isElectronApp();
   
   // If Electron app, skip landing page entirely
   if (isElectron) {
-    if (loading) return null;
+    if (loading) return <PageLoader />;
     return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
   }
   
   // Web users see the landing page
   return <Landing />;
-};
+});
+RootRoute.displayName = 'RootRoute';
 
 // Always use HashRouter - works with both web and Electron (file:// protocol)
 
@@ -155,38 +167,40 @@ const App = () => (
             <ThemeInit />
             <OwnerInitializer />
             <HelpNotification />
-            <Routes>
-              <Route path="/" element={<RootRoute />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route
-                path="/*"
-                element={
-                <ProtectedRoute>
-                    <OnboardingCheck />
-                    <PushNotificationInit />
-                    <CallProvider>
-                      <AppLayout>
-                        <Routes>
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/chat" element={<Chat />} />
-                          <Route path="/teams" element={<Teams />} />
-                          <Route path="/meetings" element={<Meetings />} />
-                          <Route path="/files" element={<Files />} />
-                          <Route path="/ai" element={<AI />} />
-                          <Route path="/ai-settings" element={<AISettings />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="/subscription" element={<Subscription />} />
-                          <Route path="/admin" element={<Admin />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </AppLayout>
-                    </CallProvider>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<RootRoute />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route
+                  path="/*"
+                  element={
+                  <ProtectedRoute>
+                      <OnboardingCheck />
+                      <PushNotificationInit />
+                      <CallProvider>
+                        <AppLayout>
+                          <Routes>
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/chat" element={<Chat />} />
+                            <Route path="/teams" element={<Teams />} />
+                            <Route path="/meetings" element={<Meetings />} />
+                            <Route path="/files" element={<Files />} />
+                            <Route path="/ai" element={<AI />} />
+                            <Route path="/ai-settings" element={<AISettings />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/subscription" element={<Subscription />} />
+                            <Route path="/admin" element={<Admin />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </AppLayout>
+                      </CallProvider>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </HashRouter>
       </TooltipProvider>

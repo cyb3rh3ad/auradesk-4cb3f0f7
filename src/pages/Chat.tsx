@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,12 +23,12 @@ const Chat = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
   const { messages, sendMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     await refetch();
     if (selectedConversationId) {
       await refetchMessages();
     }
-  };
+  }, [refetch, selectedConversationId, refetchMessages]);
 
   // Handle URL param changes (for navigation from other pages)
   useEffect(() => {
@@ -39,31 +39,34 @@ const Chat = () => {
     }
   }, [searchParams, setSearchParams, selectedConversationId]);
 
-  const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
+  const selectedConversation = useMemo(() => 
+    conversations.find((c) => c.id === selectedConversationId),
+    [conversations, selectedConversationId]
+  );
 
-  // Get the other user's ID for direct messages
-  const getOtherUserId = () => {
+  // Get the other user's ID for direct messages - memoized
+  const otherUserId = useMemo(() => {
     if (!selectedConversation || selectedConversation.is_group) return null;
     const otherMember = selectedConversation.members?.find((m: any) => m.user_id !== user?.id);
     return otherMember?.user_id || null;
-  };
+  }, [selectedConversation, user?.id]);
 
-  const getConversationName = () => {
+  const conversationName = useMemo(() => {
     if (!selectedConversation) return 'Select a conversation';
     if (selectedConversation.is_group) {
       return selectedConversation.name || 'Unnamed Group';
     }
     const otherMember = selectedConversation.members?.find((m: any) => m.user_id !== user?.id);
     return otherMember?.profiles?.full_name || otherMember?.profiles?.email || 'Private Chat';
-  };
+  }, [selectedConversation, user?.id]);
 
-  const handleSelectConversation = (id: string) => {
+  const handleSelectConversation = useCallback((id: string) => {
     setSelectedConversationId(id);
-  };
+  }, []);
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     setSelectedConversationId(null);
-  };
+  }, []);
 
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
   if (isMobile) {
@@ -89,12 +92,12 @@ const Chat = () => {
                       <Users className="w-5 h-5 text-primary-foreground" />
                     ) : (
                       <span className="text-sm font-bold text-primary-foreground">
-                        {getConversationName().slice(0, 2).toUpperCase()}
+                        {conversationName.slice(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{getConversationName()}</p>
+                    <p className="font-semibold text-sm truncate">{conversationName}</p>
                     <p className="text-xs text-muted-foreground">
                       {selectedConversation?.is_group ? 'Group' : 'Active now'}
                     </p>
@@ -105,10 +108,10 @@ const Chat = () => {
                 <MessageArea
                   messages={messages}
                   onSendMessage={sendMessage}
-                  conversationName={getConversationName()}
+                  conversationName={conversationName}
                   isGroup={selectedConversation?.is_group || false}
                   conversationId={selectedConversationId}
-                  otherUserId={getOtherUserId()}
+                  otherUserId={otherUserId}
                 />
               </div>
             </div>
@@ -168,10 +171,10 @@ const Chat = () => {
           <MessageArea
             messages={messages}
             onSendMessage={sendMessage}
-            conversationName={getConversationName()}
+            conversationName={conversationName}
             isGroup={selectedConversation?.is_group || false}
             conversationId={selectedConversationId}
-            otherUserId={getOtherUserId()}
+            otherUserId={otherUserId}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">

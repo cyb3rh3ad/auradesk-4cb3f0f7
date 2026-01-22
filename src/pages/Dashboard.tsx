@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
@@ -14,16 +15,18 @@ const Dashboard = () => {
   const { meetings, refetch: refetchMeetings } = useMeetings();
   const { contacts, loading: contactsLoading, refetch: refetchContacts } = useRecentContacts(5);
   
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     await Promise.all([refetchMeetings(), refetchContacts()]);
-  };
+  }, [refetchMeetings, refetchContacts]);
 
-  // Get the next upcoming meeting
-  const upcomingMeeting = meetings
-    ?.filter(m => new Date(m.scheduled_at) > new Date())
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0];
+  // Get the next upcoming meeting - memoized
+  const upcomingMeeting = useMemo(() => {
+    return meetings
+      ?.filter(m => new Date(m.scheduled_at) > new Date())
+      .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0];
+  }, [meetings]);
   
-  const stats = [
+  const stats = useMemo(() => [
     { 
       title: "Active Teams", 
       value: "12", 
@@ -51,7 +54,15 @@ const Dashboard = () => {
       gradientTo: "to-gradient-orange-end",
       path: "/meetings"
     },
-  ];
+  ], []);
+
+  const gradientClasses = useMemo(() => [
+    "from-gradient-blue to-gradient-blue-end",
+    "from-gradient-purple to-gradient-purple-end",
+    "from-gradient-orange to-gradient-orange-end",
+    "from-gradient-green to-gradient-green-end",
+    "from-gradient-indigo to-gradient-indigo-end",
+  ], []);
 
   const content = (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
@@ -156,13 +167,6 @@ const Dashboard = () => {
               </div>
             ) : (
               contacts.map((contact, i) => {
-                const gradientClasses = [
-                  "from-gradient-blue to-gradient-blue-end",
-                  "from-gradient-purple to-gradient-purple-end",
-                  "from-gradient-orange to-gradient-orange-end",
-                  "from-gradient-green to-gradient-green-end",
-                  "from-gradient-indigo to-gradient-indigo-end",
-                ];
                 const initials = contact.full_name 
                   ? contact.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                   : contact.username?.slice(0, 2).toUpperCase() || contact.email.slice(0, 2).toUpperCase();

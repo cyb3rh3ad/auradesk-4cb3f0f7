@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { Send, Users, Phone, Video, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ interface MessageAreaProps {
   otherUserId?: string | null;
 }
 
-export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
+export const MessageArea = memo(({ messages, onSendMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
   const { user } = useAuth();
   const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
@@ -29,12 +29,15 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
 
   // Get current user's display name for typing events
-  const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
+  const currentUserName = useMemo(() => 
+    user?.user_metadata?.full_name || user?.email || 'Someone',
+    [user?.user_metadata?.full_name, user?.email]
+  );
 
-  const handleStartCall = (withVideo: boolean) => {
+  const handleStartCall = useCallback((withVideo: boolean) => {
     if (!conversationId) return;
     initiateCall(conversationId, conversationName, withVideo);
-  };
+  }, [conversationId, conversationName, initiateCall]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,52 +48,54 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     }
   }, [messages]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     if (e.target.value.trim()) {
       sendTypingEvent(currentUserName);
     }
-  };
+  }, [currentUserName, sendTypingEvent]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     stopTyping(currentUserName);
     onSendMessage(input);
     setInput('');
-  };
+  }, [input, currentUserName, stopTyping, onSendMessage]);
 
-  const getInitials = (name: string) => {
+  const getInitials = useCallback((name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+  }, []);
 
-  const formatMessageDate = (date: Date) => {
+  const formatMessageDate = useCallback((date: Date) => {
     if (isToday(date)) {
       return format(date, 'HH:mm');
     } else if (isYesterday(date)) {
       return `Yesterday ${format(date, 'HH:mm')}`;
     }
     return format(date, 'MMM d, HH:mm');
-  };
-
-  // Group consecutive messages from the same sender
-  const groupedMessages = messages.reduce((acc: any[], message, index) => {
-    const prevMessage = messages[index - 1];
-    const isSameSender = prevMessage && prevMessage.sender_id === message.sender_id;
-    const isWithinTimeframe = prevMessage && 
-      (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) < 60000; // 1 minute
-
-    if (isSameSender && isWithinTimeframe) {
-      acc[acc.length - 1].messages.push(message);
-    } else {
-      acc.push({
-        sender: message.sender,
-        sender_id: message.sender_id,
-        messages: [message],
-      });
-    }
-    return acc;
   }, []);
+
+  // Group consecutive messages from the same sender - memoized
+  const groupedMessages = useMemo(() => {
+    return messages.reduce((acc: any[], message, index) => {
+      const prevMessage = messages[index - 1];
+      const isSameSender = prevMessage && prevMessage.sender_id === message.sender_id;
+      const isWithinTimeframe = prevMessage && 
+        (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) < 60000;
+
+      if (isSameSender && isWithinTimeframe) {
+        acc[acc.length - 1].messages.push(message);
+      } else {
+        acc.push({
+          sender: message.sender,
+          sender_id: message.sender_id,
+          messages: [message],
+        });
+      }
+      return acc;
+    }, []);
+  }, [messages]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -247,4 +252,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       </div>
     </div>
   );
-};
+});
+
+MessageArea.displayName = 'MessageArea';
