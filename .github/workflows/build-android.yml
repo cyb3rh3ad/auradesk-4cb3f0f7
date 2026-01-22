@@ -39,17 +39,37 @@ jobs:
 
       - name: Update Capacitor config for production
         run: |
-          # Remove the dev server URL for production build
-          node -e "
-            const fs = require('fs');
-            const config = fs.readFileSync('capacitor.config.ts', 'utf8');
-            // Comment out the server config for production
-            const prodConfig = config.replace(
-              /server:\s*\{[\s\S]*?cleartext:\s*true[\s\S]*?\},/,
-              '// server config removed for production build'
-            );
-            fs.writeFileSync('capacitor.config.ts', prodConfig);
-          "
+          # Remove the dev server URL for production build - use bundled local files instead
+          cat > capacitor.config.ts << 'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
+            appId: 'app.lovable.fc4bd383e19d4e41b174125d10b92719',
+            appName: 'AuraDesk',
+            webDir: 'dist',
+            ios: {
+              contentInset: 'automatic'
+            },
+            android: {
+              allowMixedContent: true
+            },
+            plugins: {
+              SplashScreen: {
+                launchShowDuration: 2000,
+                launchAutoHide: true,
+                launchFadeOutDuration: 500,
+                backgroundColor: "#0a0a0f",
+                androidSplashResourceName: "splash",
+                androidScaleType: "CENTER_CROP",
+                showSpinner: false,
+                splashFullScreen: true,
+                splashImmersive: true
+              }
+            }
+          };
+
+          export default config;
+          EOF
 
       - name: Sync Capacitor with Android
         run: npx cap sync android
