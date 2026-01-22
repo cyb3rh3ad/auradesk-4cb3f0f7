@@ -195,6 +195,46 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user?.id]); // Only depend on user.id - NOT activeCall
 
+  // Send push notification for call (for users not on the website)
+  const sendCallPushNotification = async (
+    conversationId: string,
+    conversationName: string,
+    callerName: string,
+    isVideo: boolean
+  ) => {
+    try {
+      // Get all members of this conversation except the caller
+      const { data: members } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', user?.id);
+
+      if (!members || members.length === 0) return;
+
+      const userIds = members.map(m => m.user_id);
+
+      // Call the push notification edge function
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds,
+          title: `Incoming ${isVideo ? 'Video' : 'Voice'} Call`,
+          body: `${callerName} is calling you`,
+          data: {
+            type: 'call',
+            conversationId,
+            conversationName,
+            isVideo: String(isVideo),
+          },
+        },
+      });
+
+      console.log('Push notification sent for call');
+    } catch (error) {
+      console.error('Failed to send push notification:', error);
+    }
+  };
+
   // Start a call (we immediately join the room as caller)
   const startCall = useCallback(
     async (conversationId: string, conversationName: string, isVideo: boolean) => {
@@ -207,6 +247,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
       const profile = await getUserProfile(user.id);
       const callerName = profile?.full_name || profile?.email || 'Unknown';
+
+      // Send push notification for users not on the website
+      sendCallPushNotification(conversationId, conversationName, callerName, isVideo);
 
       const channelName = `call-invite:${conversationId}`;
       let channel = channelsRef.current.get(channelName);
