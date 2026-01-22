@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react';
+import { getModernRingtone } from '@/utils/ringtone';
 
 interface IncomingCallDialogProps {
   open: boolean;
@@ -14,54 +15,6 @@ interface IncomingCallDialogProps {
   onDecline: () => void;
 }
 
-// Generate a simple ringtone as base64 WAV
-const generateRingtoneDataUrl = (): string => {
-  const sampleRate = 8000;
-  const duration = 0.4;
-  const frequency = 440;
-  const samples = Math.floor(sampleRate * duration);
-  
-  // Create WAV header + data
-  const buffer = new ArrayBuffer(44 + samples * 2);
-  const view = new DataView(buffer);
-  
-  // WAV header
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-  
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + samples * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, samples * 2, true);
-  
-  // Generate sine wave
-  for (let i = 0; i < samples; i++) {
-    const t = i / sampleRate;
-    const envelope = Math.min(1, (duration - t) * 5) * Math.min(1, t * 20);
-    const sample = Math.sin(2 * Math.PI * frequency * t) * envelope * 0.3;
-    view.setInt16(44 + i * 2, sample * 32767, true);
-  }
-  
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return 'data:audio/wav;base64,' + btoa(binary);
-};
-
 export const IncomingCallDialog = ({ 
   open, 
   callerName, 
@@ -70,7 +23,6 @@ export const IncomingCallDialog = ({
   onAccept, 
   onDecline 
 }: IncomingCallDialogProps) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
 
   const getInitials = (name: string) => {
@@ -82,12 +34,12 @@ export const IncomingCallDialog = ({
     if (!open) return;
 
     let intervalId: NodeJS.Timeout | null = null;
-    const ringtoneUrl = generateRingtoneDataUrl();
+    const ringtoneUrl = getModernRingtone();
     
     const playRing = async () => {
       try {
         const audio = new Audio(ringtoneUrl);
-        audio.volume = 0.5;
+        audio.volume = 0.6;
         await audio.play();
         setAudioBlocked(false);
       } catch (e) {
@@ -96,9 +48,9 @@ export const IncomingCallDialog = ({
       }
     };
 
-    // Play immediately and every 1.5 seconds
+    // Play immediately and every 2 seconds (longer ringtone needs more gap)
     playRing();
-    intervalId = setInterval(playRing, 1500);
+    intervalId = setInterval(playRing, 2000);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -106,11 +58,10 @@ export const IncomingCallDialog = ({
   }, [open]);
 
   const handleUnblockAudio = async () => {
-    // User clicked, so we can now play audio
     try {
-      const ringtoneUrl = generateRingtoneDataUrl();
+      const ringtoneUrl = getModernRingtone();
       const audio = new Audio(ringtoneUrl);
-      audio.volume = 0.5;
+      audio.volume = 0.6;
       await audio.play();
       setAudioBlocked(false);
     } catch (e) {
