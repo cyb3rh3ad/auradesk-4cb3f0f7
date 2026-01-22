@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,44 +15,44 @@ export const useFriends = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
+  const fetchFriends = useCallback(async () => {
     if (!user) {
       setFriends([]);
       setLoading(false);
       return;
     }
 
-    const fetchFriends = async () => {
-      setLoading(true);
-      
-      // Get accepted friendships
-      const { data: friendships } = await supabase
-        .from('friendships')
-        .select('user_id, friend_id')
-        .eq('status', 'accepted')
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+    setLoading(true);
+    
+    // Get accepted friendships
+    const { data: friendships } = await supabase
+      .from('friendships')
+      .select('user_id, friend_id')
+      .eq('status', 'accepted')
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
-      if (!friendships || friendships.length === 0) {
-        setFriends([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get friend IDs
-      const friendIds = friendships.map(f => 
-        f.user_id === user.id ? f.friend_id : f.user_id
-      );
-
-      // Get profiles for friends
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, email, avatar_url')
-        .in('id', friendIds);
-
-      setFriends(profiles || []);
+    if (!friendships || friendships.length === 0) {
+      setFriends([]);
       setLoading(false);
-    };
+      return;
+    }
 
+    // Get friend IDs
+    const friendIds = friendships.map(f => 
+      f.user_id === user.id ? f.friend_id : f.user_id
+    );
+
+    // Get profiles for friends
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, email, avatar_url')
+      .in('id', friendIds);
+
+    setFriends(profiles || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
     fetchFriends();
 
     // Subscribe to friendship changes
@@ -72,7 +72,7 @@ export const useFriends = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchFriends]);
 
-  return { friends, loading };
+  return { friends, loading, refetch: fetchFriends };
 };

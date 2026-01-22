@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,7 +17,7 @@ export const useRecentContacts = (limit: number = 5) => {
   const [contacts, setContacts] = useState<RecentContact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRecentContacts = async () => {
+  const fetchRecentContacts = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -132,11 +132,11 @@ export const useRecentContacts = (limit: number = 5) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, limit]);
 
   useEffect(() => {
     fetchRecentContacts();
-  }, [user, limit]);
+  }, [fetchRecentContacts]);
 
   return { contacts, loading, refetch: fetchRecentContacts };
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,7 +25,7 @@ interface FriendsListProps {
   conversations: Conversation[];
 }
 
-export const FriendsList = ({ onSelectConversation, selectedConversationId, conversations }: FriendsListProps) => {
+export const FriendsList = memo(({ onSelectConversation, selectedConversationId, conversations }: FriendsListProps) => {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,7 +200,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
     onSelectConversation(conversation.id);
   };
 
-  const getInitials = (friend: Friend) => {
+  const getInitials = useCallback((friend: Friend) => {
     if (friend.full_name) {
       return friend.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
@@ -208,22 +208,23 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       return friend.username.slice(0, 2).toUpperCase();
     }
     return friend.email.slice(0, 2).toUpperCase();
-  };
+  }, []);
 
-  // Check if friend has unread messages
-  const hasUnreadMessages = (friend: Friend) => {
+  // Check if friend has unread messages - memoized
+  const hasUnreadMessages = useCallback((friend: Friend) => {
     if (!friend.conversation_id) return false;
-    // If conversation hasn't been opened in this session, check if there are any messages
     if (!readConversations.has(friend.conversation_id)) {
       const convo = conversations.find(c => c.id === friend.conversation_id);
-      // Has messages and not yet read in this session
       return !!convo;
     }
     return false;
-  };
+  }, [readConversations, conversations]);
 
-  // Get group conversations
-  const groupConversations = conversations.filter(c => c.is_group);
+  // Get group conversations - memoized
+  const groupConversations = useMemo(() => 
+    conversations.filter(c => c.is_group), 
+    [conversations]
+  );
 
   if (loading) {
     return (
@@ -369,4 +370,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       </div>
     </ScrollArea>
   );
-};
+});
+
+FriendsList.displayName = 'FriendsList';
