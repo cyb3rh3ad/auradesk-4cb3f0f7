@@ -51,30 +51,7 @@ jobs:
             fs.writeFileSync('capacitor.config.ts', prodConfig);
           "
 
-      - name: Add Android platform
-        run: npx cap add android
-
-      - name: Copy Android icons
-        run: |
-          # Copy app icons
-          cp public/android-icons/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/
-          cp public/android-icons/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/
-          cp public/android-icons/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/
-          cp public/android-icons/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/
-          cp public/android-icons/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/
-          
-          # Copy round icons
-          cp public/android-icons/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          cp public/android-icons/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          cp public/android-icons/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          cp public/android-icons/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          cp public/android-icons/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-          
-          # Copy splash screen
-          mkdir -p android/app/src/main/res/drawable
-          cp public/android-icons/drawable/splash.png android/app/src/main/res/drawable/
-
-      - name: Sync Capacitor
+      - name: Sync Capacitor with Android
         run: npx cap sync android
 
       - name: Build Android APK
