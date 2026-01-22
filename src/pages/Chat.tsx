@@ -5,16 +5,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Users, Phone, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchParams } from 'react-router-dom';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { useCall } from '@/contexts/CallContext';
 
 const Chat = () => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const { startCall } = useCall();
   const [searchParams, setSearchParams] = useSearchParams();
   const { conversations, loading: convoLoading, refetch } = useConversations();
   
@@ -68,6 +70,11 @@ const Chat = () => {
     setSelectedConversationId(null);
   }, []);
 
+  const handleStartCall = useCallback((withVideo: boolean) => {
+    if (!selectedConversationId) return;
+    startCall(selectedConversationId, conversationName, withVideo);
+  }, [selectedConversationId, conversationName, startCall]);
+
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
   if (isMobile) {
     return (
@@ -102,6 +109,25 @@ const Chat = () => {
                       {selectedConversation?.is_group ? 'Group' : 'Active now'}
                     </p>
                   </div>
+                </div>
+                {/* Call buttons for mobile */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleStartCall(false)}
+                    className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground"
+                  >
+                    <Phone className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleStartCall(true)}
+                    className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground"
+                  >
+                    <Video className="w-5 h-5" />
+                  </Button>
                 </div>
               </div>
               <div className="flex-1 min-h-0">
