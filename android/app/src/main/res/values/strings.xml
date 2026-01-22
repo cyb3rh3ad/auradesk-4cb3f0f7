@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AuraDesk</string>
+    <string name="title_activity_main">AuraDesk</string>
+    <string name="package_name">app.lovable.fc4bd383e19d4e41b174125d10b92719</string>
+    <string name="custom_url_scheme">app.lovable.fc4bd383e19d4e41b174125d10b92719</string>
+</resources>
