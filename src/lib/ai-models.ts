@@ -98,7 +98,7 @@ export const AI_MODELS: AIModel[] = [
     capabilities: ['image'],
     tier: 'professional',
     supportsLocal: false,
-    cloudModelId: 'google/gemini-3-pro-image-preview',
+    cloudModelId: 'google/gemini-2.5-flash-image-preview',
   },
   {
     id: 'gpt-5',

@@ -12,7 +12,7 @@ const MODEL_MAP: Record<string, string> = {
   'gemini-flash': 'google/gemini-2.5-flash',
   'gemini-pro': 'google/gemini-2.5-pro',
   'gemini-3-pro': 'google/gemini-3-pro-preview',
-  'gemini-image': 'google/gemini-3-pro-image-preview',
+  'gemini-image': 'google/gemini-2.5-flash-image-preview',
   'gpt-5-nano': 'openai/gpt-5-nano',
   'gpt-5-mini': 'openai/gpt-5-mini',
   'gpt-5': 'openai/gpt-5',
