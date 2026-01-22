@@ -34,9 +34,9 @@ export const AIModelSelector = ({
   const availableModels = getAvailableModels(subscriptionPlan);
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
   const inElectron = isElectron();
-  // Disable WebGPU local mode in Electron (WebGPU not available)
-  const canUseLocal = subscriptionPlan !== 'free' && !inElectron;
-  // Ollama is available in Electron desktop app
+  // Local mode now works everywhere (uses WASM fallback in Electron)
+  const canUseLocal = subscriptionPlan !== 'free';
+  // Ollama is also available in Electron as an alternative
   const canUseOllama = inElectron;
 
   // Filter models based on execution mode
@@ -176,23 +176,21 @@ export const AIModelSelector = ({
                       )}
                     </button>
                   )}
-                  {!canUseOllama && (
-                    <button
-                      className={cn(
-                        "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
-                        executionMode === 'local' 
-                          ? "bg-background text-foreground shadow-sm" 
-                          : "text-muted-foreground hover:text-foreground",
-                        !canUseLocal && "opacity-50 cursor-not-allowed"
-                      )}
-                      disabled={!canUseLocal}
-                      onClick={() => canUseLocal && onModeChange('local')}
-                    >
-                      <Cpu className="h-3.5 w-3.5" />
-                      Local
-                      {!canUseLocal && <Lock className="h-3 w-3" />}
-                    </button>
-                  )}
+                  <button
+                    className={cn(
+                      "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
+                      executionMode === 'local' 
+                        ? "bg-background text-foreground shadow-sm" 
+                        : "text-muted-foreground hover:text-foreground",
+                      !canUseLocal && "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={!canUseLocal}
+                    onClick={() => canUseLocal && onModeChange('local')}
+                  >
+                    <Cpu className="h-3.5 w-3.5" />
+                    Local
+                    {!canUseLocal && <Lock className="h-3 w-3" />}
+                  </button>
                 </div>
                 {executionMode === 'ollama' && !ollamaConnected && (
                   <p className="text-xs text-muted-foreground mt-2 px-1">

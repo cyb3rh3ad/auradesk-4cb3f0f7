@@ -154,7 +154,7 @@ const AISettings = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!canUseLocal && !inElectron && (
+            {!canUseLocal && (
               <div className="p-3 rounded-lg bg-muted text-sm">
                 <Lock className="w-4 h-4 inline mr-2" />
                 Local execution is available for Advanced and Professional subscribers
@@ -177,7 +177,28 @@ const AISettings = () => {
                 </p>
               </div>
               
-              {inElectron ? (
+              <div
+                onClick={() => canUseLocal && updatePreferences({ execution_mode: 'local' })}
+                className={cn(
+                  "p-4 rounded-lg border-2 transition-all",
+                  preferences.execution_mode === 'local' && "border-primary bg-primary/5",
+                  preferences.execution_mode !== 'local' && canUseLocal && "border-border hover:border-primary/50 cursor-pointer",
+                  !canUseLocal && "border-border/50 opacity-60 cursor-not-allowed"
+                )}
+              >
+                <Cpu className="w-8 h-8 mb-2 text-green-500" />
+                <h4 className="font-medium">Local (Built-in)</h4>
+                <p className="text-sm text-muted-foreground">
+                  {inElectron ? 'Offline, no extra software' : 'Run AI on your device'}
+                </p>
+                {localAI.executionDevice && preferences.execution_mode === 'local' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {localAI.executionDevice === 'webgpu' ? '⚡ GPU accelerated' : '🔄 CPU mode'}
+                  </p>
+                )}
+              </div>
+
+              {inElectron && (
                 <div
                   onClick={() => updatePreferences({ execution_mode: 'ollama' })}
                   className={cn(
@@ -196,29 +217,8 @@ const AISettings = () => {
                     )}
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Offline AI, no internet
+                    Larger models, faster
                   </p>
-                </div>
-              ) : (
-                <div
-                  onClick={() => canUseLocal && selectedModel?.supportsLocal && updatePreferences({ execution_mode: 'local' })}
-                  className={cn(
-                    "p-4 rounded-lg border-2 transition-all",
-                    preferences.execution_mode === 'local' && "border-primary bg-primary/5",
-                    preferences.execution_mode !== 'local' && canUseLocal && selectedModel?.supportsLocal && "border-border hover:border-primary/50 cursor-pointer",
-                    (!canUseLocal || !selectedModel?.supportsLocal) && "border-border/50 opacity-60 cursor-not-allowed"
-                  )}
-                >
-                  <Cpu className="w-8 h-8 mb-2 text-green-500" />
-                  <h4 className="font-medium">Local</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Run AI on your device
-                  </p>
-                  {!webGPUSupported && canUseLocal && (
-                    <p className="text-xs text-destructive mt-1">
-                      WebGPU not supported
-                    </p>
-                  )}
                 </div>
               )}
             </div>
