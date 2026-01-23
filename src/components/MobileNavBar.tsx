@@ -23,7 +23,7 @@ interface NavItemProps {
   onClick?: () => void;
 }
 
-// Simplified NavItem - removed layoutId animation that causes layout thrashing
+// NavItem with subtle animations
 const NavItem = memo(({ icon: Icon, label, path, onClick }: NavItemProps) => {
   const handleClick = () => {
     triggerHaptic('light');
@@ -36,19 +36,36 @@ const NavItem = memo(({ icon: Icon, label, path, onClick }: NavItemProps) => {
       onClick={handleClick}
       className={({ isActive }) =>
         cn(
-          "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-colors touch-manipulation relative",
-          "active:scale-95",
-          isActive ? "text-primary" : "text-muted-foreground"
+          "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl touch-manipulation relative group",
+          "transition-all duration-200 ease-out",
+          "active:scale-90",
+          isActive 
+            ? "text-primary" 
+            : "text-muted-foreground hover:text-foreground"
         )
       }
     >
       {({ isActive }) => (
         <>
-          <Icon className={cn("w-5 h-5", isActive && "text-primary")} />
-          <span className="text-[10px] font-medium">{label}</span>
-          {isActive && (
-            <div className="absolute bottom-1 w-8 h-1 bg-primary rounded-full" />
-          )}
+          <div className={cn(
+            "transition-transform duration-200 ease-out",
+            isActive && "animate-bounce-subtle"
+          )}>
+            <Icon className={cn(
+              "w-5 h-5 transition-all duration-200",
+              isActive && "text-primary drop-shadow-sm"
+            )} />
+          </div>
+          <span className={cn(
+            "text-[10px] font-medium transition-all duration-200",
+            isActive && "font-semibold"
+          )}>{label}</span>
+          <div className={cn(
+            "absolute bottom-1 h-1 bg-primary rounded-full transition-all duration-200 ease-out",
+            isActive 
+              ? "w-8 opacity-100 animate-indicator-slide" 
+              : "w-0 opacity-0"
+          )} />
         </>
       )}
     </NavLink>
@@ -99,27 +116,30 @@ export const MobileNavBar = memo(() => {
 
   return (
     <>
-      {/* More menu overlay - simplified, no framer-motion */}
+      {/* More menu overlay with smooth animations */}
       {showMore && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-40 touch-none animate-in fade-in duration-150"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 touch-none animate-fade-in"
             onClick={closeMore}
             onTouchEnd={closeMore}
           />
-          <div className="fixed bottom-20 left-4 right-4 bg-card border border-border rounded-2xl p-4 z-50 shadow-2xl safe-area-pb animate-in slide-in-from-bottom-4 duration-200">
-            <div className="grid grid-cols-4 gap-4">
-              {secondaryItems.map((item) => (
+          <div className="fixed bottom-20 left-4 right-4 bg-card/95 backdrop-blur-md border border-border/50 rounded-2xl p-4 z-50 shadow-2xl safe-area-pb animate-slide-up">
+            <div className="grid grid-cols-4 gap-3">
+              {secondaryItems.map((item, index) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   onClick={handleSecondaryClick}
+                  style={{ animationDelay: `${index * 50}ms` }}
                   className={({ isActive }) =>
                     cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-xl transition-colors touch-manipulation",
+                      "flex flex-col items-center gap-2 p-3 rounded-xl touch-manipulation animate-fade-in-up",
+                      "transition-all duration-200 ease-out",
+                      "active:scale-90",
                       isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent"
+                        ? "bg-primary/15 text-primary shadow-sm"
+                        : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                     )
                   }
                 >
@@ -133,7 +153,7 @@ export const MobileNavBar = memo(() => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border safe-area-pb">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 safe-area-pb shadow-lg">
         <div className="flex items-center justify-around px-2 py-1">
           {primaryItems.map((item) => (
             <NavItem key={item.path} {...item} />
@@ -141,12 +161,18 @@ export const MobileNavBar = memo(() => {
           <button
             onClick={handleMoreClick}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-colors touch-manipulation",
-              "active:scale-95",
-              showMore ? "text-primary" : "text-muted-foreground"
+              "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl touch-manipulation relative group",
+              "transition-all duration-200 ease-out",
+              "active:scale-90",
+              showMore ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <MoreHorizontal className="w-5 h-5" />
+            <div className={cn(
+              "transition-transform duration-200 ease-out",
+              showMore && "rotate-90"
+            )}>
+              <MoreHorizontal className="w-5 h-5" />
+            </div>
             <span className="text-[10px] font-medium">More</span>
           </button>
         </div>
