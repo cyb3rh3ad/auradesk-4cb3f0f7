@@ -298,16 +298,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Get redirect URL that works for both web and Electron
   const getRedirectUrl = () => {
     // In Electron (file:// protocol), we can't use OAuth redirects properly
-    // So we use the deployed web URL instead
     const isElectron = typeof window !== 'undefined' && 
       (window.location.protocol === 'file:' || (window as any).electronAPI?.isElectron);
     
     if (isElectron) {
-      // For Electron, OAuth won't work - return null to skip redirects
       return null;
     }
     
-    return `${window.location.origin}/#/dashboard`;
+    // Use origin only - main.tsx handles token extraction before React renders
+    return window.location.origin;
   };
 
   const signUp = async (email: string, password: string, fullName: string, username: string) => {

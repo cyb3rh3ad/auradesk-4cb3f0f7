@@ -58,19 +58,17 @@ const isPWAInstalled = () => {
   return isStandalone || isIOSStandalone;
 };
 
-// Check if current URL contains OAuth callback tokens
-const hasOAuthTokens = () => {
-  const hash = window.location.hash;
-  const search = window.location.search;
-  const fullUrl = window.location.href;
+// Check if we're returning from OAuth (session was just set by main.tsx)
+const isReturningFromOAuth = () => {
+  const pending = sessionStorage.getItem('oauth_login_pending');
+  const loginTime = sessionStorage.getItem('oauth_login_time');
   
-  return (
-    hash.includes('access_token') ||
-    hash.includes('refresh_token') ||
-    search.includes('access_token') ||
-    search.includes('code=') ||
-    fullUrl.includes('access_token=')
-  );
+  if (pending === 'true' && loginTime) {
+    const elapsed = Date.now() - parseInt(loginTime, 10);
+    // Consider it a fresh OAuth return if within last 10 seconds
+    return elapsed < 10000;
+  }
+  return false;
 };
 
 // Component to handle root route - redirect Electron/PWA users to auth
@@ -78,13 +76,12 @@ const RootRoute = memo(() => {
   const { user, loading } = useAuth();
   const isElectron = isElectronApp();
   const isPWA = isPWAInstalled();
-  const isOAuthCallback = hasOAuthTokens();
+  const isOAuthReturn = isReturningFromOAuth();
   
-  // If this is an OAuth callback, show loading while AuthProvider processes tokens
-  // Then redirect based on auth state
-  if (isOAuthCallback) {
+  // If returning from OAuth, wait for auth to resolve then redirect
+  if (isOAuthReturn) {
     if (loading) return <PageLoader />;
-    // After OAuth processing, redirect to dashboard if authenticated, otherwise to auth
+    // Redirect to dashboard if authenticated, otherwise back to auth
     return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
   }
   
