@@ -50,7 +50,7 @@ export const HelpRequestDialog = ({ open, onOpenChange }: HelpRequestDialogProps
       
       const { error } = await supabase.from('help_requests').insert({
         requester_id: user.id,
-        team_id: selectedTeam || null,
+        team_id: selectedTeam && selectedTeam !== 'none' ? selectedTeam : null,
         title: title.trim(),
         description: description.trim(),
         status: 'pending',
@@ -93,7 +93,7 @@ export const HelpRequestDialog = ({ open, onOpenChange }: HelpRequestDialogProps
                 <ResponsiveSelectValue placeholder="Select a team" />
               </ResponsiveSelectTrigger>
               <ResponsiveSelectContent title="Select Team">
-                <ResponsiveSelectItem value="">No specific team</ResponsiveSelectItem>
+                <ResponsiveSelectItem value="none">No specific team</ResponsiveSelectItem>
                 {teams.map((team) => (
                   <ResponsiveSelectItem key={team.id} value={team.id}>
                     {team.name}
