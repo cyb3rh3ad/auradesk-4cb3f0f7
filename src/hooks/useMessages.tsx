@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { playMessageNotification } from '@/utils/notificationSound';
+import { pushNotificationService } from '@/services/pushNotifications';
 
 export interface Message {
   id: string;
@@ -65,6 +66,13 @@ export const useMessages = (conversationId: string | null) => {
   const sendMessage = async (content: string) => {
     if (!conversationId || !user) return;
 
+    // Get other participants in the conversation for push notification
+    const { data: members } = await supabase
+      .from('conversation_members')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .neq('user_id', user.id);
+
     const { error } = await supabase
       .from('messages')
       .insert({
@@ -75,6 +83,24 @@ export const useMessages = (conversationId: string | null) => {
 
     if (error) {
       console.error('Error sending message:', error);
+      return;
+    }
+
+    // Send push notification to other participants
+    if (members && members.length > 0) {
+      const senderName = user.user_metadata?.full_name || user.email || 'Someone';
+      const recipientIds = members.map(m => m.user_id);
+      
+      pushNotificationService.sendNotification({
+        userIds: recipientIds,
+        title: senderName,
+        body: content.length > 100 ? content.substring(0, 100) + '...' : content,
+        data: {
+          type: 'message',
+          conversationId,
+          senderId: user.id,
+        },
+      });
     }
   };
 

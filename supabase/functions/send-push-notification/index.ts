@@ -117,6 +117,24 @@ async function sendFcmNotification(
 ): Promise<{ success: boolean; error?: string }> {
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
+  // Build notification actions based on type
+  const notificationType = data?.type || 'general';
+  
+  const androidActions: Array<{ action: string; title: string }> = [];
+  const apnsCategory = notificationType;
+
+  if (notificationType === 'message' && data?.conversationId) {
+    androidActions.push(
+      { action: 'reply', title: 'Reply' },
+      { action: 'mark_read', title: 'Mark Read' }
+    );
+  } else if (notificationType === 'call') {
+    androidActions.push(
+      { action: 'accept_call', title: 'Accept' },
+      { action: 'decline_call', title: 'Decline' }
+    );
+  }
+
   const message: Record<string, unknown> = {
     message: {
       token: deviceToken,
@@ -130,14 +148,21 @@ async function sendFcmNotification(
         notification: {
           sound: "default",
           click_action: "FLUTTER_NOTIFICATION_CLICK",
+          channel_id: notificationType === 'call' ? 'calls' : 'messages',
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: "default",
+            sound: notificationType === 'call' ? 'ringtone.caf' : 'default',
             badge: 1,
+            category: apnsCategory,
+            'mutable-content': 1,
+            'content-available': 1,
           },
+        },
+        headers: {
+          'apns-priority': notificationType === 'call' ? '10' : '5',
         },
       },
     },

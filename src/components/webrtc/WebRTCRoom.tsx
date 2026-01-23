@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
+import { useOrientation } from "@/hooks/useOrientation";
 import {
   Tooltip,
   TooltipContent,
@@ -62,6 +63,7 @@ export function WebRTCRoom({
   const recognitionRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
+  const orientation = useOrientation();
 
   // Set up real-time channel for call control events
   useEffect(() => {
@@ -319,14 +321,40 @@ export function WebRTCRoom({
   ];
 
   const numParticipants = allParticipants.length;
-  let gridCols = "grid-cols-1";
-  if (numParticipants === 2) {
-    gridCols = "md:grid-cols-2 grid-cols-1";
-  } else if (numParticipants <= 4) {
-    gridCols = "md:grid-cols-2 grid-cols-1";
-  } else {
-    gridCols = "md:grid-cols-3 grid-cols-2";
-  }
+  
+  // Adaptive grid based on participant count and orientation
+  const getGridClasses = () => {
+    if (numParticipants === 1) {
+      return "grid-cols-1";
+    } else if (numParticipants === 2) {
+      // For 2 participants on portrait, stack vertically
+      return orientation === 'portrait' 
+        ? "grid-cols-1 grid-rows-2" 
+        : "grid-cols-2 grid-rows-1";
+    } else if (numParticipants <= 4) {
+      return orientation === 'portrait'
+        ? "grid-cols-1 sm:grid-cols-2"
+        : "grid-cols-2";
+    } else {
+      return orientation === 'portrait'
+        ? "grid-cols-2"
+        : "grid-cols-3";
+    }
+  };
+
+  // Get aspect ratio class based on camera state and orientation
+  const getAspectRatioClass = (hasVideo: boolean) => {
+    if (!hasVideo) {
+      // When camera is off, use square or vertical rectangle
+      return orientation === 'portrait' 
+        ? "aspect-[3/4]"  // Vertical rectangle in portrait
+        : "aspect-square"; // Square in landscape
+    }
+    // When camera is on, adapt to orientation
+    return orientation === 'portrait' 
+      ? "aspect-[3/4]"   // Vertical in portrait
+      : "aspect-video";  // 16:9 in landscape
+  };
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
@@ -336,7 +364,10 @@ export function WebRTCRoom({
       )}
       
       {/* Participants grid */}
-      <div className={cn("p-4 grid gap-4 flex-1", gridCols)}>
+      <div className={cn(
+        "p-2 sm:p-4 grid gap-2 sm:gap-4 flex-1 auto-rows-fr",
+        getGridClasses()
+      )}>
         {allParticipants.map((participant) => {
           const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
           const displayName = participant.isLocal ? "You" : participant.name;
@@ -345,8 +376,11 @@ export function WebRTCRoom({
             <div
               key={participant.id}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-muted aspect-video group transition-all duration-200 border-2 border-border",
-                participant.isLocal && "order-first"
+                "relative rounded-xl overflow-hidden bg-muted group transition-all duration-300 border-2 border-border",
+                getAspectRatioClass(!!hasVideo && !isCameraOff),
+                participant.isLocal && "order-first",
+                // Add subtle glow when video is active
+                hasVideo && !isCameraOff && "shadow-lg"
               )}
             >
               {/* Video display */}
@@ -358,11 +392,14 @@ export function WebRTCRoom({
                 />
               )}
 
-              {/* Avatar when camera off */}
+              {/* Avatar when camera off - centered with animation */}
               {(!participant.stream || !hasVideo) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <Avatar className="h-16 w-16 md:h-20 md:w-20">
-                    <AvatarFallback className="text-xl md:text-2xl">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/80">
+                  <Avatar className={cn(
+                    "transition-all duration-300",
+                    orientation === 'portrait' ? "h-20 w-20 md:h-24 md:w-24" : "h-16 w-16 md:h-20 md:w-20"
+                  )}>
+                    <AvatarFallback className="text-xl md:text-2xl bg-primary/20 text-primary">
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -370,20 +407,24 @@ export function WebRTCRoom({
               )}
 
               {/* Name label */}
-              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm flex items-center gap-2">
+              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 backdrop-blur-sm rounded-lg text-foreground text-xs sm:text-sm flex items-center gap-2">
                 {displayName}
                 {isHost && participant.isLocal && (
-                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Host</span>
+                  <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">Host</span>
                 )}
               </div>
 
               {/* Status icons */}
               <div className="absolute top-2 right-2 flex gap-1">
                 {participant.isLocal && isMuted && (
-                  <MicOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+                  <div className="p-1 bg-background/70 backdrop-blur-sm rounded-full">
+                    <MicOff className="h-4 w-4 text-destructive" />
+                  </div>
                 )}
                 {participant.isLocal && isCameraOff && (
-                  <VideoOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+                  <div className="p-1 bg-background/70 backdrop-blur-sm rounded-full">
+                    <VideoOff className="h-4 w-4 text-destructive" />
+                  </div>
                 )}
               </div>
             </div>
