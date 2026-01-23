@@ -68,13 +68,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Track if this is a fresh OAuth login - set BEFORE redirect clears URL params
     // We check sessionStorage because the URL params are cleared after OAuth redirect processing
+    // Improved detection for various mobile browser behaviors
     const checkIsOAuthLogin = () => {
-      const hasOAuthParams = window.location.hash.includes('access_token') || 
-                             window.location.hash.includes('refresh_token') ||
-                             window.location.search.includes('code=');
+      const fullUrl = window.location.href;
+      const hash = window.location.hash;
+      const search = window.location.search;
+      
+      // Check various places OAuth tokens might appear depending on browser
+      const hasOAuthParams = 
+        hash.includes('access_token') || 
+        hash.includes('refresh_token') ||
+        hash.includes('error_description') ||
+        search.includes('code=') ||
+        search.includes('access_token') ||
+        search.includes('refresh_token') ||
+        // Some mobile browsers put params after the hash route
+        fullUrl.includes('access_token=') ||
+        fullUrl.includes('refresh_token=');
       
       if (hasOAuthParams) {
         // Mark this as a fresh OAuth login
+        console.log('OAuth params detected in URL, marking as OAuth login');
         sessionStorage.setItem('oauth_login_pending', 'true');
         return true;
       }
@@ -87,12 +101,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       try {
         const isOAuthLogin = checkIsOAuthLogin();
+        console.log('Initializing auth, isOAuthLogin:', isOAuthLogin);
         
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        // Give Supabase a moment to process OAuth tokens from URL
+        // This helps on slower mobile devices
+        if (isOAuthLogin) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+        }
         
         if (!mounted) return;
 
         if (!currentSession) {
+          // No session - but if this was an OAuth login, wait a bit and retry
+          // Some mobile browsers are slower to process the OAuth tokens
+          if (isOAuthLogin) {
+            console.log('OAuth login detected but no session, retrying...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            
+            if (!mounted) return;
+            
+            if (retrySession) {
+              console.log('Session found on retry');
+              const mfaNeeded = await checkAndHandleMfa(retrySession);
+              
+              if (!mounted) return;
+              
+              if (!mfaNeeded) {
+                sessionStorage.removeItem('oauth_login_pending');
+                setSession(retrySession);
+                setUser(retrySession.user);
+              }
+              setLoading(false);
+              return;
+            }
+          }
+          
           sessionStorage.removeItem('oauth_login_pending');
           setSession(null);
           setUser(null);
