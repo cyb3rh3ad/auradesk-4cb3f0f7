@@ -90,12 +90,57 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOffer = useRef<Set<string>>(new Set());
   const knownPeers = useRef<Map<string, string>>(new Map()); // peerId -> peerName
+  const profileCache = useRef<Map<string, string>>(new Map()); // peerId -> resolved display name
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastBytesReceived = useRef<number>(0);
   const lastBytesSent = useRef<number>(0);
   const lastStatsTime = useRef<number>(Date.now());
   const lowBandwidthCount = useRef<number>(0);
   const currentAdaptiveMode = useRef<'high' | 'medium' | 'low' | 'audio-only'>('high');
+
+  // Fetch the display name for a remote user (nickname > full_name > username > email)
+  const getDisplayNameForUser = useCallback(async (userId: string, fallbackName: string): Promise<string> => {
+    // Check cache first
+    if (profileCache.current.has(userId)) {
+      return profileCache.current.get(userId)!;
+    }
+
+    try {
+      // Check for nickname first (current user's nickname for this peer)
+      if (user) {
+        const { data: nicknameData } = await supabase
+          .from('nicknames')
+          .select('nickname')
+          .eq('user_id', user.id)
+          .eq('target_user_id', userId)
+          .single();
+        
+        if (nicknameData?.nickname) {
+          profileCache.current.set(userId, nicknameData.nickname);
+          return nicknameData.nickname;
+        }
+      }
+
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, username, email')
+        .eq('id', userId)
+        .single();
+      
+      if (profile) {
+        const displayName = profile.full_name || profile.username || profile.email?.split('@')[0] || fallbackName;
+        profileCache.current.set(userId, displayName);
+        return displayName;
+      }
+    } catch (err) {
+      console.warn('[WebRTC] Failed to fetch display name for', userId, err);
+    }
+
+    // Use fallback
+    profileCache.current.set(userId, fallbackName);
+    return fallbackName;
+  }, [user]);
 
   // Adapt video quality based on bandwidth
   const adaptVideoQuality = useCallback(async (mode: 'high' | 'medium' | 'low' | 'audio-only') => {
@@ -534,14 +579,16 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {
       if (!user || !channelRef.current) return;
       
-      console.log("[WebRTC] Received offer from:", from, fromName);
+      // Fetch the actual display name (nickname or profile name)
+      const displayName = await getDisplayNameForUser(from, fromName);
+      console.log("[WebRTC] Received offer from:", from, displayName);
       
       if (!localStreamRef.current) {
         console.log("[WebRTC] No local stream, initializing media first...");
         await initializeMedia(true, true);
       }
 
-      const pc = createPeerConnection(from, fromName);
+      const pc = createPeerConnection(from, displayName);
       if (!pc) return;
 
       try {
@@ -581,7 +628,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         console.error("[WebRTC] Handle Offer Error:", err);
       }
     },
-    [createPeerConnection, user, initializeMedia, isPolite],
+    [createPeerConnection, user, initializeMedia, isPolite, getDisplayNameForUser],
   );
 
   const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit) => {
@@ -662,33 +709,39 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
           console.log("[WebRTC] Presence sync:", Object.keys(state));
           
           // Connect to all present peers we haven't connected to yet
-          Object.keys(state).forEach(peerId => {
+          Object.keys(state).forEach(async (peerId) => {
             if (peerId !== user.id && !peerConnections.current.has(peerId)) {
               const peerData = state[peerId]?.[0] as any;
-              const peerName = peerData?.name || 'User';
-              console.log("[WebRTC] Discovered peer:", peerId, peerName);
+              const presenceName = peerData?.name || 'User';
+              
+              // Fetch the actual display name (nickname or profile name)
+              const displayName = await getDisplayNameForUser(peerId, presenceName);
+              console.log("[WebRTC] Discovered peer:", peerId, displayName);
               
               // Only the "polite" peer sends the offer
               if (isPolite(peerId)) {
                 console.log("[WebRTC] We are polite, sending offer to:", peerId);
-                sendOffer(peerId, peerName);
+                sendOffer(peerId, displayName);
               } else {
                 console.log("[WebRTC] We are impolite, waiting for offer from:", peerId);
                 // Still create the connection so we're ready
-                createPeerConnection(peerId, peerName);
+                createPeerConnection(peerId, displayName);
               }
             }
           });
         })
-        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        .on('presence', { event: 'join' }, async ({ key, newPresences }) => {
           if (key !== user.id) {
             const peerData = newPresences[0] as any;
-            const peerName = peerData?.name || 'User';
-            console.log("[WebRTC] Peer joined:", key, peerName);
+            const presenceName = peerData?.name || 'User';
+            
+            // Fetch the actual display name (nickname or profile name)
+            const displayName = await getDisplayNameForUser(key, presenceName);
+            console.log("[WebRTC] Peer joined:", key, displayName);
             
             if (isPolite(key)) {
               console.log("[WebRTC] New peer joined, we are polite, sending offer");
-              sendOffer(key, peerName);
+              sendOffer(key, displayName);
             }
           }
         })
@@ -737,7 +790,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         
       channelRef.current = channel;
     },
-    [roomId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate, isPolite, createPeerConnection],
+    [roomId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate, isPolite, createPeerConnection, getDisplayNameForUser],
   );
 
   const leaveRoom = useCallback(() => {
@@ -757,6 +810,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     knownPeers.current.clear();
     iceCandidateBuffer.current.clear();
     makingOffer.current.clear();
+    profileCache.current.clear(); // Clear profile cache when leaving
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => {
