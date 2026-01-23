@@ -221,19 +221,17 @@ const Landing = () => {
                 onMouseEnter={() => setShowDownloadOptions(true)}
                 onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                {/* Outer cell membrane that morphs */}
+                {/* Outer cell membrane that morphs - shows the pinching effect */}
                 <motion.div
                   className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 shadow-lg shadow-violet-500/30"
                   animate={{
-                    scaleX: showDownloadOptions ? 1.02 : 1,
-                    scaleY: showDownloadOptions ? 0.95 : 1,
+                    scaleX: showDownloadOptions ? 1.08 : 1,
+                    scaleY: showDownloadOptions ? 0.7 : 1,
+                    opacity: showDownloadOptions ? 0 : 1,
                   }}
                   transition={{
-                    duration: 0.15,
-                    ease: "easeOut"
-                  }}
-                  style={{
-                    opacity: showDownloadOptions ? 0 : 1,
+                    duration: 0.35,
+                    ease: [0.4, 0, 0.2, 1],
                   }}
                 />
 
@@ -242,11 +240,12 @@ const Landing = () => {
                   className="absolute inset-0 flex items-center justify-center z-10"
                   animate={{ 
                     opacity: showDownloadOptions ? 0 : 1,
-                    scale: showDownloadOptions ? 0.9 : 1,
+                    scaleX: showDownloadOptions ? 1.1 : 1,
+                    scaleY: showDownloadOptions ? 0.75 : 1,
                   }}
                   transition={{ 
-                    duration: 0.2,
-                    ease: "easeOut"
+                    duration: 0.3,
+                    ease: [0.4, 0, 0.2, 1],
                   }}
                   style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
@@ -268,14 +267,14 @@ const Landing = () => {
                     animate={{ 
                       x: showDownloadOptions ? -70 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scaleX: showDownloadOptions ? 1 : 0.5,
-                      scaleY: showDownloadOptions ? 1 : 0.85,
+                      scaleX: showDownloadOptions ? 1 : 0.4,
+                      scaleY: showDownloadOptions ? 1 : 0.75,
                     }}
                     transition={{ 
                       type: "spring",
-                      stiffness: 120,
-                      damping: 18,
-                      mass: 1.2,
+                      stiffness: 80,
+                      damping: 14,
+                      mass: 1.5,
                     }}
                     style={{ 
                       pointerEvents: showDownloadOptions ? "auto" : "none",
@@ -295,25 +294,25 @@ const Landing = () => {
 
                   {/* Center membrane - the pinching/splitting point */}
                   <motion.div
-                    className="absolute w-6 h-14 flex items-center justify-center overflow-hidden"
+                    className="absolute w-8 h-14 flex items-center justify-center overflow-visible"
                     animate={{
                       opacity: showDownloadOptions ? 1 : 0,
                     }}
                     transition={{
-                      duration: 0.3,
+                      duration: 0.4,
                     }}
                   >
                     <motion.div
-                      className="w-1 h-10 bg-gradient-to-b from-violet-400/60 via-purple-300/80 to-emerald-400/60 rounded-full"
+                      className="w-2 h-12 bg-gradient-to-b from-violet-400/70 via-purple-300/90 to-emerald-400/70 rounded-full blur-[1px]"
                       animate={{
-                        scaleY: showDownloadOptions ? [0, 1.2, 0.6, 0] : 0,
-                        scaleX: showDownloadOptions ? [3, 1, 0.5, 0] : 3,
-                        opacity: showDownloadOptions ? [0, 0.8, 0.6, 0] : 0,
+                        scaleY: showDownloadOptions ? [0.3, 1.4, 1, 0.4, 0] : 0.3,
+                        scaleX: showDownloadOptions ? [4, 1.5, 0.8, 0.3, 0] : 4,
+                        opacity: showDownloadOptions ? [0, 0.9, 0.8, 0.5, 0] : 0,
                       }}
                       transition={{
-                        duration: 0.5,
-                        times: [0, 0.3, 0.6, 1],
-                        ease: "easeInOut"
+                        duration: 0.7,
+                        times: [0, 0.25, 0.5, 0.75, 1],
+                        ease: [0.4, 0, 0.2, 1],
                       }}
                     />
                   </motion.div>
@@ -324,14 +323,14 @@ const Landing = () => {
                     animate={{ 
                       x: showDownloadOptions ? 70 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scaleX: showDownloadOptions ? 1 : 0.5,
-                      scaleY: showDownloadOptions ? 1 : 0.85,
+                      scaleX: showDownloadOptions ? 1 : 0.4,
+                      scaleY: showDownloadOptions ? 1 : 0.75,
                     }}
                     transition={{ 
                       type: "spring",
-                      stiffness: 120,
-                      damping: 18,
-                      mass: 1.2,
+                      stiffness: 80,
+                      damping: 14,
+                      mass: 1.5,
                     }}
                     style={{ 
                       pointerEvents: showDownloadOptions ? "auto" : "none",
