@@ -4,8 +4,9 @@ import { HybridCallRoom } from "@/components/call/HybridCallRoom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { GripHorizontal, Loader2 } from "lucide-react";
+import { GripHorizontal, Loader2, Minimize2, Maximize2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 
 interface CallDialogProps {
   open: boolean;
@@ -15,6 +16,8 @@ interface CallDialogProps {
   initialVideo: boolean;
   isCaller?: boolean;
 }
+
+type PiPSize = 'mini' | 'small' | 'medium' | 'full';
 
 export const CallDialog = ({
   open,
@@ -32,16 +35,33 @@ export const CallDialog = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasUserMoved, setHasUserMoved] = useState(false);
+  const [pipSize, setPipSize] = useState<PiPSize>('full');
   const dragRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
 
+  // Size configurations for PiP modes
+  const sizeConfigs = {
+    mini: { width: 180, height: 140 },
+    small: { width: 320, height: 240 },
+    medium: { width: 480, height: 360 },
+    full: { width: Math.min(800, window.innerWidth * 0.9), height: Math.min(600, window.innerHeight * 0.8) },
+  };
+
+  const currentSize = sizeConfigs[pipSize];
+
   // Calculate centered position - on mobile, position near top; on desktop, center
   const getCenteredPosition = () => {
+    if (pipSize !== 'full') {
+      // PiP mode - position in bottom right
+      return {
+        x: window.innerWidth - currentSize.width - 20,
+        y: window.innerHeight - currentSize.height - 100,
+      };
+    }
     const width = isMobile ? window.innerWidth : Math.min(800, window.innerWidth * 0.9);
     const height = isMobile ? window.innerHeight : Math.min(600, window.innerHeight * 0.8);
     const centerX = isMobile ? 0 : (window.innerWidth - width) / 2;
-    // On mobile, start from safe area top; on desktop, center vertically
     const topY = isMobile 
       ? Math.max(0, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0'))
       : Math.max(20, (window.innerHeight - height) / 2);
@@ -58,8 +78,16 @@ export const CallDialog = ({
     if (!open) {
       setIsInitialized(false);
       setHasUserMoved(false);
+      setPipSize('full');
     }
   }, [open, isInitialized, isMobile]);
+
+  // Update position when size changes
+  useEffect(() => {
+    if (!hasUserMoved && open) {
+      setPosition(getCenteredPosition());
+    }
+  }, [pipSize, hasUserMoved, open]);
 
   // Re-center on window resize if user hasn't moved the dialog
   useEffect(() => {
@@ -71,7 +99,7 @@ export const CallDialog = ({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [open, hasUserMoved, isMobile]);
+  }, [open, hasUserMoved, isMobile, pipSize]);
 
   // Fetch user profile name - must complete before joining call
   useEffect(() => {
@@ -132,8 +160,12 @@ export const CallDialog = ({
       const deltaX = clientX - dragStartRef.current.x;
       const deltaY = clientY - dragStartRef.current.y;
       
-      const dialogWidth = dragRef.current?.offsetWidth || (isMobile ? window.innerWidth : 800);
-      const dialogHeight = dragRef.current?.offsetHeight || (isMobile ? window.innerHeight : 600);
+      const dialogWidth = pipSize === 'full' 
+        ? (isMobile ? window.innerWidth : currentSize.width)
+        : currentSize.width;
+      const dialogHeight = pipSize === 'full'
+        ? (isMobile ? window.innerHeight : currentSize.height)
+        : currentSize.height;
       
       const newX = Math.max(0, Math.min(window.innerWidth - dialogWidth, positionRef.current.x + deltaX));
       const newY = Math.max(0, Math.min(window.innerHeight - dialogHeight, positionRef.current.y + deltaY));
@@ -156,21 +188,43 @@ export const CallDialog = ({
       document.removeEventListener("touchmove", handleMove);
       document.removeEventListener("touchend", handleEnd);
     };
-  }, [isDragging, isMobile]);
+  }, [isDragging, isMobile, pipSize, currentSize]);
+
+  // Cycle through PiP sizes
+  const cyclePipSize = () => {
+    const sizes: PiPSize[] = ['mini', 'small', 'medium', 'full'];
+    const currentIndex = sizes.indexOf(pipSize);
+    const nextIndex = (currentIndex + 1) % sizes.length;
+    setPipSize(sizes[nextIndex]);
+    setHasUserMoved(false); // Reset position on size change
+  };
+
+  // Toggle between full and mini
+  const togglePiP = () => {
+    if (pipSize === 'full') {
+      setPipSize('small');
+    } else {
+      setPipSize('full');
+    }
+    setHasUserMoved(false);
+  };
 
   if (!user || !open) return null;
+
+  const isFullScreen = pipSize === 'full' && isMobile;
+  const isPiPMode = pipSize !== 'full';
 
   // Show loading state while fetching name
   if (isLoadingName || !userName) {
     return (
       <div className={cn(
         "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background flex items-center justify-center",
-        isMobile ? "inset-0" : "rounded-xl"
-      )} style={isMobile ? {} : {
+        isFullScreen ? "inset-0" : "rounded-xl"
+      )} style={isFullScreen ? {} : {
         left: position.x,
         top: position.y,
-        width: "min(800px, 90vw)",
-        height: "min(600px, 80vh)",
+        width: currentSize.width,
+        height: currentSize.height,
       }}>
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -187,42 +241,67 @@ export const CallDialog = ({
     <div
       ref={dragRef}
       className={cn(
-        "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background",
-        isMobile ? "rounded-none inset-0" : "rounded-xl",
+        "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background transition-all duration-200",
+        isFullScreen ? "rounded-none inset-0" : "rounded-xl",
         isDragging && "cursor-grabbing select-none",
-        // Animation - slide from top on mobile
-        isMobile ? "animate-in slide-in-from-top duration-300" : ""
+        isFullScreen ? "animate-in slide-in-from-top duration-300" : "",
+        isPiPMode && "ring-2 ring-primary/30"
       )}
-      style={isMobile ? {
-        // Full screen on mobile with safe areas
+      style={isFullScreen ? {
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       } : {
         left: position.x,
         top: position.y,
-        width: "min(800px, 90vw)",
-        height: "min(600px, 80vh)",
+        width: currentSize.width,
+        height: currentSize.height,
       }}
     >
-      {/* Drag handle - always visible but only draggable on desktop */}
+      {/* Drag handle with PiP controls */}
       <div
         className={cn(
-          "absolute top-0 left-0 right-0 h-8 bg-muted/80 backdrop-blur-sm flex items-center justify-center z-10 border-b border-border/50",
-          !isMobile && "cursor-grab"
+          "absolute top-0 left-0 right-0 bg-muted/80 backdrop-blur-sm flex items-center justify-between z-10 border-b border-border/50 px-2",
+          isPiPMode ? "h-7" : "h-8",
+          !isFullScreen && "cursor-grab"
         )}
-        style={isMobile ? { marginTop: 'env(safe-area-inset-top)' } : undefined}
-        onMouseDown={!isMobile ? handleDragStart : undefined}
-        onTouchStart={!isMobile ? handleDragStart : undefined}
+        style={isFullScreen ? { marginTop: 'env(safe-area-inset-top)' } : undefined}
+        onMouseDown={!isFullScreen ? handleDragStart : undefined}
+        onTouchStart={!isFullScreen ? handleDragStart : undefined}
       >
-        <GripHorizontal className="w-5 h-5 text-muted-foreground" />
+        <div className="flex items-center gap-1">
+          <GripHorizontal className={cn("text-muted-foreground", isPiPMode ? "w-4 h-4" : "w-5 h-5")} />
+          {isPiPMode && (
+            <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+              {conversationName}
+            </span>
+          )}
+        </div>
+        
+        {/* PiP size controls */}
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(isPiPMode ? "h-5 w-5" : "h-6 w-6")}
+            onClick={(e) => { e.stopPropagation(); cyclePipSize(); }}
+            title={`Current: ${pipSize}`}
+          >
+            {pipSize === 'full' ? (
+              <Minimize2 className={cn(isPiPMode ? "h-3 w-3" : "h-4 w-4")} />
+            ) : (
+              <Maximize2 className={cn(isPiPMode ? "h-3 w-3" : "h-4 w-4")} />
+            )}
+          </Button>
+        </div>
+        
         <VisuallyHidden.Root>Call with {conversationName}</VisuallyHidden.Root>
       </div>
 
       {/* Call room */}
       <div className={cn(
         "h-full",
-        isMobile ? "pt-8" : "pt-8"
-      )} style={isMobile ? { paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' } : undefined}>
+        isPiPMode ? "pt-7" : "pt-8"
+      )} style={isFullScreen ? { paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' } : undefined}>
         <HybridCallRoom
           roomName={roomName}
           participantName={userName}
@@ -231,6 +310,8 @@ export const CallDialog = ({
           initialVideo={initialVideo}
           initialAudio={true}
           isHost={isCaller}
+          isPiPMode={isPiPMode}
+          pipSize={pipSize}
         />
       </div>
     </div>

@@ -8,6 +8,8 @@ export interface HybridCallRoomProps {
   initialVideo?: boolean;
   initialAudio?: boolean;
   isHost?: boolean;
+  isPiPMode?: boolean;
+  pipSize?: 'mini' | 'small' | 'medium' | 'full';
 }
 
 /**
@@ -23,6 +25,8 @@ export function HybridCallRoom({
   initialVideo = true,
   initialAudio = true,
   isHost = false,
+  isPiPMode = false,
+  pipSize = 'full',
 }: HybridCallRoomProps) {
   return (
     <WebRTCRoom
@@ -33,6 +37,8 @@ export function HybridCallRoom({
       initialVideo={initialVideo}
       initialAudio={initialAudio}
       isHost={isHost}
+      isPiPMode={isPiPMode}
+      pipSize={pipSize}
     />
   );
 }
