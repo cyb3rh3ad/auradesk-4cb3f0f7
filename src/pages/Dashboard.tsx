@@ -151,10 +151,7 @@ const Dashboard = () => {
 
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
         <CardHeader className="border-b border-border/50">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">Recent Contacts</CardTitle>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
-          </div>
+          <CardTitle className="text-xl">Recent Contacts</CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-1">
