@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { HybridCallRoom } from "@/components/call/HybridCallRoom";
+import { usePresenceContext } from "@/contexts/PresenceContext";
 
 interface MeetingRoomProps {
   meetingId: string;
@@ -12,7 +13,16 @@ interface MeetingRoomProps {
 
 export const MeetingRoom = ({ meetingId, meetingTitle, initialVideo = true, onClose }: MeetingRoomProps) => {
   const { user } = useAuth();
+  const { setInMeeting } = usePresenceContext();
   const [userName, setUserName] = useState<string>("User");
+
+  // Set in_meeting status when entering/leaving
+  useEffect(() => {
+    setInMeeting(true);
+    return () => {
+      setInMeeting(false);
+    };
+  }, [setInMeeting]);
 
   // Fetch profile for display name
   useEffect(() => {

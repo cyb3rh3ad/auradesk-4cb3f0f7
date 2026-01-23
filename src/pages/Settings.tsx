@@ -9,16 +9,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload } from 'lucide-react';
+import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload, BellOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
+import { usePresenceContext } from '@/contexts/PresenceContext';
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { myStatus, setDoNotDisturb } = usePresenceContext();
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
 
@@ -457,6 +459,23 @@ const Settings = () => {
                 <Label>Email</Label>
                 <Input value={user?.email || ''} disabled />
                 <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between py-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dnd" className="flex items-center gap-2">
+                    <BellOff className="w-4 h-4" />
+                    Do Not Disturb
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, you won't receive message or call notifications
+                  </p>
+                </div>
+                <Switch
+                  id="dnd"
+                  checked={myStatus === 'dnd'}
+                  onCheckedChange={(checked) => setDoNotDisturb(checked)}
+                />
               </div>
               <Separator />
               <Button onClick={handleUpdateProfile} disabled={loading}>

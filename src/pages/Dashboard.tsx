@@ -8,10 +8,13 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePresenceContext } from "@/contexts/PresenceContext";
+import { AvatarWithPresence } from "@/components/ui/presence-indicator";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { getStatus } = usePresenceContext();
   const { meetings, refetch: refetchMeetings } = useMeetings();
   const { contacts, loading: contactsLoading, refetch: refetchContacts } = useRecentContacts(5);
   
@@ -175,12 +178,14 @@ const Dashboard = () => {
                     className="flex items-center justify-between p-4 rounded-xl hover:bg-accent/5 transition-all duration-200 group border border-transparent hover:border-border/50 cursor-pointer"
                   >
                     <div className="flex items-center space-x-4">
-                      <Avatar className={`w-12 h-12 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-200`}>
-                        <AvatarImage src={contact.avatar_url || undefined} />
-                        <AvatarFallback className={`rounded-2xl bg-gradient-to-br ${gradientClasses[i % gradientClasses.length]} text-primary-foreground font-semibold`}>
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
+                      <AvatarWithPresence status={getStatus(contact.id)} size="md">
+                        <Avatar className={`w-12 h-12 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-200`}>
+                          <AvatarImage src={contact.avatar_url || undefined} />
+                          <AvatarFallback className={`rounded-2xl bg-gradient-to-br ${gradientClasses[i % gradientClasses.length]} text-primary-foreground font-semibold`}>
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                      </AvatarWithPresence>
                       <div>
                         <p className="text-sm font-semibold">{contact.full_name || contact.username || contact.email}</p>
                         {contact.username && <p className="text-xs text-muted-foreground">@{contact.username}</p>}
