@@ -230,9 +230,9 @@ const Landing = () => {
                   }}
                   transition={{ 
                     type: "spring",
-                    stiffness: 300,
-                    damping: 25,
-                    mass: 0.8
+                    stiffness: 120,
+                    damping: 18,
+                    mass: 1.2,
                   }}
                   style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
@@ -251,17 +251,15 @@ const Landing = () => {
                   {/* Left cell - Windows */}
                   <motion.div
                     animate={{ 
-                      x: showDownloadOptions ? -72 : 0,
+                      x: showDownloadOptions ? -74 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? 1 : 0.6,
-                      borderRadius: showDownloadOptions ? "9999px" : "9999px",
+                      scale: showDownloadOptions ? 1 : 0.7,
                     }}
                     transition={{ 
                       type: "spring",
-                      stiffness: 200,
-                      damping: 20,
-                      mass: 1,
-                      delay: showDownloadOptions ? 0.05 : 0
+                      stiffness: 120,
+                      damping: 18,
+                      mass: 1.2,
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
@@ -278,32 +276,31 @@ const Landing = () => {
 
                   {/* Center membrane effect - the pinching point */}
                   <motion.div
-                    className="absolute w-4 h-10 bg-gradient-to-b from-violet-500/50 via-purple-400/80 to-emerald-500/50 rounded-full blur-sm"
+                    className="absolute w-3 h-8 bg-gradient-to-b from-violet-500/40 via-purple-400/60 to-emerald-500/40 rounded-full blur-sm"
                     animate={{
-                      opacity: showDownloadOptions ? [0, 0.8, 0] : 0,
-                      scaleY: showDownloadOptions ? [0.5, 1.2, 0] : 0.5,
-                      scaleX: showDownloadOptions ? [2, 0.3, 0] : 2,
+                      opacity: showDownloadOptions ? [0, 0.7, 0] : 0,
+                      scaleY: showDownloadOptions ? [0.5, 1.3, 0] : 0.5,
+                      scaleX: showDownloadOptions ? [1.5, 0.2, 0] : 1.5,
                     }}
                     transition={{
-                      duration: 0.4,
-                      times: [0, 0.5, 1],
-                      ease: "easeOut"
+                      duration: 0.6,
+                      times: [0, 0.4, 1],
+                      ease: "easeInOut"
                     }}
                   />
 
                   {/* Right cell - Mobile */}
                   <motion.div
                     animate={{ 
-                      x: showDownloadOptions ? 72 : 0,
+                      x: showDownloadOptions ? 74 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? 1 : 0.6,
+                      scale: showDownloadOptions ? 1 : 0.7,
                     }}
                     transition={{ 
                       type: "spring",
-                      stiffness: 200,
-                      damping: 20,
-                      mass: 1,
-                      delay: showDownloadOptions ? 0.05 : 0
+                      stiffness: 120,
+                      damping: 18,
+                      mass: 1.2,
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
