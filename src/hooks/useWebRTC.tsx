@@ -359,43 +359,87 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     try {
       console.log("[WebRTC] Requesting media:", { video, audio });
       
-      // Always request both video and audio to ensure tracks exist
-      // Then disable the video track if not initially wanted
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      let stream: MediaStream | null = null;
       
-      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
-      
-      // Disable video track if not initially wanted (but keep it available for later)
-      if (!video) {
-        stream.getVideoTracks().forEach(track => {
-          track.enabled = false;
-          console.log("[WebRTC] Video track disabled initially");
+      // Try to get both audio and video first
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: video ? {
+            width: { ideal: 1280, max: 1280 },
+            height: { ideal: 720, max: 720 },
+            frameRate: { ideal: 30, max: 30 },
+          } : false,
+          audio: audio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
         });
+        console.log("[WebRTC] Media obtained with initial request");
+      } catch (firstErr: any) {
+        console.warn("[WebRTC] First media request failed:", firstErr.name, firstErr.message);
+        
+        // If video was requested but failed, try audio only
+        if (video && audio) {
+          try {
+            console.log("[WebRTC] Retrying with audio only...");
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: false,
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            });
+            console.log("[WebRTC] Audio-only stream obtained");
+          } catch (audioErr: any) {
+            console.error("[WebRTC] Audio-only also failed:", audioErr.name);
+            throw audioErr;
+          }
+        } else {
+          throw firstErr;
+        }
       }
       
-      // Disable audio track if not initially wanted
-      if (!audio) {
-        stream.getAudioTracks().forEach(track => {
-          track.enabled = false;
-          console.log("[WebRTC] Audio track disabled initially");
-        });
+      if (!stream) {
+        throw new Error("Failed to obtain media stream");
+      }
+      
+      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+      
+      // If video was requested but we only got audio, try to add video track separately
+      if (video && stream.getVideoTracks().length === 0) {
+        try {
+          console.log("[WebRTC] Attempting to add video track separately...");
+          const videoStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280, max: 1280 },
+              height: { ideal: 720, max: 720 },
+              frameRate: { ideal: 30, max: 30 },
+            },
+            audio: false,
+          });
+          const videoTrack = videoStream.getVideoTracks()[0];
+          if (videoTrack) {
+            stream.addTrack(videoTrack);
+            console.log("[WebRTC] Video track added separately");
+          }
+        } catch (videoErr) {
+          console.warn("[WebRTC] Could not add video track:", videoErr);
+          // Continue without video - user can enable later
+        }
       }
       
       setLocalStream(stream);
       localStreamRef.current = stream;
       return stream;
     } catch (err: any) {
-      console.error("[WebRTC] Media error:", err);
-      setError(err.name === 'NotAllowedError' 
-        ? "Camera/microphone permission denied. Please allow access." 
-        : "Failed to access camera/microphone.");
+      console.error("[WebRTC] Media error:", err.name, err.message);
+      
+      let errorMessage = "Failed to access camera/microphone.";
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = "Camera/microphone permission denied. Please allow access in your browser settings.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = "No camera or microphone found. Please connect a device.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = "Camera/microphone is in use by another application.";
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage = "Camera does not support the requested resolution.";
+      }
+      
+      setError(errorMessage);
       return null;
     }
   }, []);
