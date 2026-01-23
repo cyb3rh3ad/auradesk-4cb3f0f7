@@ -6,6 +6,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, lazy, Suspense, memo } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNavBar } from "@/components/MobileNavBar";
@@ -193,23 +194,25 @@ const App = () => (
                   <ProtectedRoute>
                       <OnboardingCheck />
                       <PushNotificationInit />
-                      <CallProvider>
-                        <AppLayout>
-                          <Routes>
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/chat" element={<Chat />} />
-                            <Route path="/teams" element={<Teams />} />
-                            <Route path="/meetings" element={<Meetings />} />
-                            <Route path="/files" element={<Files />} />
-                            <Route path="/ai" element={<AI />} />
-                            <Route path="/ai-settings" element={<AISettings />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="/subscription" element={<Subscription />} />
-                            <Route path="/admin" element={<Admin />} />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
-                        </AppLayout>
-                      </CallProvider>
+                      <PresenceProvider>
+                        <CallProvider>
+                          <AppLayout>
+                            <Routes>
+                              <Route path="/dashboard" element={<Dashboard />} />
+                              <Route path="/chat" element={<Chat />} />
+                              <Route path="/teams" element={<Teams />} />
+                              <Route path="/meetings" element={<Meetings />} />
+                              <Route path="/files" element={<Files />} />
+                              <Route path="/ai" element={<AI />} />
+                              <Route path="/ai-settings" element={<AISettings />} />
+                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/subscription" element={<Subscription />} />
+                              <Route path="/admin" element={<Admin />} />
+                              <Route path="*" element={<NotFound />} />
+                            </Routes>
+                          </AppLayout>
+                        </CallProvider>
+                      </PresenceProvider>
                     </ProtectedRoute>
                   }
                 />

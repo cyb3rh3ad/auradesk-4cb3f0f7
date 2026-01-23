@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { Users } from 'lucide-react';
 import { Conversation } from '@/hooks/useConversations';
 import { triggerHaptic } from '@/utils/haptics';
+import { usePresenceContext } from '@/contexts/PresenceContext';
+import { PresenceIndicator } from '@/components/ui/presence-indicator';
 
 interface Friend {
   id: string;
@@ -27,6 +29,7 @@ interface FriendsListProps {
 
 export const FriendsList = memo(({ onSelectConversation, selectedConversationId, conversations }: FriendsListProps) => {
   const { user } = useAuth();
+  const { getStatus } = usePresenceContext();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [readConversations, setReadConversations] = useState<Set<string>>(new Set());
@@ -276,6 +279,11 @@ export const FriendsList = memo(({ onSelectConversation, selectedConversationId,
                         {getInitials(friend)}
                       </AvatarFallback>
                     </Avatar>
+                    <PresenceIndicator 
+                      status={getStatus(friend.id)} 
+                      size="md"
+                      className="absolute bottom-0 right-0 translate-x-[2px] translate-y-[2px]"
+                    />
                     {unread && (
                       <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full border-2 border-background animate-pulse" />
                     )}

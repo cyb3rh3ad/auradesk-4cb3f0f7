@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePresenceContext } from '@/contexts/PresenceContext';
 
 interface VoiceChannelRoomProps {
   channel: TeamChannel;
@@ -27,6 +28,7 @@ interface VoiceChannelRoomProps {
 
 export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoomProps) {
   const { user } = useAuth();
+  const { setInMeeting } = usePresenceContext();
   const { participants, isJoined, joinChannel, leaveChannel, updateStatus } = useVoiceChannel(channel.id);
   const {
     localStream,
@@ -48,6 +50,14 @@ export function VoiceChannelRoom({ channel, teamName, onLeave }: VoiceChannelRoo
   const hasJoinedRef = useRef(false);
   const isLeavingRef = useRef(false);
   const hasInitialized = useRef(false);
+
+  // Set in_meeting status when in voice channel
+  useEffect(() => {
+    setInMeeting(true);
+    return () => {
+      setInMeeting(false);
+    };
+  }, [setInMeeting]);
 
   // Join the voice channel
   const handleJoin = useCallback(async () => {
