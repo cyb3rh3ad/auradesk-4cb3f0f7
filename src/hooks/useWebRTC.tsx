@@ -358,17 +358,36 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
     try {
       console.log("[WebRTC] Requesting media:", { video, audio });
+      
+      // Always request both video and audio to ensure tracks exist
+      // Then disable the video track if not initially wanted
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: video
-          ? {
-              width: { ideal: 1280, max: 1280 },
-              height: { ideal: 720, max: 720 },
-              frameRate: { ideal: 30, max: 30 },
-            }
-          : false,
-        audio: audio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
+        video: {
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => t.kind));
+      
+      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+      
+      // Disable video track if not initially wanted (but keep it available for later)
+      if (!video) {
+        stream.getVideoTracks().forEach(track => {
+          track.enabled = false;
+          console.log("[WebRTC] Video track disabled initially");
+        });
+      }
+      
+      // Disable audio track if not initially wanted
+      if (!audio) {
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+          console.log("[WebRTC] Audio track disabled initially");
+        });
+      }
+      
       setLocalStream(stream);
       localStreamRef.current = stream;
       return stream;
