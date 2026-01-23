@@ -4,7 +4,7 @@ import { HybridCallRoom } from "@/components/call/HybridCallRoom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CallDialogProps {
@@ -26,7 +26,8 @@ export const CallDialog = ({
 }: CallDialogProps) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [userName, setUserName] = useState<string>("User");
+  const [userName, setUserName] = useState<string | null>(null);
+  const [isLoadingName, setIsLoadingName] = useState(true);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -72,21 +73,40 @@ export const CallDialog = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [open, hasUserMoved, isMobile]);
 
-  // Fetch user profile name
+  // Fetch user profile name - must complete before joining call
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, username, email")
-        .eq("id", user.id)
-        .single();
-      if (data) {
-        setUserName(data.full_name || data.username || data.email || "User");
+      if (!user) {
+        setIsLoadingName(false);
+        return;
+      }
+      
+      setIsLoadingName(true);
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name, username, email")
+          .eq("id", user.id)
+          .single();
+        
+        if (data) {
+          const name = data.full_name || data.username || data.email?.split('@')[0] || "User";
+          setUserName(name);
+        } else {
+          setUserName(user.email?.split('@')[0] || "User");
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile:", err);
+        setUserName(user.email?.split('@')[0] || "User");
+      } finally {
+        setIsLoadingName(false);
       }
     };
-    fetchProfile();
-  }, [user]);
+    
+    if (open) {
+      fetchProfile();
+    }
+  }, [user, open]);
 
   // Handle drag start - supports both mouse and touch
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
@@ -139,6 +159,26 @@ export const CallDialog = ({
   }, [isDragging, isMobile]);
 
   if (!user || !open) return null;
+
+  // Show loading state while fetching name
+  if (isLoadingName || !userName) {
+    return (
+      <div className={cn(
+        "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background flex items-center justify-center",
+        isMobile ? "inset-0" : "rounded-xl"
+      )} style={isMobile ? {} : {
+        left: position.x,
+        top: position.y,
+        width: "min(800px, 90vw)",
+        height: "min(600px, 80vh)",
+      }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Connecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Generate unique room name based on conversation
   const roomName = `call-${conversationId}`;
