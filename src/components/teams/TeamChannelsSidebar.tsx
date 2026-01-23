@@ -6,13 +6,9 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -124,84 +120,9 @@ export function TeamChannelsSidebar({
           <span className="font-semibold truncate">{team.name}</span>
         </div>
         {canManage && (
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Channel</DialogTitle>
-                <DialogDescription>
-                  Add a new text or voice channel to your team
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Channel Type</Label>
-                  <Select
-                    value={newChannelType}
-                    onValueChange={(v) => setNewChannelType(v as 'text' | 'voice')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">
-                        <div className="flex items-center gap-2">
-                          <Hash className="w-4 h-4" />
-                          Text Channel
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="voice">
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="w-4 h-4" />
-                          Voice Channel
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Channel Name</Label>
-                  <Input
-                    value={newChannelName}
-                    onChange={(e) => setNewChannelName(e.target.value)}
-                    placeholder="channel-name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select value={newChannelCategory} onValueChange={setNewChannelCategory}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {existingCategories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="General">General</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateChannel}
-                  disabled={creating || !newChannelName.trim()}
-                >
-                  {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Create Channel
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4" />
+          </Button>
         )}
       </div>
 
@@ -250,6 +171,79 @@ export function TeamChannelsSidebar({
           )}
         </div>
       </ScrollArea>
+
+      {/* Create Channel Dialog */}
+      <ResponsiveDialog open={createOpen} onOpenChange={setCreateOpen}>
+        <ResponsiveDialogContent
+          title="Create Channel"
+          description="Add a new text or voice channel to your team"
+        >
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Channel Type</Label>
+              <ResponsiveSelect
+                value={newChannelType}
+                onValueChange={(v) => setNewChannelType(v as 'text' | 'voice')}
+              >
+                <ResponsiveSelectTrigger>
+                  <ResponsiveSelectValue />
+                </ResponsiveSelectTrigger>
+                <ResponsiveSelectContent>
+                  <ResponsiveSelectItem value="text">
+                    <div className="flex items-center gap-2">
+                      <Hash className="w-4 h-4" />
+                      Text Channel
+                    </div>
+                  </ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="voice">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4" />
+                      Voice Channel
+                    </div>
+                  </ResponsiveSelectItem>
+                </ResponsiveSelectContent>
+              </ResponsiveSelect>
+            </div>
+            <div className="space-y-2">
+              <Label>Channel Name</Label>
+              <Input
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder="channel-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <ResponsiveSelect value={newChannelCategory} onValueChange={setNewChannelCategory}>
+                <ResponsiveSelectTrigger>
+                  <ResponsiveSelectValue />
+                </ResponsiveSelectTrigger>
+                <ResponsiveSelectContent>
+                  {existingCategories.map((cat) => (
+                    <ResponsiveSelectItem key={cat} value={cat}>
+                      {cat}
+                    </ResponsiveSelectItem>
+                  ))}
+                  <ResponsiveSelectItem value="General">General</ResponsiveSelectItem>
+                </ResponsiveSelectContent>
+              </ResponsiveSelect>
+            </div>
+          </div>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} className="flex-1 sm:flex-initial">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateChannel}
+              disabled={creating || !newChannelName.trim()}
+              className="flex-1 sm:flex-initial"
+            >
+              {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create Channel
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </div>
   );
 }

@@ -7,16 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldCheck, ShieldOff, Loader2, Copy, Check } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
 
 export const TwoFactorAuth = () => {
   const { toast } = useToast();
@@ -299,26 +290,17 @@ export const TwoFactorAuth = () => {
         )}
       </CardContent>
 
-      <AlertDialog open={disableDialogOpen} onOpenChange={setDisableDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Disable Two-Factor Authentication?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the extra security layer from your account. You can enable it again at any time.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisableMfa}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Disable 2FA
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ResponsiveAlertDialog
+        open={disableDialogOpen}
+        onOpenChange={setDisableDialogOpen}
+        title="Disable Two-Factor Authentication?"
+        description="This will remove the extra security layer from your account. You can enable it again at any time."
+        cancelText="Cancel"
+        actionText={loading ? "Disabling..." : "Disable 2FA"}
+        actionVariant="destructive"
+        onAction={handleDisableMfa}
+        loading={loading}
+      />
     </Card>
   );
 };

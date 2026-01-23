@@ -12,7 +12,7 @@ const statusConfig: Record<PresenceStatus, { color: string; label: string; pulse
   online: {
     color: 'bg-green-500',
     label: 'Online',
-    pulse: true,
+    pulse: false, // No pulse for online - just solid green
   },
   away: {
     color: 'bg-yellow-500',
@@ -32,10 +32,11 @@ const statusConfig: Record<PresenceStatus, { color: string; label: string; pulse
   },
 };
 
+// Increased sizes for better visibility
 const sizeClasses = {
-  sm: 'w-2 h-2',
-  md: 'w-3 h-3',
-  lg: 'w-4 h-4',
+  sm: 'w-3 h-3',
+  md: 'w-4 h-4',
+  lg: 'w-5 h-5',
 };
 
 export const PresenceIndicator = memo(({ status, size = 'md', className }: PresenceIndicatorProps) => {
@@ -44,10 +45,9 @@ export const PresenceIndicator = memo(({ status, size = 'md', className }: Prese
   return (
     <div
       className={cn(
-        'rounded-full border-2 border-background shadow-sm',
+        'rounded-full border-2 border-background shadow-md',
         sizeClasses[size],
         config.color,
-        config.pulse && 'animate-pulse-soft',
         className
       )}
       title={config.label}
