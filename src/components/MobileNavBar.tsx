@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { triggerHaptic } from "@/utils/haptics";
@@ -14,7 +14,7 @@ import {
   Shield,
   MoreHorizontal
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface NavItemProps {
@@ -64,6 +64,12 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
 export const MobileNavBar = () => {
   const { isOwner } = useUserRole();
   const [showMore, setShowMore] = useState(false);
+  const location = useLocation();
+
+  // Close "More" menu when route changes to prevent frozen UI
+  useEffect(() => {
+    setShowMore(false);
+  }, [location.pathname]);
 
   // Primary nav items (shown in bottom bar)
   const primaryItems = [
@@ -97,8 +103,9 @@ export const MobileNavBar = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/50 z-40 touch-none"
               onClick={() => setShowMore(false)}
+              onTouchEnd={() => setShowMore(false)}
             />
             <motion.div
               initial={{ opacity: 0, y: 100 }}
