@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const search = window.location.search;
       
       // Check various places OAuth tokens might appear depending on browser
+      // Mobile browsers sometimes put OAuth params in unexpected places
       const hasOAuthParams = 
         hash.includes('access_token') || 
         hash.includes('refresh_token') ||
@@ -84,18 +85,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         search.includes('refresh_token') ||
         // Some mobile browsers put params after the hash route
         fullUrl.includes('access_token=') ||
-        fullUrl.includes('refresh_token=');
+        fullUrl.includes('refresh_token=') ||
+        // Check for OAuth error indicators too
+        fullUrl.includes('error=') ||
+        hash.includes('error=');
       
       if (hasOAuthParams) {
         // Mark this as a fresh OAuth login
         console.log('OAuth params detected in URL, marking as OAuth login');
         sessionStorage.setItem('oauth_login_pending', 'true');
+        // Store timestamp to prevent stale pending states
+        sessionStorage.setItem('oauth_login_time', Date.now().toString());
         return true;
       }
       
-      // Check if we recently came from OAuth
+      // Check if we recently came from OAuth (within last 30 seconds)
       const pending = sessionStorage.getItem('oauth_login_pending');
-      return pending === 'true';
+      const loginTime = sessionStorage.getItem('oauth_login_time');
+      
+      if (pending === 'true' && loginTime) {
+        const elapsed = Date.now() - parseInt(loginTime, 10);
+        // Clear stale OAuth pending state after 30 seconds
+        if (elapsed > 30000) {
+          console.log('Clearing stale OAuth pending state');
+          sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
+          return false;
+        }
+        return true;
+      }
+      
+      return false;
     };
 
     const initializeAuth = async () => {
@@ -103,13 +123,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isOAuthLogin = checkIsOAuthLogin();
         console.log('Initializing auth, isOAuthLogin:', isOAuthLogin);
         
-        // Give Supabase a moment to process OAuth tokens from URL
-        // This helps on slower mobile devices
+        // Give Supabase MORE time to process OAuth tokens from URL on mobile
+        // Mobile browsers are significantly slower at processing OAuth redirects
         if (isOAuthLogin) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          console.log('OAuth login detected, waiting for token processing...');
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        let currentSession: Session | null = null;
+        let sessionError: any = null;
+        
+        // First attempt
+        const firstAttempt = await supabase.auth.getSession();
+        currentSession = firstAttempt.data?.session;
+        sessionError = firstAttempt.error;
         
         if (sessionError) {
           console.error('Error getting session:', sessionError);
@@ -117,34 +144,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (!mounted) return;
 
-        if (!currentSession) {
-          // No session - but if this was an OAuth login, wait a bit and retry
-          // Some mobile browsers are slower to process the OAuth tokens
-          if (isOAuthLogin) {
-            console.log('OAuth login detected but no session, retrying...');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const { data: { session: retrySession } } = await supabase.auth.getSession();
+        // If OAuth login but no session, retry with exponential backoff
+        // This is critical for mobile browsers that are slow to process tokens
+        if (!currentSession && isOAuthLogin) {
+          console.log('OAuth login but no session on first attempt, retrying...');
+          
+          // Retry up to 3 times with increasing delays
+          const retryDelays = [500, 1000, 1500];
+          
+          for (let i = 0; i < retryDelays.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, retryDelays[i]));
             
             if (!mounted) return;
             
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            
             if (retrySession) {
-              console.log('Session found on retry');
-              const mfaNeeded = await checkAndHandleMfa(retrySession);
-              
-              if (!mounted) return;
-              
-              if (!mfaNeeded) {
-                sessionStorage.removeItem('oauth_login_pending');
-                setSession(retrySession);
-                setUser(retrySession.user);
-              }
-              setLoading(false);
-              return;
+              console.log(`Session found on retry attempt ${i + 1}`);
+              currentSession = retrySession;
+              break;
             }
+            
+            console.log(`Retry attempt ${i + 1} - still no session`);
           }
-          
+        }
+        
+        if (!mounted) return;
+
+        if (!currentSession) {
+          // No session after all retries
+          console.log('No session found after all attempts');
           sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -152,6 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Session exists - ALWAYS check MFA before allowing access
+        console.log('Session found, checking MFA...');
         const mfaNeeded = await checkAndHandleMfa(currentSession);
         
         if (!mounted) return;
@@ -167,6 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             // Stale session from another tab - sign out completely to force fresh login
             sessionStorage.removeItem('oauth_login_pending');
+            sessionStorage.removeItem('oauth_login_time');
             await supabase.auth.signOut();
             setSession(null);
             setUser(null);
@@ -176,7 +209,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           // MFA verified or not required - allow access
+          console.log('MFA not required or already verified, granting access');
           sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
           setSession(currentSession);
           setUser(currentSession.user);
           setLoading(false);
@@ -185,6 +220,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Auth initialization failed:', err);
         if (mounted) {
           sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
           setLoading(false);
         }
       }
@@ -200,6 +236,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (event === 'SIGNED_OUT') {
           sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
           setSession(null);
           setUser(null);
           setMfaRequired(false);
@@ -215,6 +252,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (!newSession) {
           sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem('oauth_login_time');
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -242,6 +280,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setLoading(false);
           } else {
             sessionStorage.removeItem('oauth_login_pending');
+            sessionStorage.removeItem('oauth_login_time');
             setSession(newSession);
             setUser(newSession.user);
             setLoading(false);
@@ -397,6 +436,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               } else {
                 // No MFA required - set session and navigate
                 sessionStorage.removeItem('oauth_login_pending');
+                sessionStorage.removeItem('oauth_login_time');
                 setSession(data.session);
                 setUser(data.session.user);
                 navigate('/dashboard');
@@ -439,6 +479,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const completeMfaVerification = async () => {
     // After MFA is verified, fetch and set the current session
     sessionStorage.removeItem('oauth_login_pending');
+    sessionStorage.removeItem('oauth_login_time');
     const { data: { session: verifiedSession } } = await supabase.auth.getSession();
     if (verifiedSession) {
       setSession(verifiedSession);
