@@ -48,13 +48,23 @@ const PageLoader = memo(() => (
 ));
 PageLoader.displayName = 'PageLoader';
 
-// Component to handle root route - redirect Electron users to auth
+// Detect if running as installed PWA (standalone mode)
+const isPWAInstalled = () => {
+  // Check for standalone display mode (Android Chrome, iOS Safari)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  // iOS Safari specific check
+  const isIOSStandalone = (navigator as any).standalone === true;
+  return isStandalone || isIOSStandalone;
+};
+
+// Component to handle root route - redirect Electron/PWA users to auth
 const RootRoute = memo(() => {
   const { user, loading } = useAuth();
   const isElectron = isElectronApp();
+  const isPWA = isPWAInstalled();
   
-  // If Electron app, skip landing page entirely
-  if (isElectron) {
+  // If Electron app or installed PWA, skip landing page entirely
+  if (isElectron || isPWA) {
     if (loading) return <PageLoader />;
     return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
   }
