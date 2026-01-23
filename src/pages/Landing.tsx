@@ -250,21 +250,21 @@ const Landing = () => {
                     opacity: showDownloadOptions ? [0, 1, 1, 0] : 0,
                   }}
                   transition={{
-                    duration: 1.2,
-                    times: [0, 0.15, 0.7, 1],
+                    duration: 1.4,
+                    times: [0, 0.1, 0.75, 1],
                     ease: "easeInOut",
                   }}
                 >
                   {/* Left bulge */}
                   <motion.div
-                    className="absolute left-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-violet-600 via-purple-600 to-purple-500"
+                    className="absolute left-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-violet-600 via-purple-600 to-purple-500 shadow-lg"
                     animate={{
                       x: showDownloadOptions ? [0, 0, -2] : 0,
                       scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [1, 1.05, 1] : 1,
+                      scaleY: showDownloadOptions ? [1, 1.03, 1] : 1,
                     }}
                     transition={{
-                      duration: 1,
+                      duration: 1.2,
                       times: [0, 0.5, 1],
                       ease: "easeInOut",
                     }}
@@ -272,29 +272,31 @@ const Landing = () => {
                   />
                   {/* Right bulge */}
                   <motion.div
-                    className="absolute right-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-blue-600"
+                    className="absolute right-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-blue-600 shadow-lg"
                     animate={{
                       x: showDownloadOptions ? [0, 0, 2] : 0,
                       scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [1, 1.05, 1] : 1,
+                      scaleY: showDownloadOptions ? [1, 1.03, 1] : 1,
                     }}
                     transition={{
-                      duration: 1,
+                      duration: 1.2,
                       times: [0, 0.5, 1],
                       ease: "easeInOut",
                     }}
                     style={{ originX: 0 }}
                   />
-                  {/* Center bridge/pinch point */}
+                  {/* Center bridge/pinch point - smoother narrowing */}
                   <motion.div
-                    className="absolute left-1/2 -translate-x-1/2 h-10 bg-gradient-to-r from-purple-500 via-purple-600 to-purple-500 rounded-full"
+                    className="absolute left-1/2 -translate-x-1/2 bg-gradient-to-b from-purple-500 via-purple-600 to-purple-500 shadow-inner"
                     animate={{
-                      width: showDownloadOptions ? ["100px", "60px", "20px", "0px"] : "100px",
-                      opacity: showDownloadOptions ? [1, 1, 0.8, 0] : 1,
+                      width: showDownloadOptions ? ["80px", "50px", "24px", "8px", "0px"] : "80px",
+                      height: showDownloadOptions ? ["56px", "48px", "36px", "20px", "0px"] : "56px",
+                      borderRadius: showDownloadOptions ? ["28px", "24px", "18px", "10px", "0px"] : "28px",
+                      opacity: showDownloadOptions ? [1, 1, 0.9, 0.7, 0] : 1,
                     }}
                     transition={{
-                      duration: 1,
-                      times: [0, 0.3, 0.7, 1],
+                      duration: 1.2,
+                      times: [0, 0.25, 0.5, 0.8, 1],
                       ease: "easeInOut",
                     }}
                   />
@@ -306,14 +308,14 @@ const Landing = () => {
                   <motion.div
                     className="absolute left-0"
                     animate={{ 
-                      opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? 1 : 0.9,
-                      x: showDownloadOptions ? -2 : 0,
+                      opacity: showDownloadOptions ? [0, 0, 1] : 0,
+                      scale: showDownloadOptions ? [0.95, 0.95, 1.02, 0.99, 1] : 0.95,
+                      x: showDownloadOptions ? [0, 0, -3, -1, -2] : 0,
                     }}
                     transition={{ 
-                      duration: 0.8,
-                      delay: showDownloadOptions ? 0.5 : 0,
-                      ease: [0.4, 0, 0.2, 1],
+                      opacity: { duration: 1, times: [0, 0.6, 1], ease: "easeOut" },
+                      scale: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
+                      x: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
@@ -332,14 +334,14 @@ const Landing = () => {
                   <motion.div
                     className="absolute right-0"
                     animate={{ 
-                      opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? 1 : 0.9,
-                      x: showDownloadOptions ? 2 : 0,
+                      opacity: showDownloadOptions ? [0, 0, 1] : 0,
+                      scale: showDownloadOptions ? [0.95, 0.95, 1.02, 0.99, 1] : 0.95,
+                      x: showDownloadOptions ? [0, 0, 3, 1, 2] : 0,
                     }}
                     transition={{ 
-                      duration: 0.8,
-                      delay: showDownloadOptions ? 0.5 : 0,
-                      ease: [0.4, 0, 0.2, 1],
+                      opacity: { duration: 1, times: [0, 0.6, 1], ease: "easeOut" },
+                      scale: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
+                      x: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
