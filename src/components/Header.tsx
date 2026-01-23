@@ -12,6 +12,12 @@ import { NotificationsDropdown } from "./NotificationsDropdown";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -27,41 +33,31 @@ export const Header = () => {
     return email.substring(0, 2).toUpperCase();
   };
 
-  // Update menu position when opened with viewport-aware positioning
+  // Desktop: Update menu position when opened
   useEffect(() => {
-    if (profileMenuOpen && buttonRef.current) {
+    if (!isMobile && profileMenuOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const menuWidth = 256; // w-64 = 16rem = 256px
+      const menuWidth = 256;
       const padding = 16;
       const viewportWidth = window.innerWidth;
       
-      // For mobile, center the menu
-      let rightPos: number;
-      if (viewportWidth < 640) {
-        // Mobile: center will be handled via CSS
-        rightPos = padding;
-      } else {
-        // Desktop: align to button
-        rightPos = viewportWidth - rect.right;
-        
-        // If menu would overflow left side, adjust
-        if (rect.right - menuWidth < padding) {
-          rightPos = viewportWidth - menuWidth - padding;
-        }
-        
-        // Ensure minimum padding from right edge
-        rightPos = Math.max(rightPos, padding);
+      let rightPos = viewportWidth - rect.right;
+      if (rect.right - menuWidth < padding) {
+        rightPos = viewportWidth - menuWidth - padding;
       }
+      rightPos = Math.max(rightPos, padding);
       
       setMenuPosition({
         top: rect.bottom + 8,
         right: rightPos
       });
     }
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, isMobile]);
 
-  // Close menu when clicking outside
+  // Desktop: Close menu when clicking outside
   useEffect(() => {
+    if (isMobile) return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
@@ -81,7 +77,7 @@ export const Header = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, isMobile]);
 
   const handleMenuItemClick = (path: string) => {
     navigate(path);
@@ -92,6 +88,63 @@ export const Header = () => {
     signOut();
     setProfileMenuOpen(false);
   };
+
+  const ProfileMenuContent = () => (
+    <>
+      {/* User info header */}
+      <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
+        <div className="flex items-center gap-3">
+          <Avatar className="w-12 h-12 ring-2 ring-background shadow-lg">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-semibold">
+              {user?.email ? getInitials(user.email) : "AD"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground truncate">
+              {user?.user_metadata?.full_name || "My Account"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Menu items */}
+      <div className="p-2">
+        <button
+          onClick={() => handleMenuItemClick('/settings')}
+          className="w-full flex items-center gap-3 px-3 py-3 text-sm rounded-xl hover:bg-muted/80 active:bg-muted transition-colors group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <Settings className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span className="text-base">Settings</span>
+        </button>
+        <button
+          onClick={() => handleMenuItemClick('/subscription')}
+          className="w-full flex items-center gap-3 px-3 py-3 text-sm rounded-xl hover:bg-muted/80 active:bg-muted transition-colors group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <User className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span className="text-base">Subscription</span>
+        </button>
+      </div>
+      
+      {/* Sign out footer */}
+      <div className="p-2 border-t border-border/50">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-3 text-sm rounded-xl hover:bg-destructive/10 active:bg-destructive/20 transition-colors group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+            <LogOut className="w-5 h-5 text-destructive" />
+          </div>
+          <span className="text-base text-destructive">Sign out</span>
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative z-[100]">
@@ -140,7 +193,7 @@ export const Header = () => {
           <NotificationsDropdown />
         </div>
 
-        {/* Profile Menu */}
+        {/* Profile Menu Trigger */}
         <div className="relative ml-4">
           <button 
             ref={buttonRef}
@@ -155,8 +208,20 @@ export const Header = () => {
             </Avatar>
           </button>
 
-          {/* Portal dropdown to body */}
-          {profileMenuOpen && createPortal(
+          {/* Mobile: Bottom Sheet Drawer */}
+          {isMobile && (
+            <Drawer open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
+              <DrawerContent>
+                <DrawerHeader className="sr-only">
+                  <DrawerTitle>Account Menu</DrawerTitle>
+                </DrawerHeader>
+                <ProfileMenuContent />
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          {/* Desktop: Positioned Dropdown */}
+          {!isMobile && profileMenuOpen && createPortal(
             <div ref={profileMenuRef}>
               <AnimatePresence>
                 <motion.div
@@ -168,66 +233,12 @@ export const Header = () => {
                   style={{ 
                     transformOrigin: "top right",
                     top: menuPosition.top,
-                    right: window.innerWidth < 640 ? 'auto' : Math.max(menuPosition.right, 16),
-                    left: window.innerWidth < 640 ? '50%' : 'auto',
-                    transform: window.innerWidth < 640 ? 'translateX(-50%)' : 'none',
-                    width: window.innerWidth < 640 ? 'calc(100vw - 2rem)' : '256px',
-                    maxWidth: '256px',
+                    right: menuPosition.right,
+                    width: '256px',
                     zIndex: 99999
                   }}
-              >
-                {/* User info header */}
-                <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12 ring-2 ring-background shadow-lg">
-                      <AvatarImage src={user?.user_metadata?.avatar_url} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-semibold">
-                        {user?.email ? getInitials(user.email) : "AD"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">
-                        {user?.user_metadata?.full_name || "My Account"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Menu items */}
-                <div className="p-2">
-                  <button
-                    onClick={() => handleMenuItemClick('/settings')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <Settings className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <span>Settings</span>
-                  </button>
-                  <button
-                    onClick={() => handleMenuItemClick('/subscription')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <User className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <span>Subscription</span>
-                  </button>
-                </div>
-                
-                {/* Sign out footer */}
-                <div className="p-2 border-t border-border/50">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-destructive/10 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
-                      <LogOut className="w-4 h-4 text-destructive" />
-                    </div>
-                    <span className="text-destructive">Sign out</span>
-                  </button>
-                </div>
+                >
+                  <ProfileMenuContent />
                 </motion.div>
               </AnimatePresence>
             </div>,
