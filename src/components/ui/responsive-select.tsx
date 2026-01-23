@@ -1,13 +1,6 @@
 import * as React from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Drawer,
   DrawerContent,
   DrawerHeader,
@@ -48,14 +41,7 @@ export function ResponsiveSelect({ value, onValueChange, children, disabled }: R
     return optionsRef.current.get(optValue);
   }, []);
 
-  if (!isMobile) {
-    return (
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        {children}
-      </Select>
-    );
-  }
-
+  // Always use the drawer-based select for consistent UX across all platforms
   return (
     <ResponsiveSelectContext.Provider value={{ value, onValueChange, open, setOpen, isMobile, registerOption, getLabel }}>
       {children}
@@ -72,11 +58,10 @@ export function ResponsiveSelectTrigger({ children, className }: ResponsiveSelec
   const context = React.useContext(ResponsiveSelectContext);
   
   if (!context) {
-    // Desktop mode - render standard SelectTrigger
-    return <SelectTrigger className={className}>{children}</SelectTrigger>;
+    return null;
   }
 
-  // Mobile mode - render button that opens drawer
+  // Render button that opens drawer
   return (
     <button
       type="button"
@@ -100,11 +85,10 @@ export function ResponsiveSelectValue({ placeholder }: ResponsiveSelectValueProp
   const context = React.useContext(ResponsiveSelectContext);
   
   if (!context) {
-    // Desktop mode - render standard SelectValue
-    return <SelectValue placeholder={placeholder} />;
+    return null;
   }
 
-  // Mobile mode - show current label or placeholder
+  // Show current label or placeholder
   const label = context.value ? context.getLabel(context.value) : undefined;
   const displayValue = label || context.value;
   
@@ -124,14 +108,16 @@ export function ResponsiveSelectContent({ children, title = "Select an option" }
   const context = React.useContext(ResponsiveSelectContext);
   
   if (!context) {
-    // Desktop mode - render standard SelectContent
-    return <SelectContent>{children}</SelectContent>;
+    return null;
   }
 
-  // Mobile mode - render drawer
+  // Always render drawer for consistent experience
   return (
     <Drawer open={context.open} onOpenChange={context.setOpen}>
-      <DrawerContent>
+      <DrawerContent className={cn(
+        // On desktop/larger screens, constrain width to center
+        !context.isMobile && "mx-auto max-w-lg",
+      )}>
         <DrawerHeader className="text-left border-b border-border pb-3">
           <DrawerTitle>{title}</DrawerTitle>
         </DrawerHeader>
@@ -179,11 +165,10 @@ export function ResponsiveSelectItem({ value, children, className }: ResponsiveS
   }, [context, value, labelText]);
   
   if (!context) {
-    // Desktop mode - render standard SelectItem
-    return <SelectItem value={value} className={className}>{children}</SelectItem>;
+    return null;
   }
 
-  // Mobile mode - render button
+  // Render button
   const isSelected = context.value === value;
   
   return (
