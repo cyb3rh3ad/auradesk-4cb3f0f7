@@ -73,8 +73,7 @@ export const IncomingTeamCallDialog = ({
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
       <DialogContent 
-        className="max-w-[90vw] sm:max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] mx-4 safe-area-inset"
-        style={{ transform: 'translate(-50%, -50%)' }}
+        className="w-[calc(100vw-2rem)] max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden z-[99999]"
       >
         <VisuallyHidden.Root>
           <DialogTitle>Incoming team call from {callerName}</DialogTitle>

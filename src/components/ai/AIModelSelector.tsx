@@ -63,13 +63,29 @@ export const AIModelSelector = ({
     return '💫';
   };
 
-  // Update position when opening
+  // Update position when opening with viewport-aware positioning
   useEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 320;
+      const padding = 16;
+      
+      // Calculate left position - try to align right edge with button, but don't overflow
+      let leftPos = rect.right - menuWidth;
+      
+      // If would overflow left, align to left edge with padding
+      if (leftPos < padding) {
+        leftPos = padding;
+      }
+      
+      // If would overflow right, align to right edge with padding
+      if (leftPos + menuWidth > window.innerWidth - padding) {
+        leftPos = window.innerWidth - menuWidth - padding;
+      }
+      
       setMenuPosition({
         top: rect.bottom + 8,
-        left: rect.right - 320, // Align right edge with button
+        left: leftPos,
       });
     }
   }, [open]);
@@ -137,10 +153,12 @@ export const AIModelSelector = ({
               style={{
                 position: 'fixed',
                 top: menuPosition.top,
-                left: menuPosition.left,
+                left: Math.max(menuPosition.left, 16),
+                right: 'auto',
                 zIndex: 99999,
+                maxWidth: 'calc(100vw - 2rem)',
               }}
-              className="w-[320px] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+              className="w-[320px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
             >
               {/* Execution Mode Toggle */}
               <div className="p-2 border-b border-border">

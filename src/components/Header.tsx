@@ -27,13 +27,27 @@ export const Header = () => {
     return email.substring(0, 2).toUpperCase();
   };
 
-  // Update menu position when opened
+  // Update menu position when opened with viewport-aware positioning
   useEffect(() => {
     if (profileMenuOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 256; // w-64 = 16rem = 256px
+      const padding = 16;
+      
+      // Calculate right position, ensure menu stays within viewport
+      let rightPos = window.innerWidth - rect.right;
+      
+      // If menu would overflow left side, adjust
+      if (rect.right - menuWidth < padding) {
+        rightPos = window.innerWidth - menuWidth - padding;
+      }
+      
+      // Ensure minimum padding from right edge
+      rightPos = Math.max(rightPos, padding);
+      
       setMenuPosition({
         top: rect.bottom + 8,
-        right: window.innerWidth - rect.right
+        right: rightPos
       });
     }
   }, [profileMenuOpen]);
@@ -142,11 +156,12 @@ export const Header = () => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="fixed w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden"
+                  className="fixed w-[calc(100vw-2rem)] sm:w-64 max-w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden"
                   style={{ 
                     transformOrigin: "top right",
                     top: menuPosition.top,
-                    right: menuPosition.right,
+                    right: Math.max(menuPosition.right, 16),
+                    left: 'auto',
                     zIndex: 99999
                   }}
               >

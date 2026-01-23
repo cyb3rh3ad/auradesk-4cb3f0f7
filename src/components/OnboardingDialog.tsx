@@ -107,7 +107,7 @@ export const OnboardingDialog = ({ open, onOpenChange }: OnboardingDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-border/50 bg-card">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg p-0 overflow-hidden border-border/50 bg-card">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}

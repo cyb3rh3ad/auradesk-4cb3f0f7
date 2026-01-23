@@ -2,9 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure all Radix popper content has high z-index */
+/* Ensure all Radix popper content has high z-index and respects viewport */
 [data-radix-popper-content-wrapper] {
   z-index: 99999 !important;
+  max-width: calc(100vw - 1rem) !important;
+  transform: none !important;
+}
+
+/* Ensure Radix dialog/alert overlays work on mobile */
+[data-radix-dialog-overlay],
+[data-radix-alert-dialog-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+}
+
+/* Safe area inset utilities for notched phones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-inset {
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 @layer base {

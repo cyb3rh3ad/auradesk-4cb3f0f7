@@ -41,7 +41,7 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose, isHost = false }:
 
   return (
     <Dialog open={open}>
-      <DialogContent className="p-0 border-none overflow-hidden max-w-5xl w-full h-[85vh] bg-background">
+      <DialogContent className="p-0 border-none overflow-hidden w-[calc(100vw-2rem)] max-w-5xl h-[85vh] max-h-[calc(100vh-2rem)] bg-background">
         <VisuallyHidden.Root>
           <DialogTitle>Team Call - {team.name}</DialogTitle>
         </VisuallyHidden.Root>
