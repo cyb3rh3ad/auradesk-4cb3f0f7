@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { SubscriptionPlan, ExecutionMode } from '@/lib/ai-models';
 import { getModelById } from '@/lib/ai-models';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const AI = () => {
   const [input, setInput] = useState('');
@@ -173,22 +172,19 @@ const AI = () => {
     },
   ];
 
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background relative overflow-hidden">
-      {/* Mobile backdrop - with AnimatePresence for proper cleanup */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden touch-none"
-            onClick={() => setSidebarOpen(false)}
-            onTouchEnd={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Mobile backdrop - CSS only, no framer-motion */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden touch-none animate-in fade-in duration-150"
+          onClick={closeSidebar}
+          onTouchEnd={closeSidebar}
+        />
+      )}
 
       {/* Sidebar */}
       <div className={cn(
@@ -215,14 +211,14 @@ const AI = () => {
               variant="ghost"
               size="icon"
               className="h-9 w-9 shrink-0 md:hidden"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={toggleSidebar}
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
               <div className="relative shrink-0">
-                <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25">
+                <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/25">
                   <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-emerald-500 border-2 border-background" />
@@ -257,169 +253,121 @@ const AI = () => {
         {/* Messages */}
         <ScrollArea className="flex-1" ref={scrollRef}>
           <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
-            <AnimatePresence mode="wait">
-              {!currentSessionId || messages.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="flex flex-col items-center justify-center min-h-[60vh] text-center"
-                >
-                  {/* Hero icon */}
-                  <div className="relative mb-8">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-purple-500/30 blur-3xl scale-150 opacity-50" />
-                    <motion.div
-                      animate={{ 
-                        scale: [1, 1.05, 1],
-                        rotate: [0, 5, -5, 0]
-                      }}
-                      transition={{ 
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                      className="relative h-20 w-20 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 flex items-center justify-center shadow-2xl shadow-primary/30"
-                    >
-                      <Sparkles className="h-10 w-10 text-primary-foreground" />
-                    </motion.div>
+            {!currentSessionId || messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in duration-300">
+                {/* Hero icon - static, no continuous animation */}
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-accent/30 blur-3xl scale-150 opacity-50" />
+                  <div className="relative h-20 w-20 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-accent flex items-center justify-center shadow-2xl shadow-primary/30">
+                    <Sparkles className="h-10 w-10 text-primary-foreground" />
                   </div>
-                  
-                  <h2 className="text-xl md:text-2xl font-semibold mb-2">How can I help you today?</h2>
-                  <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8 max-w-md px-4">
-                    I'm Aura, your AI assistant. Ask me anything or choose a suggestion below.
-                  </p>
-                  
-                  {/* Suggestion cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 w-full max-w-2xl px-2">
-                    {suggestionCards.map((card, index) => (
-                      <motion.button
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        onClick={() => setInput(card.prompt)}
-                        className="group p-3 md:p-4 rounded-xl border bg-card/50 hover:bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 text-left"
-                      >
-                        <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
-                          <card.icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                        </div>
-                        <p className="font-medium text-sm mb-0.5 md:mb-1">{card.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p>
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="space-y-6 pb-4 relative">
-                  {messages.map((message, index) => (
-                    <motion.div
-                      key={message.id || index}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={cn(
-                        "flex gap-3",
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      {message.role === 'assistant' && (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-600 shadow-md shadow-primary/20">
-                          <Sparkles className="h-4 w-4 text-primary-foreground" />
-                        </div>
-                      )}
-                      <div className={cn(
-                        "rounded-2xl px-4 py-3 max-w-[85%] shadow-sm",
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-muted/80 rounded-bl-md'
-                      )}>
-                        {message.content.includes('![Generated Image]') ? (
-                          <div className="space-y-2">
-                            {message.content.split('\n\n').map((part, i) => {
-                              const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);
-                              if (imgMatch) {
-                                return (
-                                  <img 
-                                    key={i}
-                                    src={imgMatch[1]} 
-                                    alt="Generated" 
-                                    className="rounded-lg max-w-full h-auto"
-                                  />
-                                );
-                              }
-                              return part ? <p key={i} className="text-sm whitespace-pre-wrap break-words leading-relaxed">{part}</p> : null;
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-                        )}
-                        <p className={cn(
-                          "text-[10px] mt-2 opacity-60",
-                          message.role === 'user' ? 'text-right' : 'text-left'
-                        )}>
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      {message.role === 'user' && (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent shadow-sm">
-                          <User className="h-4 w-4" />
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                  {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex gap-3 justify-start"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-600 shadow-md shadow-primary/20">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        >
-                          <Sparkles className="h-4 w-4 text-primary-foreground" />
-                        </motion.div>
-                      </div>
-                      <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-muted/80">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">Thinking</span>
-                          <div className="flex items-center gap-1">
-                            <motion.div
-                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
-                              transition={{ duration: 1.4, repeat: Infinity, delay: 0 }}
-                              className="h-1.5 w-1.5 rounded-full bg-primary"
-                            />
-                            <motion.div
-                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
-                              transition={{ duration: 1.4, repeat: Infinity, delay: 0.2 }}
-                              className="h-1.5 w-1.5 rounded-full bg-primary"
-                            />
-                            <motion.div
-                              animate={{ opacity: [0.4, 1, 0.4], scale: [0.8, 1, 0.8] }}
-                              transition={{ duration: 1.4, repeat: Infinity, delay: 0.4 }}
-                              className="h-1.5 w-1.5 rounded-full bg-primary"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                  {/* Streaming message animation */}
-                  {(isLoading || ollamaAI.isLoading) && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content && (
-                    <motion.div
-                      className="absolute bottom-2 right-4"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span>Generating...</span>
-                      </div>
-                    </motion.div>
-                  )}
                 </div>
-              )}
-            </AnimatePresence>
+                
+                <h2 className="text-xl md:text-2xl font-semibold mb-2">How can I help you today?</h2>
+                <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8 max-w-md px-4">
+                  I'm Aura, your AI assistant. Ask me anything or choose a suggestion below.
+                </p>
+                
+                {/* Suggestion cards - static */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 w-full max-w-2xl px-2">
+                  {suggestionCards.map((card, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setInput(card.prompt)}
+                      className="group p-3 md:p-4 rounded-xl border bg-card/50 hover:bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 text-left"
+                    >
+                      <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2 md:mb-3 group-hover:bg-primary/20 transition-colors">
+                        <card.icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+                      </div>
+                      <p className="font-medium text-sm mb-0.5 md:mb-1">{card.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 pb-4 relative">
+                {messages.map((message, index) => (
+                  <div
+                    key={message.id || index}
+                    className={cn(
+                      "flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200",
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20">
+                        <Sparkles className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                    )}
+                    <div className={cn(
+                      "rounded-2xl px-4 py-3 max-w-[85%] shadow-sm",
+                      message.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-md'
+                        : 'bg-muted/80 rounded-bl-md'
+                    )}>
+                      {message.content.includes('![Generated Image]') ? (
+                        <div className="space-y-2">
+                          {message.content.split('\n\n').map((part, i) => {
+                            const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);
+                            if (imgMatch) {
+                              return (
+                                <img 
+                                  key={i}
+                                  src={imgMatch[1]} 
+                                  alt="Generated" 
+                                  className="rounded-lg max-w-full h-auto"
+                                />
+                              );
+                            }
+                            return part ? <p key={i} className="text-sm whitespace-pre-wrap break-words leading-relaxed">{part}</p> : null;
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                      )}
+                      <p className={cn(
+                        "text-[10px] mt-2 opacity-60",
+                        message.role === 'user' ? 'text-right' : 'text-left'
+                      )}>
+                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    {message.role === 'user' && (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent shadow-sm">
+                        <User className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+                  <div className="flex gap-3 justify-start animate-in fade-in duration-200">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20">
+                      <Sparkles className="h-4 w-4 text-primary-foreground animate-pulse" />
+                    </div>
+                    <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-muted/80">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Thinking</span>
+                        <div className="flex items-center gap-1">
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse [animation-delay:200ms]" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse [animation-delay:400ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Streaming message indicator */}
+                {(isLoading || ollamaAI.isLoading) && messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content && (
+                  <div className="absolute bottom-2 right-4">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Generating...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </ScrollArea>
 

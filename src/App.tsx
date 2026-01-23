@@ -2,9 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, lazy, Suspense, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -133,37 +132,15 @@ const ThemeInit = () => {
 
 const queryClient = new QueryClient();
 
-const pageVariants = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 }
-};
-
-const pageTransition = {
-  type: "tween" as const,
-  ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
-  duration: 0.2
-};
-
-const PageTransition = ({ children }: { children: React.ReactNode }) => {
-  const location = useLocation();
-  
+// Simplified page transition - no AnimatePresence blocking to prevent freezing
+const PageTransition = memo(({ children }: { children: React.ReactNode }) => {
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={pageTransition}
-        className="w-full h-full gpu-accelerated"
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div className="w-full h-full">
+      {children}
+    </div>
   );
-};
+});
+PageTransition.displayName = 'PageTransition';
 
 // Layout wrapper component to use hooks
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
