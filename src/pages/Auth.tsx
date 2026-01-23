@@ -114,6 +114,13 @@ const InteractiveLogo = () => {
   );
 };
 
+// Detect if running as installed PWA (standalone mode)
+const isPWAInstalled = () => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isIOSStandalone = (navigator as any).standalone === true;
+  return isStandalone || isIOSStandalone;
+};
+
 const Auth = () => {
   const { signUp, signIn, signInWithGoogle, mfaRequired, mfaFactorId, clearMfaState, completeMfaVerification, user, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -121,6 +128,8 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const isElectron = isElectronApp();
+  const isPWA = isPWAInstalled();
+  const isStandaloneApp = isElectron || isPWA;
   
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -319,8 +328,8 @@ const Auth = () => {
       <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
       <div className="absolute bottom-20 right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
       
-      {/* Back button for web only - positioned above card on mobile */}
-      {!isElectron && (
+      {/* Back button for web only (not for Electron or installed PWA) */}
+      {!isStandaloneApp && (
         <div className="w-full max-w-md mb-2 sm:absolute sm:top-4 sm:left-4 sm:w-auto sm:mb-0 sm:z-10">
           <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
