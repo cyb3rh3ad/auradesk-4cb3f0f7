@@ -43,6 +43,12 @@ jobs:
       - name: Create production Capacitor config
         run: node scripts/create-capacitor-config.js
 
+      - name: Add Android platform if needed
+        run: |
+          if [ ! -d "android/capacitor-cordova-android-plugins" ]; then
+            echo "Android capacitor plugins folder missing, will be created by cap sync"
+          fi
+
       - name: Sync Capacitor with Android
         run: npx cap sync android
 
