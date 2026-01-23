@@ -13,7 +13,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ResponsiveSelect,
+  ResponsiveSelectContent,
+  ResponsiveSelectItem,
+  ResponsiveSelectTrigger,
+  ResponsiveSelectValue,
+} from '@/components/ui/responsive-select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, Video, Loader2, Clock, ExternalLink, Mic, MicOff, FileText, Users, Sparkles, Play, Zap } from 'lucide-react';
@@ -313,7 +319,8 @@ const Meetings = () => {
               <div className="space-y-3">
                 {pastMeetings.map((meeting) => {
                   const meetingDate = new Date(meeting.scheduled_at);
-                  const hasTranscript = meeting.transcript && meeting.transcript.length > 0;
+                  // Transcript feature - currently disabled until transcript column is added
+                  const hasTranscript = false;
 
                   return (
                     <Card key={meeting.id} className="group hover:shadow-md transition-all duration-200 border-border/50">
@@ -480,7 +487,7 @@ const Meetings = () => {
             </div>
             <div className="flex-1 overflow-hidden grid md:grid-cols-2 gap-0 md:gap-4 p-4">
               <TranscriptViewer meetingId={selectedMeetingId} />
-              <AIAssistant meetingId={selectedMeetingId} />
+              <AIAssistant />
             </div>
           </div>
         </div>
