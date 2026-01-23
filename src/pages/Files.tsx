@@ -5,7 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp, Search, X, ChevronDown, Check } from 'lucide-react';
+import { 
+  Upload, Download, Trash2, Loader2, HardDrive, FolderUp, Search, X,
+  FileText, FileImage, FileVideo, FileAudio, FileArchive, FileCode, 
+  FileSpreadsheet, Presentation, File, FileJson
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
@@ -169,6 +173,54 @@ const Files = () => {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  };
+
+  // Get file icon and color based on extension
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    
+    // Images
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'heic'].includes(ext)) {
+      return { Icon: FileImage, color: 'text-pink-500', bg: 'bg-pink-500/10' };
+    }
+    // Videos
+    if (['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext)) {
+      return { Icon: FileVideo, color: 'text-purple-500', bg: 'bg-purple-500/10' };
+    }
+    // Audio
+    if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'].includes(ext)) {
+      return { Icon: FileAudio, color: 'text-orange-500', bg: 'bg-orange-500/10' };
+    }
+    // Archives
+    if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
+      return { Icon: FileArchive, color: 'text-yellow-600', bg: 'bg-yellow-500/10' };
+    }
+    // Code
+    if (['js', 'ts', 'tsx', 'jsx', 'html', 'css', 'py', 'java', 'c', 'cpp', 'go', 'rs', 'php', 'rb', 'swift', 'kt'].includes(ext)) {
+      return { Icon: FileCode, color: 'text-green-500', bg: 'bg-green-500/10' };
+    }
+    // Spreadsheets
+    if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) {
+      return { Icon: FileSpreadsheet, color: 'text-emerald-600', bg: 'bg-emerald-500/10' };
+    }
+    // Presentations
+    if (['ppt', 'pptx', 'key', 'odp'].includes(ext)) {
+      return { Icon: Presentation, color: 'text-red-500', bg: 'bg-red-500/10' };
+    }
+    // JSON/Config
+    if (['json', 'yaml', 'yml', 'xml', 'toml'].includes(ext)) {
+      return { Icon: FileJson, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+    }
+    // PDFs
+    if (ext === 'pdf') {
+      return { Icon: FileText, color: 'text-red-600', bg: 'bg-red-500/10' };
+    }
+    // Documents
+    if (['doc', 'docx', 'txt', 'rtf', 'odt', 'md'].includes(ext)) {
+      return { Icon: FileText, color: 'text-blue-500', bg: 'bg-blue-500/10' };
+    }
+    // Default
+    return { Icon: File, color: 'text-muted-foreground', bg: 'bg-muted' };
   };
 
   if (loading) {
@@ -398,13 +450,15 @@ const Files = () => {
                 {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} found
               </p>
             )}
-            {filteredFiles.map((file) => (
+            {filteredFiles.map((file) => {
+              const { Icon: FileIcon, color, bg } = getFileIcon(file.name);
+              return (
               <Card key={file.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <FileText className="w-5 h-5 text-primary" />
+                      <div className={cn("p-2 rounded-lg", bg)}>
+                        <FileIcon className={cn("w-5 h-5", color)} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{file.name}</p>
@@ -436,7 +490,8 @@ const Files = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </ScrollArea>
