@@ -221,18 +221,15 @@ const Landing = () => {
                 onMouseEnter={() => setShowDownloadOptions(true)}
                 onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                {/* The unified button with pinch effect */}
+                {/* The unified button - fades as cells appear */}
                 <motion.div
                   className="absolute inset-0 flex items-center justify-center"
                   animate={{ 
                     opacity: showDownloadOptions ? 0 : 1,
-                    scaleX: showDownloadOptions ? 1.05 : 1,
-                    scaleY: showDownloadOptions ? 0.85 : 1,
                   }}
                   transition={{ 
-                    opacity: { duration: 0.5, ease: "easeInOut" },
-                    scaleX: { type: "spring", stiffness: 100, damping: 15 },
-                    scaleY: { type: "spring", stiffness: 100, damping: 15 },
+                    duration: 0.6,
+                    ease: "easeInOut",
                   }}
                   style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
@@ -246,33 +243,85 @@ const Landing = () => {
                   </Button>
                 </motion.div>
 
-                {/* The two split buttons - close together like daughter cells */}
+                {/* The dividing cell membrane - figure 8 shape */}
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  animate={{
+                    opacity: showDownloadOptions ? [0, 1, 1, 0] : 0,
+                  }}
+                  transition={{
+                    duration: 1.2,
+                    times: [0, 0.15, 0.7, 1],
+                    ease: "easeInOut",
+                  }}
+                >
+                  {/* Left bulge */}
+                  <motion.div
+                    className="absolute left-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-violet-600 via-purple-600 to-purple-500"
+                    animate={{
+                      x: showDownloadOptions ? [0, 0, -2] : 0,
+                      scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
+                      scaleY: showDownloadOptions ? [1, 1.05, 1] : 1,
+                    }}
+                    transition={{
+                      duration: 1,
+                      times: [0, 0.5, 1],
+                      ease: "easeInOut",
+                    }}
+                    style={{ originX: 1 }}
+                  />
+                  {/* Right bulge */}
+                  <motion.div
+                    className="absolute right-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-blue-600"
+                    animate={{
+                      x: showDownloadOptions ? [0, 0, 2] : 0,
+                      scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
+                      scaleY: showDownloadOptions ? [1, 1.05, 1] : 1,
+                    }}
+                    transition={{
+                      duration: 1,
+                      times: [0, 0.5, 1],
+                      ease: "easeInOut",
+                    }}
+                    style={{ originX: 0 }}
+                  />
+                  {/* Center bridge/pinch point */}
+                  <motion.div
+                    className="absolute left-1/2 -translate-x-1/2 h-10 bg-gradient-to-r from-purple-500 via-purple-600 to-purple-500 rounded-full"
+                    animate={{
+                      width: showDownloadOptions ? ["100px", "60px", "20px", "0px"] : "100px",
+                      opacity: showDownloadOptions ? [1, 1, 0.8, 0] : 1,
+                    }}
+                    transition={{
+                      duration: 1,
+                      times: [0, 0.3, 0.7, 1],
+                      ease: "easeInOut",
+                    }}
+                  />
+                </motion.div>
+
+                {/* The two daughter cells */}
                 <div className="relative flex items-center justify-center h-full w-full">
                   {/* Left cell - Windows */}
                   <motion.div
-                    className="absolute"
+                    className="absolute left-0"
                     animate={{ 
-                      x: showDownloadOptions ? -4 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scaleX: showDownloadOptions ? 1 : 0.6,
-                      scaleY: showDownloadOptions ? 1 : 0.9,
+                      scale: showDownloadOptions ? 1 : 0.9,
+                      x: showDownloadOptions ? -2 : 0,
                     }}
                     transition={{ 
-                      type: "spring",
-                      stiffness: 60,
-                      damping: 14,
-                      mass: 1.2,
+                      duration: 0.8,
+                      delay: showDownloadOptions ? 0.5 : 0,
+                      ease: [0.4, 0, 0.2, 1],
                     }}
-                    style={{ 
-                      pointerEvents: showDownloadOptions ? "auto" : "none",
-                      left: '0',
-                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
                     <a
                       href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[132px]"
+                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
                     >
                       <Monitor className="w-4 h-4 mr-2" />
                       Windows
@@ -281,27 +330,22 @@ const Landing = () => {
 
                   {/* Right cell - Mobile */}
                   <motion.div
-                    className="absolute"
+                    className="absolute right-0"
                     animate={{ 
-                      x: showDownloadOptions ? 4 : 0,
                       opacity: showDownloadOptions ? 1 : 0,
-                      scaleX: showDownloadOptions ? 1 : 0.6,
-                      scaleY: showDownloadOptions ? 1 : 0.9,
+                      scale: showDownloadOptions ? 1 : 0.9,
+                      x: showDownloadOptions ? 2 : 0,
                     }}
                     transition={{ 
-                      type: "spring",
-                      stiffness: 60,
-                      damping: 14,
-                      mass: 1.2,
+                      duration: 0.8,
+                      delay: showDownloadOptions ? 0.5 : 0,
+                      ease: [0.4, 0, 0.2, 1],
                     }}
-                    style={{ 
-                      pointerEvents: showDownloadOptions ? "auto" : "none",
-                      right: '0',
-                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
                     <Button
                       size="lg"
-                      className="text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-6 w-[132px]"
+                      className="text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-6 w-[136px]"
                       onClick={() => navigate("/install")}
                     >
                       <Smartphone className="w-4 h-4 mr-2" />
