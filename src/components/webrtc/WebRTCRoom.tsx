@@ -61,9 +61,11 @@ export function WebRTCRoom({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [speakingParticipants, setSpeakingParticipants] = useState<Set<string>>(new Set());
   const recognitionRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
+  const audioAnalysersRef = useRef<Map<string, { analyser: AnalyserNode; context: AudioContext }>>(new Map());
   const orientation = useOrientation();
   const isMobile = useIsMobile();
 
@@ -118,6 +120,87 @@ export function WebRTCRoom({
       toggleVideo(isCameraOff);
     }
   }, [localStream, isMuted, isCameraOff, toggleAudio, toggleVideo]);
+
+  // Audio level detection for speaking indicator
+  useEffect(() => {
+    const checkAudioLevels = () => {
+      const newSpeaking = new Set<string>();
+      
+      // Check local stream
+      if (localStream && !isMuted) {
+        const localId = user?.id || 'local';
+        let analyserData = audioAnalysersRef.current.get(localId);
+        
+        if (!analyserData) {
+          try {
+            const audioContext = new AudioContext();
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.5;
+            const source = audioContext.createMediaStreamSource(localStream);
+            source.connect(analyser);
+            analyserData = { analyser, context: audioContext };
+            audioAnalysersRef.current.set(localId, analyserData);
+          } catch (e) {
+            console.warn('Failed to create audio analyser for local stream:', e);
+          }
+        }
+        
+        if (analyserData) {
+          const dataArray = new Uint8Array(analyserData.analyser.frequencyBinCount);
+          analyserData.analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          if (average > 15) {
+            newSpeaking.add(localId);
+          }
+        }
+      }
+      
+      // Check remote streams
+      participants.forEach((participant, participantId) => {
+        if (participant.stream) {
+          let analyserData = audioAnalysersRef.current.get(participantId);
+          
+          if (!analyserData) {
+            try {
+              const audioContext = new AudioContext();
+              const analyser = audioContext.createAnalyser();
+              analyser.fftSize = 256;
+              analyser.smoothingTimeConstant = 0.5;
+              const source = audioContext.createMediaStreamSource(participant.stream);
+              source.connect(analyser);
+              analyserData = { analyser, context: audioContext };
+              audioAnalysersRef.current.set(participantId, analyserData);
+            } catch (e) {
+              console.warn('Failed to create audio analyser for remote stream:', e);
+            }
+          }
+          
+          if (analyserData) {
+            const dataArray = new Uint8Array(analyserData.analyser.frequencyBinCount);
+            analyserData.analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+            if (average > 15) {
+              newSpeaking.add(participantId);
+            }
+          }
+        }
+      });
+      
+      setSpeakingParticipants(newSpeaking);
+    };
+    
+    const intervalId = setInterval(checkAudioLevels, 100);
+    
+    return () => {
+      clearInterval(intervalId);
+      // Cleanup audio contexts
+      audioAnalysersRef.current.forEach(({ context }) => {
+        context.close().catch(() => {});
+      });
+      audioAnalysersRef.current.clear();
+    };
+  }, [localStream, participants, isMuted, user?.id]);
 
   const handleDisconnect = useCallback(() => {
     if (recognitionRef.current) {
@@ -396,16 +479,25 @@ export function WebRTCRoom({
           const hasVideo = hasVideoTrack && (participant.isLocal ? !isCameraOff : isVideoEnabled);
           const displayName = participant.isLocal ? "You" : participant.name;
 
+          const isSpeaking = speakingParticipants.has(participant.id);
+
           return (
             <div
               key={participant.id}
               className={cn(
-                "relative rounded-lg overflow-hidden bg-muted group transition-all duration-300 border border-border",
-                isMobile ? "rounded-md" : "rounded-xl border-2",
+                "relative rounded-lg overflow-hidden bg-muted group transition-all duration-200 border",
+                isMobile ? "rounded-md border-2" : "rounded-xl border-2",
                 getAspectRatioClass(!!hasVideo && !isCameraOff),
                 participant.isLocal && "order-first",
-                hasVideo && !isCameraOff && "shadow-lg"
+                hasVideo && !isCameraOff && "shadow-lg",
+                // Speaking indicator - theme-aware primary color border with glow
+                isSpeaking 
+                  ? "border-primary ring-2 ring-primary/40 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]" 
+                  : "border-border"
               )}
+              style={isSpeaking ? {
+                boxShadow: '0 0 20px hsl(var(--primary) / 0.35), 0 0 40px hsl(var(--primary) / 0.15)'
+              } : undefined}
             >
               {/* Video display */}
               {participant.stream && (
