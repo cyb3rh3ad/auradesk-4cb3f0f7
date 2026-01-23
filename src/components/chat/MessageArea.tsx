@@ -11,7 +11,7 @@ import { useCall } from '@/contexts/CallContext';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ChatOptionsMenu } from './ChatOptionsMenu';
-
+import { TypingIndicator } from './TypingIndicator';
 interface MessageAreaProps {
   messages: Message[];
   onSendMessage: (content: string) => void;
@@ -193,15 +193,19 @@ export const MessageArea = memo(({ messages, onSendMessage, conversationName, is
                         {formatMessageDate(new Date(firstMessage.created_at))}
                       </span>
                     </div>
-                    {group.messages.map((message: Message) => (
+                    {group.messages.map((message: Message, messageIndex: number) => (
                       <div
                         key={message.id}
                         className={cn(
-                          'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm',
+                          'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm animate-fade-in-up',
                           isOwn
                             ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
                             : 'bg-card border border-border/50 rounded-tl-md'
                         )}
+                        style={{ 
+                          animationDelay: `${messageIndex * 50}ms`,
+                          animationFillMode: 'both'
+                        }}
                       >
                         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
                       </div>
@@ -218,19 +222,7 @@ export const MessageArea = memo(({ messages, onSendMessage, conversationName, is
       <div className="border-t border-border/40 bg-card/30 shrink-0">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
-          <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <span className="font-medium text-foreground/70">
-                {typingUsers.map(u => u.username).join(', ')}
-              </span>
-              <span>is typing</span>
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-            </div>
-          </div>
+          <TypingIndicator users={typingUsers} />
         )}
         
         <form onSubmit={handleSubmit} className="p-3 md:p-4 flex gap-2 md:gap-3 items-center">

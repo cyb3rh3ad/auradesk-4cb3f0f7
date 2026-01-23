@@ -129,6 +129,10 @@ export default {
           "0%": { transform: "scaleX(0)" },
           "100%": { transform: "scaleX(1)" },
         },
+        "typing-dot": {
+          "0%, 60%, 100%": { transform: "translateY(0)", opacity: "0.4" },
+          "30%": { transform: "translateY(-4px)", opacity: "1" },
+        },
         "gradient": {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
@@ -144,6 +148,7 @@ export default {
         "bounce-subtle": "bounce-subtle 0.4s ease-in-out",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "indicator-slide": "indicator-slide 0.2s ease-out forwards",
+        "typing-dot": "typing-dot 1.4s ease-in-out infinite",
         "gradient": "gradient 3s ease infinite",
       },
     },

@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseFunctionsUrl } from '@/lib/supabase-config';
 
 // Check if we're on a native platform
 const isNative = Capacitor.isNativePlatform();
@@ -54,14 +55,12 @@ class PushNotificationService {
       // Listen for push notifications received
       PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
         console.log('Push notification received:', notification);
-        // Handle foreground notification - could show a toast or in-app alert
         this.handleForegroundNotification(notification);
       });
 
       // Listen for push notification actions
       PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
         console.log('Push notification action performed:', action);
-        // Handle notification tap - navigate to relevant screen
         this.handleNotificationAction(action);
       });
 
@@ -101,11 +100,9 @@ class PushNotificationService {
   }
 
   private handleForegroundNotification(notification: PushNotificationSchema): void {
-    // Create a custom in-app notification or toast
-    // For now, just log it - you can integrate with your toast system
     console.log('Foreground notification:', notification.title, notification.body);
     
-    // Optional: Show a toast notification
+    // Show in-app toast notification
     if (typeof window !== 'undefined' && (window as any).showToast) {
       (window as any).showToast({
         title: notification.title || 'Notification',
@@ -116,16 +113,58 @@ class PushNotificationService {
 
   private handleNotificationAction(action: ActionPerformed): void {
     const data = action.notification.data;
+    const actionId = action.actionId;
     
+    console.log('Notification action:', actionId, 'data:', data);
+
+    // Handle quick reply action
+    if (actionId === 'reply' && data?.conversationId) {
+      const replyText = (action as any).inputValue;
+      if (replyText) {
+        this.sendQuickReply(data.conversationId, replyText);
+        return;
+      }
+    }
+
+    // Handle call accept/decline
+    if (actionId === 'accept_call' && data?.callId) {
+      window.location.href = `/chat?call=${data.callId}`;
+      return;
+    }
+
+    if (actionId === 'decline_call' && data?.callId) {
+      // Just dismiss the notification
+      return;
+    }
+
     // Navigate based on notification data
-    if (data?.type === 'message') {
+    if (data?.type === 'message' && data?.conversationId) {
       window.location.href = `/chat?conversation=${data.conversationId}`;
-    } else if (data?.type === 'meeting') {
+    } else if (data?.type === 'call' && data?.callId) {
+      window.location.href = `/chat?call=${data.callId}`;
+    } else if (data?.type === 'meeting' && data?.meetingId) {
       window.location.href = `/meetings?room=${data.meetingId}`;
     } else if (data?.type === 'team') {
       window.location.href = `/teams`;
     } else if (data?.type === 'help_request') {
       window.location.href = `/dashboard`;
+    }
+  }
+
+  private async sendQuickReply(conversationId: string, message: string): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: message,
+      });
+
+      console.log('Quick reply sent successfully');
+    } catch (error) {
+      console.error('Error sending quick reply:', error);
     }
   }
 
@@ -155,6 +194,94 @@ class PushNotificationService {
 
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  // Send push notification to a user
+  async sendNotification(payload: {
+    userId?: string;
+    userIds?: string[];
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  }): Promise<void> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No session, cannot send push notification');
+        return;
+      }
+
+      const response = await fetch(`${getSupabaseFunctionsUrl()}/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to send push notification:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+    }
+  }
+
+  // Helper methods for specific notification types
+  async sendMessageNotification(
+    recipientUserId: string,
+    senderName: string,
+    message: string,
+    conversationId: string
+  ): Promise<void> {
+    await this.sendNotification({
+      userId: recipientUserId,
+      title: senderName,
+      body: message.length > 100 ? message.substring(0, 100) + '...' : message,
+      data: {
+        type: 'message',
+        conversationId,
+        senderId: (await supabase.auth.getUser()).data.user?.id || '',
+      },
+    });
+  }
+
+  async sendCallNotification(
+    recipientUserId: string,
+    callerName: string,
+    callId: string,
+    isVideo: boolean
+  ): Promise<void> {
+    await this.sendNotification({
+      userId: recipientUserId,
+      title: `Incoming ${isVideo ? 'Video' : 'Voice'} Call`,
+      body: `${callerName} is calling you`,
+      data: {
+        type: 'call',
+        callId,
+        callerName,
+        isVideo: isVideo.toString(),
+      },
+    });
+  }
+
+  async sendTeamCallNotification(
+    recipientUserIds: string[],
+    callerName: string,
+    teamName: string,
+    channelId: string
+  ): Promise<void> {
+    await this.sendNotification({
+      userIds: recipientUserIds,
+      title: `${teamName}`,
+      body: `${callerName} started a voice chat`,
+      data: {
+        type: 'team_call',
+        channelId,
+        teamName,
+      },
+    });
   }
 }
 
