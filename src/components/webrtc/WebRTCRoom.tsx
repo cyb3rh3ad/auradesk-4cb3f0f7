@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, Loader2, Wifi, WifiOff, Radio, Server
+  Sparkles, Loader2, Radio, Server
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
@@ -13,6 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCallSettings } from "@/hooks/useCallSettings";
+import { ParticipantControls } from "@/components/call/ParticipantControls";
+import { InCallSettings } from "@/components/call/InCallSettings";
+import { EndCallDialog } from "@/components/call/EndCallDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -66,12 +70,23 @@ export function WebRTCRoom({
   const [transcript, setTranscript] = useState("");
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [speakingParticipants, setSpeakingParticipants] = useState<Set<string>>(new Set());
+  const [showEndCallDialog, setShowEndCallDialog] = useState(false);
   const recognitionRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
   const audioAnalysersRef = useRef<Map<string, { analyser: AnalyserNode; context: AudioContext }>>(new Map());
+  const participantAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const orientation = useOrientation();
   const isMobile = useIsMobile();
+  
+  // Call settings hook
+  const { 
+    settings: callSettings, 
+    saveSettings: saveCallSettings,
+    getParticipantVolume,
+    setParticipantVolume,
+    resetParticipantVolume,
+  } = useCallSettings();
 
   // Set up real-time channel for call control events
   useEffect(() => {
@@ -87,6 +102,36 @@ export function WebRTCRoom({
         });
         handleDisconnect();
       })
+      .on('broadcast', { event: 'participant-kicked' }, ({ payload }) => {
+        if (payload.participantId === user?.id) {
+          toast({
+            title: "Removed from Call",
+            description: "The host has removed you from this call",
+            variant: "destructive",
+          });
+          handleDisconnect();
+        }
+      })
+      .on('broadcast', { event: 'force-mute' }, ({ payload }) => {
+        if (payload.participantId === user?.id) {
+          setIsMuted(true);
+          toggleAudio(true);
+          toast({
+            title: "Muted by Host",
+            description: "The host has muted your microphone",
+          });
+        }
+      })
+      .on('broadcast', { event: 'force-camera-off' }, ({ payload }) => {
+        if (payload.participantId === user?.id) {
+          setIsCameraOff(true);
+          toggleVideo(true);
+          toast({
+            title: "Camera Disabled",
+            description: "The host has turned off your camera",
+          });
+        }
+      })
       .subscribe();
 
     channelRef.current = channel;
@@ -94,7 +139,7 @@ export function WebRTCRoom({
     return () => {
       channel.unsubscribe();
     };
-  }, [roomName]);
+  }, [roomName, user?.id, toggleAudio, toggleVideo]);
 
   // Connect on mount
   useEffect(() => {
@@ -225,6 +270,64 @@ export function WebRTCRoom({
     }
     handleDisconnect();
   }, [isHost, handleDisconnect]);
+
+  // Handle end call button - show dialog for hosts with multiple participants
+  const handleEndCallClick = useCallback(() => {
+    const participantCount = 1 + participants.size; // local + remote
+    if (isHost && participantCount > 2) {
+      setShowEndCallDialog(true);
+    } else {
+      handleDisconnect();
+    }
+  }, [isHost, participants.size, handleDisconnect]);
+
+  // Host control: kick participant
+  const kickParticipant = useCallback(async (participantId: string) => {
+    if (!isHost || !channelRef.current) return;
+    
+    await channelRef.current.send({
+      type: 'broadcast',
+      event: 'participant-kicked',
+      payload: { participantId },
+    });
+    
+    toast({
+      title: "Participant Removed",
+      description: "The participant has been removed from the call",
+    });
+  }, [isHost, toast]);
+
+  // Host control: mute participant
+  const muteParticipant = useCallback(async (participantId: string) => {
+    if (!isHost || !channelRef.current) return;
+    
+    await channelRef.current.send({
+      type: 'broadcast',
+      event: 'force-mute',
+      payload: { participantId },
+    });
+    
+    toast({
+      title: "Participant Muted",
+      description: "The participant has been muted",
+    });
+  }, [isHost, toast]);
+
+  // Host control: disable participant camera
+  const disableParticipantCamera = useCallback(async (participantId: string) => {
+    if (!isHost || !channelRef.current) return;
+    
+    await channelRef.current.send({
+      type: 'broadcast',
+      event: 'force-camera-off',
+      payload: { participantId },
+    });
+    
+    toast({
+      title: "Camera Disabled",
+      description: "The participant's camera has been turned off",
+    });
+  }, [isHost, toast]);
 
   const handleToggleMute = () => {
     const newMuted = !isMuted;
@@ -704,27 +807,33 @@ export function WebRTCRoom({
           </Button>
         )}
 
-        {isHost ? (
-          <Button 
-            onClick={handleEndCallForAll} 
-            variant="destructive" 
-            size="icon" 
-            title="End call for all"
-            className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
-          >
-            <PhoneOff className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button 
-            onClick={handleDisconnect} 
-            variant="destructive" 
-            size="icon"
-            className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
-          >
-            <PhoneOff className="h-5 w-5" />
-          </Button>
-        )}
+        {/* In-call settings */}
+        <InCallSettings
+          settings={callSettings}
+          onSettingsChange={saveCallSettings}
+          isMobile={isMobile}
+        />
+
+        {/* End call button */}
+        <Button 
+          onClick={handleEndCallClick} 
+          variant="destructive" 
+          size="icon"
+          className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
+        >
+          <PhoneOff className="h-5 w-5" />
+        </Button>
       </div>
+
+      {/* End call dialog for hosts */}
+      <EndCallDialog
+        open={showEndCallDialog}
+        onClose={() => setShowEndCallDialog(false)}
+        onEndForSelf={handleDisconnect}
+        onEndForEveryone={handleEndCallForAll}
+        isHost={isHost}
+        participantCount={1 + participants.size}
+      />
     </div>
   );
 }
