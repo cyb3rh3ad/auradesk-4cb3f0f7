@@ -11,7 +11,7 @@ import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
 import { AIModelSelector } from '@/components/ai/AIModelSelector';
 import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { SubscriptionPlan, ExecutionMode } from '@/lib/ai-models';
 import { getModelById } from '@/lib/ai-models';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,6 +39,12 @@ const AI = () => {
   const { plan } = useSubscription();
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Close sidebar when route changes to prevent frozen UI
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   // Close sidebar when selecting a session on mobile
   const handleSelectSession = (id: string) => {
@@ -169,13 +175,20 @@ const AI = () => {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background relative overflow-hidden">
-      {/* Mobile backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Mobile backdrop - with AnimatePresence for proper cleanup */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden touch-none"
+            onClick={() => setSidebarOpen(false)}
+            onTouchEnd={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar */}
       <div className={cn(
