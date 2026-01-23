@@ -98,7 +98,7 @@ export const useFiles = (bucket: string = 'user-files') => {
     fetchFiles();
   }, [user, bucket]);
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File, relativePath?: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -113,7 +113,12 @@ export const useFiles = (bucket: string = 'user-files') => {
         return false;
       }
 
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      // Use relative path for folder uploads, otherwise just the filename
+      const fileName = relativePath || file.name;
+      // Sanitize the path to avoid issues with special characters
+      const sanitizedName = fileName.replace(/[^\w\s\-_.\/]/g, '_');
+      const filePath = `${user.id}/${Date.now()}-${sanitizedName}`;
+      
       const { error } = await supabase.storage
         .from(bucket)
         .upload(filePath, file);
@@ -137,22 +142,70 @@ export const useFiles = (bucket: string = 'user-files') => {
         usedGB: newUsedBytes / (1024 * 1024 * 1024),
       }));
 
-      toast({
-        title: 'Success',
-        description: 'File uploaded successfully',
-      });
-
-      fetchFiles();
       return true;
     } catch (error: any) {
       console.error('Error uploading file:', error);
+      throw error;
+    }
+  };
+
+  // Upload multiple files with progress tracking
+  const uploadFiles = async (
+    files: FileList | File[], 
+    onProgress?: (current: number, total: number, fileName: string) => void
+  ): Promise<{ success: number; failed: number }> => {
+    if (!user) return { success: 0, failed: 0 };
+
+    const fileArray = Array.from(files);
+    let success = 0;
+    let failed = 0;
+    
+    // Calculate total size to check storage limit upfront
+    const totalSize = fileArray.reduce((acc, file) => acc + file.size, 0);
+    const totalSizeGB = totalSize / (1024 * 1024 * 1024);
+    
+    if (storageUsage.usedGB + totalSizeGB > storageUsage.limitGB) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to upload file',
+        title: 'Storage limit exceeded',
+        description: `These files would exceed your ${storageUsage.limitGB}GB storage limit. Upgrade your plan for more storage.`,
         variant: 'destructive',
       });
-      return false;
+      return { success: 0, failed: fileArray.length };
     }
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      // Get the relative path for folder uploads (webkitRelativePath is set when using directory upload)
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      
+      onProgress?.(i + 1, fileArray.length, file.name);
+      
+      try {
+        await uploadFile(file, relativePath);
+        success++;
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        failed++;
+      }
+    }
+
+    // Refresh file list after all uploads
+    await fetchFiles();
+
+    if (success > 0) {
+      toast({
+        title: 'Upload Complete',
+        description: `Successfully uploaded ${success} file${success > 1 ? 's' : ''}${failed > 0 ? `, ${failed} failed` : ''}`,
+      });
+    } else if (failed > 0) {
+      toast({
+        title: 'Upload Failed',
+        description: `Failed to upload ${failed} file${failed > 1 ? 's' : ''}`,
+        variant: 'destructive',
+      });
+    }
+
+    return { success, failed };
   };
 
   const downloadFile = async (fileName: string) => {
@@ -231,6 +284,7 @@ export const useFiles = (bucket: string = 'user-files') => {
     loading,
     storageUsage,
     uploadFile,
+    uploadFiles,
     downloadFile,
     deleteFile,
     refetch: fetchFiles,

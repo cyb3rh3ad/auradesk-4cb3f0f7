@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive } from 'lucide-react';
+import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
@@ -13,25 +13,38 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 const Files = () => {
   const isMobile = useIsMobile();
-  const { files, loading, storageUsage, uploadFile, downloadFile, deleteFile, refetch } = useFiles();
+  const { files, loading, storageUsage, uploadFiles, downloadFile, deleteFile, refetch } = useFiles();
   const [deleteFileData, setDeleteFileData] = useState<{ name: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleRefresh = async () => {
     await refetch();
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
 
     setUploading(true);
-    await uploadFile(selectedFile);
+    setUploadProgress({ current: 0, total: selectedFiles.length, fileName: '' });
+    
+    await uploadFiles(selectedFiles, (current, total, fileName) => {
+      setUploadProgress({ current, total, fileName });
+    });
+    
     setUploading(false);
+    setUploadProgress(null);
+    
+    // Reset the input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
     }
   };
 
@@ -46,7 +59,8 @@ const Files = () => {
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   };
 
   if (loading) {
@@ -66,15 +80,50 @@ const Files = () => {
           <h2 className="text-2xl md:text-3xl font-bold">Cloud Storage</h2>
           <p className="text-sm md:text-base text-muted-foreground">Store and manage your files securely</p>
         </div>
-        <div>
+        <div className="flex gap-2">
+          {/* Hidden file inputs */}
           <input
             ref={fileInputRef}
             type="file"
             onChange={handleFileSelect}
             className="hidden"
-            accept="*/*"
+            multiple
           />
-          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          <input
+            ref={folderInputRef}
+            type="file"
+            onChange={handleFileSelect}
+            className="hidden"
+            // @ts-ignore - webkitdirectory is a non-standard attribute
+            webkitdirectory=""
+            directory=""
+            multiple
+          />
+          
+          {/* Upload Files Button */}
+          <Button 
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={uploading}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {uploadProgress ? `${uploadProgress.current}/${uploadProgress.total}` : 'Uploading...'}
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Files
+              </>
+            )}
+          </Button>
+          
+          {/* Upload Folder Button */}
+          <Button 
+            onClick={() => folderInputRef.current?.click()} 
+            disabled={uploading}
+          >
             {uploading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -82,13 +131,32 @@ const Files = () => {
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload File
+                <FolderUp className="w-4 h-4 mr-2" />
+                Upload Folder
               </>
             )}
           </Button>
         </div>
       </div>
+
+      {/* Upload Progress Indicator */}
+      {uploading && uploadProgress && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground truncate flex-1 mr-4">
+                  Uploading: {uploadProgress.fileName}
+                </span>
+                <span className="font-medium shrink-0">
+                  {uploadProgress.current} / {uploadProgress.total}
+                </span>
+              </div>
+              <Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Storage Usage Card */}
       <Card>
