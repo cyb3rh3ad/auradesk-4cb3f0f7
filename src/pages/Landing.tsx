@@ -221,53 +221,21 @@ const Landing = () => {
                 onMouseEnter={() => setShowDownloadOptions(true)}
                 onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                {/* The unified cell that pinches and splits */}
+                {/* The unified button that fades out */}
                 <motion.div
-                  className="absolute inset-0 rounded-full overflow-hidden"
-                  animate={{
-                    scaleX: showDownloadOptions ? [1, 1.06, 0.85, 0] : 1,
-                    scaleY: showDownloadOptions ? [1, 0.94, 0.7, 0] : 1,
-                    opacity: showDownloadOptions ? [1, 1, 1, 0] : 1,
-                  }}
-                  transition={{
-                    duration: 0.5,
-                    times: [0, 0.2, 0.6, 1],
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 shadow-lg shadow-violet-500/30" />
-                  {/* Pinch overlay - darkens the center during pinch */}
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-black/30 to-transparent"
-                    animate={{
-                      opacity: showDownloadOptions ? [0, 0, 0.4, 0] : 0,
-                    }}
-                    transition={{
-                      duration: 0.5,
-                      times: [0, 0.2, 0.5, 1],
-                      ease: "easeInOut",
-                    }}
-                  />
-                </motion.div>
-
-                {/* The unified button content */}
-                <motion.div
-                  className="absolute inset-0 flex items-center justify-center z-10"
+                  className="absolute inset-0 flex items-center justify-center"
                   animate={{ 
-                    opacity: showDownloadOptions ? [1, 1, 0] : 1,
-                    scaleX: showDownloadOptions ? [1, 1.04, 0.8] : 1,
-                    scaleY: showDownloadOptions ? [1, 0.96, 0.75] : 1,
+                    opacity: showDownloadOptions ? 0 : 1,
                   }}
                   transition={{ 
                     duration: 0.4,
-                    times: [0, 0.3, 1],
-                    ease: [0.4, 0, 0.2, 1],
+                    ease: "easeInOut",
                   }}
                   style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
                   <Button
                     size="lg"
-                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full transition-shadow duration-300 shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
+                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
                     onClick={() => setShowDownloadOptions(true)}
                   >
                     <Download className="w-5 h-5 mr-2" />
@@ -275,86 +243,57 @@ const Landing = () => {
                   </Button>
                 </motion.div>
 
-                {/* The splitting cells container */}
-                <div className="relative flex items-center justify-center h-full w-full">
-                  {/* Left cell - Windows (starts purple, already purple) */}
+                {/* The two split buttons */}
+                <div className="relative flex items-center justify-center h-full w-full gap-2">
+                  {/* Left cell - Windows */}
                   <motion.div
-                    className="absolute"
                     animate={{ 
-                      x: showDownloadOptions ? [0, 0, -70] : 0,
-                      opacity: showDownloadOptions ? [0, 1, 1] : 0,
-                      scaleX: showDownloadOptions ? [0.5, 0.6, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [0.7, 0.85, 1] : 0.7,
-                      rotate: showDownloadOptions ? [0, -2, 1, -0.5, 0] : 0,
+                      x: showDownloadOptions ? -68 : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? 1 : 0.8,
                     }}
                     transition={{ 
-                      x: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      opacity: { duration: 0.3, times: [0, 0.5, 1] },
-                      scaleX: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      scaleY: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      rotate: { duration: 0.8, times: [0, 0.3, 0.5, 0.7, 1], ease: "easeOut" },
+                      type: "spring",
+                      stiffness: 50,
+                      damping: 12,
+                      mass: 1,
                     }}
-                    style={{ 
-                      pointerEvents: showDownloadOptions ? "auto" : "none",
-                      originX: 0.5,
-                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
                     <a
                       href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-200 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[132px]"
+                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[132px]"
                     >
                       <Monitor className="w-4 h-4 mr-2" />
                       Windows
                     </a>
                   </motion.div>
 
-                  {/* Right cell - Mobile (transitions to green) */}
+                  {/* Right cell - Mobile */}
                   <motion.div
-                    className="absolute"
                     animate={{ 
-                      x: showDownloadOptions ? [0, 0, 70] : 0,
-                      opacity: showDownloadOptions ? [0, 1, 1] : 0,
-                      scaleX: showDownloadOptions ? [0.5, 0.6, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [0.7, 0.85, 1] : 0.7,
-                      rotate: showDownloadOptions ? [0, 2, -1, 0.5, 0] : 0,
+                      x: showDownloadOptions ? 68 : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? 1 : 0.8,
                     }}
                     transition={{ 
-                      x: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      opacity: { duration: 0.3, times: [0, 0.5, 1] },
-                      scaleX: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      scaleY: { duration: 0.6, times: [0, 0.4, 1], ease: [0.4, 0, 0.2, 1] },
-                      rotate: { duration: 0.8, times: [0, 0.3, 0.5, 0.7, 1], ease: "easeOut" },
+                      type: "spring",
+                      stiffness: 50,
+                      damping: 12,
+                      mass: 1,
                     }}
-                    style={{ 
-                      pointerEvents: showDownloadOptions ? "auto" : "none",
-                      originX: 0.5,
-                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
-                    <motion.div
-                      animate={{
-                        background: showDownloadOptions 
-                          ? ["linear-gradient(to right, rgb(124, 58, 237), rgb(147, 51, 234), rgb(79, 70, 229))",
-                             "linear-gradient(to right, rgb(5, 150, 105), rgb(22, 163, 74), rgb(20, 184, 166))"]
-                          : "linear-gradient(to right, rgb(124, 58, 237), rgb(147, 51, 234), rgb(79, 70, 229))",
-                      }}
-                      transition={{
-                        duration: 0.5,
-                        delay: 0.2,
-                        ease: "easeInOut",
-                      }}
-                      className="rounded-full"
+                    <Button
+                      size="lg"
+                      className="text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-6 w-[132px]"
+                      onClick={() => navigate("/install")}
                     >
-                      <Button
-                        size="lg"
-                        className="text-base font-medium bg-transparent hover:bg-white/10 text-white rounded-full transition-all duration-200 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-6 w-[132px]"
-                        onClick={() => navigate("/install")}
-                      >
-                        <Smartphone className="w-4 h-4 mr-2" />
-                        Mobile
-                      </Button>
-                    </motion.div>
+                      <Smartphone className="w-4 h-4 mr-2" />
+                      Mobile
+                    </Button>
                   </motion.div>
                 </div>
               </div>
