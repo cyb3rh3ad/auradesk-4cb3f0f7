@@ -5,8 +5,27 @@
 /* Ensure all Radix popper content has high z-index and respects viewport */
 [data-radix-popper-content-wrapper] {
   z-index: 99999 !important;
-  max-width: calc(100vw - 1rem) !important;
-  transform: none !important;
+  max-width: calc(100vw - 2rem) !important;
+  /* Allow Radix to manage transform for positioning - only override width constraints */
+  box-sizing: border-box !important;
+}
+
+/* Force popper content to stay within viewport on mobile */
+@media (max-width: 640px) {
+  [data-radix-popper-content-wrapper] {
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+  
+  /* Dropdown menus and popovers need special handling */
+  [data-radix-popper-content-wrapper] > [role="menu"],
+  [data-radix-popper-content-wrapper] > [role="listbox"],
+  [data-radix-popper-content-wrapper] > div {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 }
 
 /* Ensure Radix dialog/alert overlays work on mobile */
