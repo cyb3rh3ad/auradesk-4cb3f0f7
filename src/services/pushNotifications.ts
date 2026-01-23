@@ -52,7 +52,7 @@ class PushNotificationService {
         console.error('Push registration error:', error);
       });
 
-      // Listen for push notifications received
+      // Listen for push notifications received (foreground)
       PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
         console.log('Push notification received:', notification);
         this.handleForegroundNotification(notification);
@@ -66,8 +66,46 @@ class PushNotificationService {
 
       this.initialized = true;
       console.log('Push notifications initialized');
+      
+      // Create notification channels for Android (important for background notifications)
+      this.createNotificationChannels();
     } catch (error) {
       console.error('Error initializing push notifications:', error);
+    }
+  }
+
+  private async createNotificationChannels(): Promise<void> {
+    try {
+      // Import LocalNotifications for creating channels
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      
+      // Create high-priority call channel
+      await LocalNotifications.createChannel({
+        id: 'calls',
+        name: 'Incoming Calls',
+        description: 'Notifications for incoming voice and video calls',
+        importance: 5, // Max importance for heads-up notifications
+        visibility: 1, // Public visibility
+        sound: 'ringtone.wav',
+        vibration: true,
+        lights: true,
+        lightColor: '#9b87f5',
+      });
+
+      // Create messages channel
+      await LocalNotifications.createChannel({
+        id: 'messages',
+        name: 'Messages',
+        description: 'Notifications for new messages',
+        importance: 4, // High importance
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+      });
+
+      console.log('Notification channels created');
+    } catch (error) {
+      console.warn('Could not create notification channels:', error);
     }
   }
 
@@ -99,10 +137,28 @@ class PushNotificationService {
     }
   }
 
-  private handleForegroundNotification(notification: PushNotificationSchema): void {
+  private async handleForegroundNotification(notification: PushNotificationSchema): Promise<void> {
     console.log('Foreground notification:', notification.title, notification.body);
     
-    // Show in-app toast notification
+    const data = notification.data as Record<string, string> | undefined;
+    const notificationType = data?.type;
+    
+    // For call notifications in foreground, trigger the in-app call UI
+    if (notificationType === 'call') {
+      // The CallContext will handle showing the incoming call dialog
+      // Dispatch a custom event that CallContext listens for
+      window.dispatchEvent(new CustomEvent('incoming-call-notification', {
+        detail: {
+          conversationId: data?.conversationId,
+          conversationName: data?.conversationName,
+          callerName: data?.notificationBody?.replace(' is calling you', '') || 'Unknown',
+          isVideo: data?.isVideo === 'true',
+        }
+      }));
+      return;
+    }
+    
+    // Show in-app toast notification for other types
     if (typeof window !== 'undefined' && (window as any).showToast) {
       (window as any).showToast({
         title: notification.title || 'Notification',

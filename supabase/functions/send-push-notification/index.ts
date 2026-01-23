@@ -135,35 +135,64 @@ async function sendFcmNotification(
     );
   }
 
+  // For calls, we need to send a high-priority data message that can wake the device
+  // and display a full-screen intent notification
+  const isCall = notificationType === 'call';
+  
   const message: Record<string, unknown> = {
     message: {
       token: deviceToken,
-      notification: {
-        title,
-        body,
+      // For calls, use data-only message to ensure delivery when app is killed
+      // The app must handle displaying the notification
+      ...(isCall ? {} : {
+        notification: {
+          title,
+          body,
+        },
+      }),
+      data: {
+        ...(data || {}),
+        // Include notification data for the app to display
+        notificationTitle: title,
+        notificationBody: body,
+        // Timestamp for call timeout handling
+        timestamp: Date.now().toString(),
       },
-      data: data || {},
       android: {
         priority: "high",
-        notification: {
-          sound: "default",
-          click_action: "FLUTTER_NOTIFICATION_CLICK",
-          channel_id: notificationType === 'call' ? 'calls' : 'messages',
-        },
+        // Time-to-live: for calls, only 60 seconds (calls don't last forever)
+        ttl: isCall ? "60s" : "86400s",
+        ...(isCall ? {
+          // For calls: data-only message with full screen intent
+          direct_boot_ok: true,
+        } : {
+          notification: {
+            sound: "default",
+            click_action: "FLUTTER_NOTIFICATION_CLICK", 
+            channel_id: 'messages',
+          },
+        }),
       },
       apns: {
         payload: {
           aps: {
-            sound: notificationType === 'call' ? 'ringtone.caf' : 'default',
+            sound: isCall ? { critical: 1, name: 'default', volume: 1.0 } : 'default',
             badge: 1,
             category: apnsCategory,
             'mutable-content': 1,
             'content-available': 1,
+            // For calls, use interruption-level critical
+            ...(isCall ? { 'interruption-level': 'critical' } : {}),
           },
         },
         headers: {
-          'apns-priority': notificationType === 'call' ? '10' : '5',
+          'apns-priority': '10',
+          'apns-push-type': isCall ? 'voip' : 'alert',
         },
+      },
+      // FCM options for high priority
+      fcm_options: {
+        analytics_label: notificationType,
       },
     },
   };
