@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger(),
       VitePWA({
         registerType: "autoUpdate",
-        includeAssets: ["favicon.png", "icon.png"],
+        includeAssets: ["favicon.png", "icon.png", "favicon.ico"],
         manifest: {
           name: "AuraDesk",
           short_name: "AuraDesk",
@@ -27,18 +27,26 @@ export default defineConfig(({ mode }) => {
           background_color: "#0f0f1a",
           display: "standalone",
           orientation: "portrait",
-          start_url: "/",
+          start_url: "./",
+          scope: "./",
           icons: [
             {
               src: "icon.png",
               sizes: "512x512",
               type: "image/png",
-              purpose: "any maskable"
+              purpose: "any"
+            },
+            {
+              src: "icon.png",
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "maskable"
             },
             {
               src: "favicon.png",
               sizes: "192x192",
-              type: "image/png"
+              type: "image/png",
+              purpose: "any"
             }
           ]
         },
