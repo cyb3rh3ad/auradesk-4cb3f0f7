@@ -224,7 +224,7 @@ const Landing = () => {
 
               {/* Android Download */}
               <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases?q=android&expanded=true"
+                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 px-8 py-4 w-full sm:w-auto"
@@ -457,7 +457,7 @@ const Landing = () => {
               </a>
               {/* Android Download */}
               <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases?q=android&expanded=true"
+                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg px-8 py-4"
