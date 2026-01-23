@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp, Search, X } from 'lucide-react';
+import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp, Search, X, ChevronDown, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 
 const Files = () => {
   const isMobile = useIsMobile();
@@ -22,6 +23,7 @@ const Files = () => {
   const [deleting, setDeleting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
@@ -234,10 +236,9 @@ const Files = () => {
             multiple
           />
           
-          {/* Upload Files Button */}
+          {/* Single Upload Button that opens drawer */}
           <Button 
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()} 
+            onClick={() => setUploadMenuOpen(true)}
             disabled={uploading}
           >
             {uploading ? (
@@ -248,28 +249,47 @@ const Files = () => {
             ) : (
               <>
                 <Upload className="w-4 h-4 mr-2" />
-                Upload Files
+                Upload
               </>
             )}
           </Button>
-          
-          {/* Upload Folder Button */}
-          <Button 
-            onClick={() => folderInputRef.current?.click()} 
-            disabled={uploading}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <FolderUp className="w-4 h-4 mr-2" />
-                Upload Folder
-              </>
-            )}
-          </Button>
+
+          {/* Upload Options Drawer */}
+          <Drawer open={uploadMenuOpen} onOpenChange={setUploadMenuOpen}>
+            <DrawerContent className={cn(!isMobile && "mx-auto max-w-lg")}>
+              <DrawerHeader className="border-b border-border">
+                <DrawerTitle>Upload</DrawerTitle>
+              </DrawerHeader>
+              <div className="py-2">
+                <button
+                  onClick={() => {
+                    setUploadMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent/50 active:bg-accent"
+                >
+                  <Upload className="w-5 h-5 text-primary" />
+                  <div>
+                    <span className="text-base font-medium">Upload Files</span>
+                    <p className="text-sm text-muted-foreground">Select one or more files</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadMenuOpen(false);
+                    folderInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent/50 active:bg-accent"
+                >
+                  <FolderUp className="w-5 h-5 text-primary" />
+                  <div>
+                    <span className="text-base font-medium">Upload Folder</span>
+                    <p className="text-sm text-muted-foreground">Upload an entire folder with all contents</p>
+                  </div>
+                </button>
+              </div>
+            </DrawerContent>
+          </Drawer>
         </div>
       </div>
 

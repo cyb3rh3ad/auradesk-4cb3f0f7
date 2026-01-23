@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users, Phone, Video } from 'lucide-react';
+import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
+import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -110,7 +111,7 @@ const Chat = () => {
                     </p>
                   </div>
                 </div>
-                {/* Call buttons for mobile */}
+                {/* Call buttons and options menu for mobile */}
                 <div className="flex items-center shrink-0">
                   <Button
                     variant="ghost"
@@ -128,6 +129,21 @@ const Chat = () => {
                   >
                     <Video className="w-5 h-5" />
                   </Button>
+                  {/* 3-dot menu for blocking/reporting - only for DMs */}
+                  {otherUserId && (
+                    <ChatOptionsMenu
+                      targetUserId={otherUserId}
+                      targetUserName={conversationName}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </Button>
+                    </ChatOptionsMenu>
+                  )}
                 </div>
               </div>
               {/* Message area takes remaining height */}
