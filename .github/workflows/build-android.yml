@@ -70,7 +70,8 @@ jobs:
       - name: Rename APK
         run: |
           if [ -n "${{ steps.find-apk.outputs.apk_path }}" ]; then
-            mv "${{ steps.find-apk.outputs.apk_path }}" AuraDesk-${{ steps.version.outputs.version }}.apk
+            cp "${{ steps.find-apk.outputs.apk_path }}" AuraDesk-${{ steps.version.outputs.version }}.apk
+            cp "${{ steps.find-apk.outputs.apk_path }}" AuraDesk.apk
           else
             echo "No APK found!"
             exit 1
@@ -80,7 +81,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: AuraDesk-${{ steps.version.outputs.version }}.apk
+          path: |
+            AuraDesk-${{ steps.version.outputs.version }}.apk
+            AuraDesk.apk
           retention-days: 30
 
       - name: Upload APK to Release
@@ -99,7 +102,9 @@ jobs:
             3. Open the APK to install
             
             **Note**: This is an unsigned APK for testing/sideloading.
-          files: AuraDesk-${{ steps.version.outputs.version }}.apk
+          files: |
+            AuraDesk-${{ steps.version.outputs.version }}.apk
+            AuraDesk.apk
           draft: false
           prerelease: false
         env:
