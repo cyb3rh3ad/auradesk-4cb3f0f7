@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         includeAssets: ["favicon.png", "icon.png", "favicon.ico"],
         manifest: {
+          id: "/",
           name: "AuraDesk",
           short_name: "AuraDesk",
           description: "Better workflow, with AI",
@@ -27,9 +28,22 @@ export default defineConfig(({ mode }) => {
           background_color: "#0f0f1a",
           display: "standalone",
           orientation: "portrait",
-          start_url: "./",
-          scope: "./",
+          start_url: "/",
+          scope: "/",
+          categories: ["productivity", "utilities"],
           icons: [
+            {
+              src: "favicon.png",
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "any"
+            },
+            {
+              src: "favicon.png",
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "maskable"
+            },
             {
               src: "icon.png",
               sizes: "512x512",
@@ -41,12 +55,6 @@ export default defineConfig(({ mode }) => {
               sizes: "512x512",
               type: "image/png",
               purpose: "maskable"
-            },
-            {
-              src: "favicon.png",
-              sizes: "192x192",
-              type: "image/png",
-              purpose: "any"
             }
           ]
         },
