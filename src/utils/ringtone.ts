@@ -1,10 +1,10 @@
 /**
- * Generate a modern, catchy ringtone as base64 WAV
- * Uses a pleasant ascending arpeggio pattern similar to modern phone ringtones
+ * Generate a soft, gentle ringtone as base64 WAV
+ * Uses a mellow two-note pattern with smooth attack/decay - similar to iOS "Reflection" tone
  */
 export const generateModernRingtone = (): string => {
-  const sampleRate = 22050; // Higher sample rate for better quality
-  const duration = 1.2; // Longer duration for a more complete ringtone
+  const sampleRate = 22050;
+  const duration = 1.5; // Slightly longer for a relaxed feel
   const samples = Math.floor(sampleRate * duration);
   
   const buffer = new ArrayBuffer(44 + samples * 2);
@@ -31,14 +31,11 @@ export const generateModernRingtone = (): string => {
   writeString(36, 'data');
   view.setUint32(40, samples * 2, true);
   
-  // Modern ascending arpeggio pattern: C5 -> E5 -> G5 -> C6 (Major chord arpeggio)
+  // Simple, soft two-note pattern (like a gentle "ding-dong")
+  // Using soft sine waves at pleasant frequencies
   const notes = [
-    { freq: 523.25, start: 0, end: 0.15 },     // C5
-    { freq: 659.25, start: 0.15, end: 0.3 },   // E5
-    { freq: 783.99, start: 0.3, end: 0.45 },   // G5
-    { freq: 1046.50, start: 0.45, end: 0.7 },  // C6 (held longer)
-    { freq: 783.99, start: 0.7, end: 0.85 },   // G5
-    { freq: 1046.50, start: 0.85, end: 1.2 },  // C6 (final note)
+    { freq: 587.33, start: 0, end: 0.5 },    // D5 - soft start
+    { freq: 880, start: 0.5, end: 1.2 },      // A5 - gentle resolve
   ];
   
   for (let i = 0; i < samples; i++) {
@@ -50,25 +47,21 @@ export const generateModernRingtone = (): string => {
         const noteT = t - note.start;
         const noteDuration = note.end - note.start;
         
-        // Smooth attack and release envelope
-        const attack = Math.min(1, noteT * 30);
-        const release = Math.min(1, (noteDuration - noteT) * 20);
-        const envelope = attack * release;
+        // Very smooth attack and long decay for gentle sound
+        const attack = Math.min(1, noteT * 8); // Slow attack (125ms)
+        const decay = Math.pow(Math.max(0, 1 - noteT / noteDuration), 1.5); // Smooth exponential decay
+        const envelope = attack * decay;
         
-        // Add slight vibrato for richness
-        const vibrato = 1 + Math.sin(2 * Math.PI * 5 * noteT) * 0.003;
+        // Pure sine wave with gentle second harmonic for warmth
+        const fundamental = Math.sin(2 * Math.PI * note.freq * t);
+        const secondHarmonic = Math.sin(2 * Math.PI * note.freq * 2 * t) * 0.1;
         
-        // Main sine wave with harmonic for warmth
-        const fundamental = Math.sin(2 * Math.PI * note.freq * vibrato * t);
-        const harmonic = Math.sin(2 * Math.PI * note.freq * 2 * vibrato * t) * 0.15;
-        const subHarmonic = Math.sin(2 * Math.PI * note.freq * 0.5 * t) * 0.1;
-        
-        sample += (fundamental + harmonic + subHarmonic) * envelope * 0.35;
+        sample += (fundamental + secondHarmonic) * envelope * 0.25; // Low volume for softness
       }
     }
     
-    // Soft clip to avoid distortion
-    sample = Math.tanh(sample);
+    // Soft limiting
+    sample = Math.tanh(sample * 0.8);
     view.setInt16(44 + i * 2, sample * 32767, true);
   }
   
@@ -81,12 +74,12 @@ export const generateModernRingtone = (): string => {
 };
 
 /**
- * Generate a team call ringtone (slightly different pattern)
- * Uses a two-tone alert pattern that's more urgent
+ * Generate a soft team call ringtone
+ * Uses a gentle three-note ascending pattern
  */
 export const generateTeamRingtone = (): string => {
   const sampleRate = 22050;
-  const duration = 1.0;
+  const duration = 1.2;
   const samples = Math.floor(sampleRate * duration);
   
   const buffer = new ArrayBuffer(44 + samples * 2);
@@ -113,12 +106,11 @@ export const generateTeamRingtone = (): string => {
   writeString(36, 'data');
   view.setUint32(40, samples * 2, true);
   
-  // Alternating two-tone pattern (like a doorbell or team notification)
+  // Gentle ascending three notes (like a soft chime)
   const notes = [
-    { freq: 880, start: 0, end: 0.2 },      // A5
-    { freq: 1174.66, start: 0.2, end: 0.4 }, // D6
-    { freq: 880, start: 0.5, end: 0.7 },     // A5
-    { freq: 1174.66, start: 0.7, end: 1.0 }, // D6
+    { freq: 523.25, start: 0, end: 0.35 },     // C5
+    { freq: 659.25, start: 0.3, end: 0.65 },   // E5 (slight overlap for smoothness)
+    { freq: 783.99, start: 0.6, end: 1.2 },    // G5 (longer hold)
   ];
   
   for (let i = 0; i < samples; i++) {
@@ -130,14 +122,15 @@ export const generateTeamRingtone = (): string => {
         const noteT = t - note.start;
         const noteDuration = note.end - note.start;
         
-        const attack = Math.min(1, noteT * 40);
-        const release = Math.min(1, (noteDuration - noteT) * 25);
-        const envelope = attack * release;
+        // Smooth attack and decay
+        const attack = Math.min(1, noteT * 10);
+        const decay = Math.pow(Math.max(0, 1 - noteT / noteDuration), 1.5);
+        const envelope = attack * decay;
         
+        // Pure sine wave
         const fundamental = Math.sin(2 * Math.PI * note.freq * t);
-        const harmonic = Math.sin(2 * Math.PI * note.freq * 2 * t) * 0.2;
         
-        sample += (fundamental + harmonic) * envelope * 0.4;
+        sample += fundamental * envelope * 0.2; // Soft volume
       }
     }
     
