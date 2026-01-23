@@ -2,12 +2,9 @@ import { useState } from 'react';
 import { UserPlus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -107,57 +104,72 @@ export const AddFriendDialog = () => {
     setLoading(false);
   };
 
+  const handleClose = () => {
+    setOpen(false);
+    setEmail('');
+    setSearchResults([]);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <UserPlus className="w-4 h-4" />
-          Add Friend
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Friend</DialogTitle>
-          <DialogDescription>
-            Search for users by name or username to send a friend request.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter name or username (min 3 characters)..."
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button onClick={handleSearch} disabled={loading}>
-              <Search className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {searchResults.map((profile) => (
-              <div
-                key={profile.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/50"
-              >
-                <div>
-                  <p className="font-medium">@{profile.username || 'Unknown'}</p>
-                  {profile.full_name && (
-                    <p className="text-sm text-muted-foreground">{profile.full_name}</p>
-                  )}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleAddFriend(profile.id)}
-                  disabled={loading}
+    <>
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <UserPlus className="w-4 h-4" />
+        Add Friend
+      </Button>
+      
+      <ResponsiveDialog open={open} onOpenChange={setOpen}>
+        <ResponsiveDialogContent
+          title="Add Friend"
+          description="Search for users by name or username to send a friend request."
+        >
+          <div className="space-y-4 py-2">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter name or username (min 3 characters)..."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <Button onClick={handleSearch} disabled={loading} size="icon" className="shrink-0">
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+              {searchResults.length === 0 && email.length >= 3 && !loading && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No users found. Try a different search term.
+                </p>
+              )}
+              {searchResults.map((profile) => (
+                <div
+                  key={profile.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/50"
                 >
-                  Add
-                </Button>
-              </div>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">@{profile.username || 'Unknown'}</p>
+                    {profile.full_name && (
+                      <p className="text-sm text-muted-foreground truncate">{profile.full_name}</p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddFriend(profile.id)}
+                    disabled={loading}
+                    className="shrink-0 ml-2"
+                  >
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
+              Close
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+    </>
   );
 };

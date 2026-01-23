@@ -3,6 +3,16 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -94,6 +104,87 @@ const AlertDialogCancel = React.forwardRef<
   />
 ));
 AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName;
+
+// ========== RESPONSIVE ALERT DIALOG ==========
+// Automatically uses Drawer on mobile, AlertDialog on desktop
+
+interface ResponsiveAlertDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  cancelText?: string;
+  actionText: string;
+  actionVariant?: 'default' | 'destructive';
+  onAction: () => void;
+  loading?: boolean;
+}
+
+export const ResponsiveAlertDialog = ({
+  open,
+  onOpenChange,
+  title,
+  description,
+  cancelText = 'Cancel',
+  actionText,
+  actionVariant = 'default',
+  onAction,
+  loading = false,
+}: ResponsiveAlertDialogProps) => {
+  const isMobile = useIsMobile();
+  
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerDescription>{description}</DrawerDescription>
+          </DrawerHeader>
+          <DrawerFooter className="flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className="flex-1"
+              disabled={loading}
+            >
+              {cancelText}
+            </Button>
+            <Button 
+              variant={actionVariant}
+              onClick={onAction}
+              className="flex-1"
+              disabled={loading}
+            >
+              {actionText}
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+  
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={loading}>{cancelText}</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={onAction}
+            disabled={loading}
+            className={actionVariant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+          >
+            {actionText}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
 
 export {
   AlertDialog,
