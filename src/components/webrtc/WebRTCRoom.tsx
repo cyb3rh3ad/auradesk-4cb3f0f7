@@ -28,6 +28,8 @@ export interface WebRTCRoomProps {
   initialVideo?: boolean;
   initialAudio?: boolean;
   isHost?: boolean;
+  isPiPMode?: boolean;
+  pipSize?: 'mini' | 'small' | 'medium' | 'full';
 }
 
 export function WebRTCRoom({ 
@@ -38,6 +40,8 @@ export function WebRTCRoom({
   initialVideo = true,
   initialAudio = true,
   isHost = false,
+  isPiPMode = false,
+  pipSize = 'full',
 }: WebRTCRoomProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -408,10 +412,66 @@ export function WebRTCRoom({
     })),
   ];
 
-  const numParticipants = allParticipants.length;
+  // Find the active speaker (most recently speaking remote participant)
+  const activeSpeakerId = Array.from(speakingParticipants).find(id => id !== user?.id);
+
+  // Filter participants based on PiP size
+  const getVisibleParticipants = () => {
+    if (!isPiPMode || pipSize === 'full') {
+      return allParticipants;
+    }
+
+    const localParticipant = allParticipants.find(p => p.isLocal);
+    const remoteParticipants = allParticipants.filter(p => !p.isLocal);
+    const activeSpeaker = activeSpeakerId 
+      ? remoteParticipants.find(p => p.id === activeSpeakerId)
+      : remoteParticipants[0];
+
+    switch (pipSize) {
+      case 'mini':
+        // Only show active speaker or first remote
+        return activeSpeaker ? [activeSpeaker] : remoteParticipants.slice(0, 1);
+      
+      case 'small':
+        // Show active speaker + self as small overlay
+        if (activeSpeaker) {
+          return localParticipant 
+            ? [activeSpeaker, { ...localParticipant, isOverlay: true }]
+            : [activeSpeaker];
+        }
+        return remoteParticipants.slice(0, 1);
+      
+      case 'medium':
+        // Show self + active speaker + 1 more
+        const mediumList = [];
+        if (localParticipant) mediumList.push(localParticipant);
+        if (activeSpeaker) mediumList.push(activeSpeaker);
+        const otherRemote = remoteParticipants.find(p => p.id !== activeSpeaker?.id);
+        if (otherRemote && mediumList.length < 3) mediumList.push(otherRemote);
+        return mediumList.length > 0 ? mediumList : allParticipants.slice(0, 3);
+      
+      default:
+        return allParticipants;
+    }
+  };
+
+  const visibleParticipants = getVisibleParticipants();
+  const numParticipants = visibleParticipants.length;
   
-  // Adaptive grid based on participant count, orientation, and device type
+  // Adaptive grid based on participant count, orientation, device type, and PiP mode
   const getGridClasses = () => {
+    // PiP mode grids
+    if (isPiPMode && pipSize !== 'full') {
+      if (pipSize === 'mini' || numParticipants === 1) {
+        return "grid-cols-1";
+      } else if (pipSize === 'small') {
+        return "grid-cols-1"; // Main + overlay
+      } else if (numParticipants === 2) {
+        return "grid-cols-2";
+      }
+      return "grid-cols-2";
+    }
+
     // Mobile-specific grid that fits all participants without cutting off
     if (isMobile) {
       if (numParticipants === 1) {
@@ -443,8 +503,13 @@ export function WebRTCRoom({
     }
   };
 
-  // Get aspect ratio class based on camera state, orientation, and device
+  // Get aspect ratio class based on camera state, orientation, device, and PiP
   const getAspectRatioClass = (hasVideo: boolean) => {
+    // PiP modes use square or video aspect
+    if (isPiPMode && pipSize !== 'full') {
+      return "aspect-video";
+    }
+
     // Mobile: use square aspect ratio to fit more participants
     if (isMobile) {
       return "aspect-square";
@@ -473,7 +538,8 @@ export function WebRTCRoom({
         isMobile ? "p-1.5 pb-0" : "p-2 sm:p-4 gap-2 sm:gap-4",
         getGridClasses()
       )}>
-        {allParticipants.map((participant) => {
+        {visibleParticipants.map((participant) => {
+          const isOverlay = (participant as any).isOverlay;
           const hasVideoTrack = participant.stream?.getVideoTracks().length > 0;
           const isVideoEnabled = participant.stream?.getVideoTracks().some(t => t.enabled) ?? false;
           const hasVideo = hasVideoTrack && (participant.isLocal ? !isCameraOff : isVideoEnabled);
