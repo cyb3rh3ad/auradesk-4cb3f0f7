@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   MessageSquare, 
   Video, 
@@ -20,7 +21,9 @@ import {
   Plus,
   Settings,
   Hash,
-  Volume2
+  Volume2,
+  Shield,
+  Zap
 } from 'lucide-react';
 
 type ViewType = 'chat' | 'video' | 'teams' | 'ai' | 'files';
@@ -499,7 +502,58 @@ const FilesView = () => (
   </div>
 );
 
+// Simple mobile-friendly feature showcase
+const MobileFeatureShowcase = () => {
+  const features = [
+    { icon: MessageSquare, label: 'Real-time Chat', gradient: 'from-violet-500 to-blue-500' },
+    { icon: Video, label: 'HD Video Calls', gradient: 'from-purple-500 to-pink-500' },
+    { icon: Users, label: 'Team Channels', gradient: 'from-emerald-500 to-teal-500' },
+    { icon: Brain, label: 'AI Assistant', gradient: 'from-orange-500 to-red-500' },
+    { icon: FileText, label: 'File Sharing', gradient: 'from-indigo-500 to-blue-500' },
+    { icon: Shield, label: 'Secure & Private', gradient: 'from-rose-500 to-pink-500' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="relative mx-auto max-w-md px-4"
+    >
+      {/* Glow effect */}
+      <div className="absolute -inset-4 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-blue-500/10 blur-2xl rounded-3xl" />
+      
+      <div className="relative grid grid-cols-2 gap-3">
+        {features.map((feature, index) => (
+          <motion.div
+            key={feature.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4 flex flex-col items-center gap-2 text-center"
+          >
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg`}>
+              <feature.icon className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-sm font-medium">{feature.label}</span>
+          </motion.div>
+        ))}
+      </div>
+      
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="text-center text-xs text-muted-foreground mt-4"
+      >
+        ✨ All features included in one platform
+      </motion.p>
+    </motion.div>
+  );
+};
+
 export const AppPreview = () => {
+  const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<ViewType>('chat');
 
   const views: { type: ViewType; icon: typeof MessageSquare }[] = [
@@ -520,6 +574,11 @@ export const AppPreview = () => {
       default: return <ChatView />;
     }
   };
+
+  // Show simplified feature grid on mobile instead of complex interactive preview
+  if (isMobile) {
+    return <MobileFeatureShowcase />;
+  }
 
   return (
     <motion.div
@@ -548,9 +607,9 @@ export const AppPreview = () => {
         </div>
 
         {/* App content */}
-        <div className="flex h-[350px] md:h-[400px]">
+        <div className="flex h-[400px]">
           {/* Sidebar */}
-          <div className="w-16 md:w-20 bg-muted/30 border-r border-border/50 flex flex-col items-center py-4 gap-3">
+          <div className="w-20 bg-muted/30 border-r border-border/50 flex flex-col items-center py-4 gap-3">
             {views.map((view, index) => (
               <motion.button
                 key={view.type}
@@ -560,13 +619,13 @@ export const AppPreview = () => {
                 transition={{ duration: 0.3, delay: index * 0.1 }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
                   activeView === view.type
                     ? `bg-gradient-to-br ${viewConfigs[view.type].gradient} text-white shadow-lg`
                     : 'bg-background/50 text-muted-foreground hover:bg-background hover:text-foreground'
                 }`}
               >
-                <view.icon className="w-5 h-5 md:w-6 md:h-6" />
+                <view.icon className="w-6 h-6" />
               </motion.button>
             ))}
           </div>
