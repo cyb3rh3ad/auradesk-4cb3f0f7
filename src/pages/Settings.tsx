@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ResponsiveSelect,
+  ResponsiveSelectContent,
+  ResponsiveSelectItem,
+  ResponsiveSelectTrigger,
+  ResponsiveSelectValue,
+} from '@/components/ui/responsive-select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload, BellOff } from 'lucide-react';
@@ -494,20 +500,20 @@ const Settings = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="theme">Color Theme</Label>
-                <Select value={theme} onValueChange={setTheme}>
-                  <SelectTrigger id="theme">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark (Default)</SelectItem>
-                    <SelectItem value="theme-discord-dark">Discord Dark</SelectItem>
-                    <SelectItem value="theme-midnight">Midnight Blue</SelectItem>
-                    <SelectItem value="theme-forest">Forest</SelectItem>
-                    <SelectItem value="theme-sunset">Sunset</SelectItem>
-                    <SelectItem value="theme-purple">Purple Dream</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ResponsiveSelect value={theme} onValueChange={setTheme}>
+                  <ResponsiveSelectTrigger>
+                    <ResponsiveSelectValue />
+                  </ResponsiveSelectTrigger>
+                  <ResponsiveSelectContent title="Select Theme">
+                    <ResponsiveSelectItem value="light">Light</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="dark">Dark (Default)</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="theme-discord-dark">Discord Dark</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="theme-midnight">Midnight Blue</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="theme-forest">Forest</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="theme-sunset">Sunset</ResponsiveSelectItem>
+                    <ResponsiveSelectItem value="theme-purple">Purple Dream</ResponsiveSelectItem>
+                  </ResponsiveSelectContent>
+                </ResponsiveSelect>
                 <p className="text-xs text-muted-foreground">
                   Choose your preferred color scheme
                 </p>
@@ -558,21 +564,21 @@ const Settings = () => {
                   <Mic className="w-4 h-4" />
                   Microphone
                 </Label>
-                <Select value={selectedMic} onValueChange={setSelectedMic}>
-                  <SelectTrigger id="microphone">
-                    <SelectValue placeholder="Select microphone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default Microphone</SelectItem>
+                <ResponsiveSelect value={selectedMic} onValueChange={setSelectedMic}>
+                  <ResponsiveSelectTrigger>
+                    <ResponsiveSelectValue placeholder="Select microphone" />
+                  </ResponsiveSelectTrigger>
+                  <ResponsiveSelectContent title="Select Microphone">
+                    <ResponsiveSelectItem value="default">Default Microphone</ResponsiveSelectItem>
                     {audioInputDevices
                       .filter(device => device.deviceId && device.deviceId !== '')
                       .map(device => (
-                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                        <ResponsiveSelectItem key={device.deviceId} value={device.deviceId}>
                           {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
-                        </SelectItem>
+                        </ResponsiveSelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
+                  </ResponsiveSelectContent>
+                </ResponsiveSelect>
                 {audioInputDevices.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     Grant microphone permission to see available devices
@@ -585,21 +591,21 @@ const Settings = () => {
                   <Camera className="w-4 h-4" />
                   Camera
                 </Label>
-                <Select value={selectedCamera} onValueChange={setSelectedCamera}>
-                  <SelectTrigger id="camera">
-                    <SelectValue placeholder="Select camera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default Camera</SelectItem>
+                <ResponsiveSelect value={selectedCamera} onValueChange={setSelectedCamera}>
+                  <ResponsiveSelectTrigger>
+                    <ResponsiveSelectValue placeholder="Select camera" />
+                  </ResponsiveSelectTrigger>
+                  <ResponsiveSelectContent title="Select Camera">
+                    <ResponsiveSelectItem value="default">Default Camera</ResponsiveSelectItem>
                     {videoInputDevices
                       .filter(device => device.deviceId && device.deviceId !== '')
                       .map(device => (
-                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                        <ResponsiveSelectItem key={device.deviceId} value={device.deviceId}>
                           {device.label || `Camera ${device.deviceId.slice(0, 8)}`}
-                        </SelectItem>
+                        </ResponsiveSelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
+                  </ResponsiveSelectContent>
+                </ResponsiveSelect>
                 {videoInputDevices.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     Grant camera permission to see available devices
@@ -612,21 +618,21 @@ const Settings = () => {
                   <Volume2 className="w-4 h-4" />
                   Speaker/Output
                 </Label>
-                <Select value={selectedSpeaker} onValueChange={setSelectedSpeaker}>
-                  <SelectTrigger id="speaker">
-                    <SelectValue placeholder="Select speaker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default Speaker</SelectItem>
+                <ResponsiveSelect value={selectedSpeaker} onValueChange={setSelectedSpeaker}>
+                  <ResponsiveSelectTrigger>
+                    <ResponsiveSelectValue placeholder="Select speaker" />
+                  </ResponsiveSelectTrigger>
+                  <ResponsiveSelectContent title="Select Speaker">
+                    <ResponsiveSelectItem value="default">Default Speaker</ResponsiveSelectItem>
                     {audioOutputDevices
                       .filter(device => device.deviceId && device.deviceId !== '')
                       .map(device => (
-                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                        <ResponsiveSelectItem key={device.deviceId} value={device.deviceId}>
                           {device.label || `Speaker ${device.deviceId.slice(0, 8)}`}
-                        </SelectItem>
+                        </ResponsiveSelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
+                  </ResponsiveSelectContent>
+                </ResponsiveSelect>
                 {audioOutputDevices.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     Grant audio permission to see available devices
