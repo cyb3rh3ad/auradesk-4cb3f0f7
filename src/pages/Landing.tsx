@@ -214,24 +214,31 @@ const Landing = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              {/* Expandable Download Button */}
+              {/* Meiosis-style Splitting Download Button */}
               <div 
-                className="relative"
+                className="relative h-14"
                 onMouseEnter={() => setShowDownloadOptions(true)}
                 onMouseLeave={() => setShowDownloadOptions(false)}
               >
+                {/* The unified "cell" button */}
                 <motion.div
+                  className="absolute inset-0 flex items-center justify-center"
                   animate={{ 
                     opacity: showDownloadOptions ? 0 : 1,
-                    scale: showDownloadOptions ? 0.95 : 1,
-                    pointerEvents: showDownloadOptions ? "none" : "auto"
+                    scaleX: showDownloadOptions ? 0.5 : 1,
+                    scaleY: showDownloadOptions ? 0.8 : 1,
                   }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute inset-0"
+                  transition={{ 
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 25,
+                    mass: 0.8
+                  }}
+                  style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
                   <Button
                     size="lg"
-                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 h-14 px-8 w-[280px]"
+                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full transition-shadow duration-300 shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-[280px]"
                     onClick={() => setShowDownloadOptions(true)}
                   >
                     <Download className="w-5 h-5 mr-2" />
@@ -239,39 +246,83 @@ const Landing = () => {
                   </Button>
                 </motion.div>
 
-                <motion.div
-                  animate={{ 
-                    opacity: showDownloadOptions ? 1 : 0,
-                    scale: showDownloadOptions ? 1 : 0.95,
-                  }}
-                  transition={{ duration: 0.2 }}
-                  className="flex gap-2"
-                  style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
-                >
-                  <a
-                    href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 h-14 px-6 w-[136px]"
+                {/* The splitting "daughter cells" */}
+                <div className="flex items-center justify-center h-full">
+                  {/* Left cell - Windows */}
+                  <motion.div
+                    animate={{ 
+                      x: showDownloadOptions ? -72 : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? 1 : 0.6,
+                      borderRadius: showDownloadOptions ? "9999px" : "9999px",
+                    }}
+                    transition={{ 
+                      type: "spring",
+                      stiffness: 200,
+                      damping: 20,
+                      mass: 1,
+                      delay: showDownloadOptions ? 0.05 : 0
+                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
-                    <Monitor className="w-4 h-4 mr-2" />
-                    Windows
-                  </a>
-                  <Button
-                    size="lg"
-                    className="text-base font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/25 h-14 px-6 w-[136px]"
-                    onClick={() => navigate("/install")}
+                    <a
+                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-200 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
+                    >
+                      <Monitor className="w-4 h-4 mr-2" />
+                      Windows
+                    </a>
+                  </motion.div>
+
+                  {/* Center membrane effect - the pinching point */}
+                  <motion.div
+                    className="absolute w-4 h-10 bg-gradient-to-b from-violet-500/50 via-purple-400/80 to-emerald-500/50 rounded-full blur-sm"
+                    animate={{
+                      opacity: showDownloadOptions ? [0, 0.8, 0] : 0,
+                      scaleY: showDownloadOptions ? [0.5, 1.2, 0] : 0.5,
+                      scaleX: showDownloadOptions ? [2, 0.3, 0] : 2,
+                    }}
+                    transition={{
+                      duration: 0.4,
+                      times: [0, 0.5, 1],
+                      ease: "easeOut"
+                    }}
+                  />
+
+                  {/* Right cell - Mobile */}
+                  <motion.div
+                    animate={{ 
+                      x: showDownloadOptions ? 72 : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? 1 : 0.6,
+                    }}
+                    transition={{ 
+                      type: "spring",
+                      stiffness: 200,
+                      damping: 20,
+                      mass: 1,
+                      delay: showDownloadOptions ? 0.05 : 0
+                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
-                    <Smartphone className="w-4 h-4 mr-2" />
-                    Mobile
-                  </Button>
-                </motion.div>
+                    <Button
+                      size="lg"
+                      className="text-base font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-full transition-all duration-200 hover:scale-105 shadow-lg shadow-green-500/30 h-14 px-6 w-[136px]"
+                      onClick={() => navigate("/install")}
+                    >
+                      <Smartphone className="w-4 h-4 mr-2" />
+                      Mobile
+                    </Button>
+                  </motion.div>
+                </div>
               </div>
 
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg h-14 px-8 rounded-xl border-2 w-[280px] sm:w-auto"
+                className="text-lg h-14 px-8 rounded-full border-2 w-[280px] sm:w-auto"
                 onClick={() => navigate(user ? "/dashboard" : "/auth")}
               >
                 <Globe className="w-5 h-5 mr-2" />
