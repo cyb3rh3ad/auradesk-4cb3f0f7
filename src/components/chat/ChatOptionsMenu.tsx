@@ -12,12 +12,6 @@ import {
   ChevronDown
 } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   ResponsiveDialog,
   ResponsiveDialogContent,
   ResponsiveDialogFooter,
@@ -195,55 +189,36 @@ export const ChatOptionsMenu = ({
 
   return (
     <>
-      {/* Mobile: Use Drawer for menu */}
-      {isMobile ? (
-        <>
-          <div onClick={() => setMenuOpen(true)}>
-            {children}
-          </div>
-          <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
-            <DrawerContent>
-              <DrawerHeader className="border-b border-border">
-                <DrawerTitle>Options for {targetUserName}</DrawerTitle>
-              </DrawerHeader>
-              <div className="py-2">
-                {menuItems.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={item.onClick}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors",
-                      "hover:bg-accent/50 active:bg-accent",
-                      item.className
-                    )}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    <span className="text-base">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </DrawerContent>
-          </Drawer>
-        </>
-      ) : (
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            {children}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-56 py-1">
+      {/* Use Drawer for menu on all platforms */}
+      <div onClick={() => setMenuOpen(true)}>
+        {children}
+      </div>
+      <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+        <DrawerContent className={cn(
+          // On desktop/larger screens, constrain width to center
+          !isMobile && "mx-auto max-w-lg",
+        )}>
+          <DrawerHeader className="border-b border-border">
+            <DrawerTitle>Options for {targetUserName}</DrawerTitle>
+          </DrawerHeader>
+          <div className="py-2">
             {menuItems.map((item, index) => (
-              <DropdownMenuItem 
+              <button
                 key={index}
                 onClick={item.onClick}
-                className={cn("py-3", item.className)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors",
+                  "hover:bg-accent/50 active:bg-accent",
+                  item.className
+                )}
               >
-                <item.icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </DropdownMenuItem>
+                <item.icon className="w-5 h-5" />
+                <span className="text-base">{item.label}</span>
+              </button>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Nickname Dialog */}
       <ResponsiveDialog open={openDialog === 'nickname'} onOpenChange={(open) => !open && setOpenDialog(null)}>
@@ -301,7 +276,10 @@ export const ChatOptionsMenu = ({
               
               {/* Reason selector drawer */}
               <Drawer open={reasonSelectorOpen} onOpenChange={setReasonSelectorOpen}>
-                <DrawerContent>
+                <DrawerContent className={cn(
+                  // On desktop/larger screens, constrain width to center
+                  !isMobile && "mx-auto max-w-lg",
+                )}>
                   <DrawerHeader className="border-b border-border">
                     <DrawerTitle>Select reason</DrawerTitle>
                   </DrawerHeader>

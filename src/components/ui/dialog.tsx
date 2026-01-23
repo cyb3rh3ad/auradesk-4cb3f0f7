@@ -28,7 +28,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+      "fixed inset-0 z-50 bg-black/60",
       "data-[state=open]:animate-in data-[state=closed]:animate-out",
       "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
@@ -104,7 +104,9 @@ const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 // ========== RESPONSIVE DIALOG ==========
-// Automatically uses Drawer on mobile, Dialog on desktop
+// Uses Drawer on all platforms for consistent experience
+// Mobile: full-width bottom sheet
+// Desktop: centered bottom sheet with max-width constraint
 
 interface ResponsiveDialogProps {
   open: boolean;
@@ -120,20 +122,11 @@ interface ResponsiveDialogContentProps {
 }
 
 export const ResponsiveDialog = ({ open, onOpenChange, children }: ResponsiveDialogProps) => {
-  const isMobile = useIsMobile();
-  
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        {children}
-      </Drawer>
-    );
-  }
-  
+  // Always use Drawer for consistent experience across all platforms
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={onOpenChange}>
       {children}
-    </Dialog>
+    </Drawer>
   );
 };
 
@@ -145,46 +138,27 @@ export const ResponsiveDialogContent = ({
 }: ResponsiveDialogContentProps) => {
   const isMobile = useIsMobile();
   
-  if (isMobile) {
-    return (
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>{title}</DrawerTitle>
-          {description && <DrawerDescription>{description}</DrawerDescription>}
-        </DrawerHeader>
-        <div className={cn("px-4 pb-4", className)}>
-          {children}
-        </div>
-      </DrawerContent>
-    );
-  }
-  
   return (
-    <DialogContent className={className}>
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        {description && <DialogDescription>{description}</DialogDescription>}
-      </DialogHeader>
-      {children}
-    </DialogContent>
+    <DrawerContent className={cn(
+      // On desktop/larger screens, constrain width to center
+      !isMobile && "mx-auto max-w-lg",
+    )}>
+      <DrawerHeader className="text-left">
+        <DrawerTitle>{title}</DrawerTitle>
+        {description && <DrawerDescription>{description}</DrawerDescription>}
+      </DrawerHeader>
+      <div className={cn("px-4 pb-4", className)}>
+        {children}
+      </div>
+    </DrawerContent>
   );
 };
 
 export const ResponsiveDialogFooter = ({ children, className }: { children: React.ReactNode; className?: string }) => {
-  const isMobile = useIsMobile();
-  
-  if (isMobile) {
-    return (
-      <DrawerFooter className={cn("flex-row gap-2", className)}>
-        {children}
-      </DrawerFooter>
-    );
-  }
-  
   return (
-    <DialogFooter className={className}>
+    <DrawerFooter className={cn("flex-row gap-2", className)}>
       {children}
-    </DialogFooter>
+    </DrawerFooter>
   );
 };
 

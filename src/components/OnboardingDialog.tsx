@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { 
-  Dialog, 
-  DialogContent,
-} from '@/components/ui/dialog';
 import {
   Drawer,
   DrawerContent,
@@ -25,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface OnboardingDialogProps {
   open: boolean;
@@ -221,21 +218,16 @@ export const OnboardingDialog = ({ open, onOpenChange }: OnboardingDialogProps) 
     </AnimatePresence>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh]">
-          <OnboardingContent />
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
+  // Always use Drawer for consistent experience across all platforms
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg p-0 overflow-hidden border-border/50 bg-card">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className={cn(
+        "max-h-[90vh]",
+        // On desktop/larger screens, constrain width to center
+        !isMobile && "mx-auto max-w-lg",
+      )}>
         <OnboardingContent />
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 };
