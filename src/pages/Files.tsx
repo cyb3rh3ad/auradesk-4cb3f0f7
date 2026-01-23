@@ -7,16 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -25,6 +16,7 @@ const Files = () => {
   const { files, loading, storageUsage, uploadFile, downloadFile, deleteFile, refetch } = useFiles();
   const [deleteFileData, setDeleteFileData] = useState<{ name: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleRefresh = async () => {
@@ -45,7 +37,9 @@ const Files = () => {
 
   const handleDelete = async () => {
     if (!deleteFileData) return;
+    setDeleting(true);
     await deleteFile(deleteFileData.name, deleteFileData.size);
+    setDeleting(false);
     setDeleteFileData(null);
   };
 
@@ -182,20 +176,17 @@ const Files = () => {
         )}
       </ScrollArea>
 
-      <AlertDialog open={!!deleteFileData} onOpenChange={() => setDeleteFileData(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete File</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this file? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ResponsiveAlertDialog
+        open={!!deleteFileData}
+        onOpenChange={() => setDeleteFileData(null)}
+        title="Delete File"
+        description="Are you sure you want to delete this file? This action cannot be undone."
+        cancelText="Cancel"
+        actionText={deleting ? "Deleting..." : "Delete"}
+        actionVariant="destructive"
+        onAction={handleDelete}
+        loading={deleting}
+      />
     </div>
   );
 

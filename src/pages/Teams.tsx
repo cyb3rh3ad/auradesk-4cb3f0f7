@@ -5,7 +5,11 @@ import { useTeamCallInvitations } from '@/hooks/useTeamCallInvitations';
 import { useTeamChannels, TeamChannel } from '@/hooks/useTeamChannels';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -119,6 +123,15 @@ const Teams = () => {
 
   const handleRefresh = async () => {
     await refetch();
+  };
+
+  const handleCreateDialogChange = (open: boolean) => {
+    setCreateOpen(open);
+    if (!open) {
+      setTeamName('');
+      setTeamDescription('');
+      setSelectedFriends(new Set());
+    }
   };
 
   if (loading) {
@@ -258,117 +271,10 @@ const Teams = () => {
           <h2 className="text-2xl md:text-3xl font-bold">Teams</h2>
           <p className="text-sm md:text-base text-muted-foreground">Manage your teams and collaborate with channels</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) {
-            setTeamName('');
-            setTeamDescription('');
-            setSelectedFriends(new Set());
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Team
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Team</DialogTitle>
-              <DialogDescription>Create a team with text and voice channels</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Team Name</Label>
-                <Input
-                  id="name"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="Enter team name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={teamDescription}
-                  onChange={(e) => setTeamDescription(e.target.value)}
-                  placeholder="Enter team description"
-                  rows={2}
-                />
-              </div>
-              
-              {/* Friends Selection */}
-              <div className="space-y-2">
-                <Label>Add Members</Label>
-                {friendsLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : friends.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">No friends to add. Add friends in Chat first.</p>
-                ) : (
-                  <ScrollArea className="h-[180px] border rounded-lg">
-                    <div className="p-2 space-y-1">
-                      {friends.map((friend) => {
-                        const isSelected = selectedFriends.has(friend.id);
-                        return (
-                          <button
-                            key={friend.id}
-                            type="button"
-                            onClick={() => toggleFriend(friend.id)}
-                            className={cn(
-                              'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all',
-                              'hover:bg-muted/50',
-                              isSelected && 'bg-primary/10 hover:bg-primary/15'
-                            )}
-                          >
-                            <Avatar className="w-8 h-8">
-                              <AvatarImage src={friend.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {getInitials(friend)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 text-left min-w-0">
-                              <p className="text-sm font-medium truncate">
-                                {friend.full_name || friend.username || friend.email}
-                              </p>
-                              {friend.username && (
-                                <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
-                              )}
-                            </div>
-                            <div className={cn(
-                              'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-                              isSelected 
-                                ? 'bg-primary border-primary' 
-                                : 'border-muted-foreground/30'
-                            )}>
-                              {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                )}
-                {selectedFriends.size > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedFriends.size} member{selectedFriends.size > 1 ? 's' : ''} selected
-                  </p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateTeam} disabled={creating || !teamName.trim()}>
-                {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Team
+        </Button>
       </div>
 
       <ScrollArea className="flex-1">
@@ -437,13 +343,112 @@ const Teams = () => {
         )}
       </ScrollArea>
 
-      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
-            <DialogDescription>Enter the username to add to the team</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+      {/* Create Team Dialog */}
+      <ResponsiveDialog open={createOpen} onOpenChange={handleCreateDialogChange}>
+        <ResponsiveDialogContent
+          title="Create New Team"
+          description="Create a team with text and voice channels"
+        >
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Team Name</Label>
+              <Input
+                id="name"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Enter team name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={teamDescription}
+                onChange={(e) => setTeamDescription(e.target.value)}
+                placeholder="Enter team description"
+                rows={2}
+              />
+            </div>
+            
+            {/* Friends Selection */}
+            <div className="space-y-2">
+              <Label>Add Members</Label>
+              {friendsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : friends.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No friends to add. Add friends in Chat first.</p>
+              ) : (
+                <ScrollArea className="h-[180px] border rounded-lg">
+                  <div className="p-2 space-y-1">
+                    {friends.map((friend) => {
+                      const isSelected = selectedFriends.has(friend.id);
+                      return (
+                        <button
+                          key={friend.id}
+                          type="button"
+                          onClick={() => toggleFriend(friend.id)}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all',
+                            'hover:bg-muted/50',
+                            isSelected && 'bg-primary/10 hover:bg-primary/15'
+                          )}
+                        >
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={friend.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(friend)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {friend.full_name || friend.username || friend.email}
+                            </p>
+                            {friend.username && (
+                              <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+                            )}
+                          </div>
+                          <div className={cn(
+                            'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
+                            isSelected 
+                              ? 'bg-primary border-primary' 
+                              : 'border-muted-foreground/30'
+                          )}>
+                            {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+              {selectedFriends.size > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedFriends.size} member{selectedFriends.size > 1 ? 's' : ''} selected
+                </p>
+              )}
+            </div>
+          </div>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} className="flex-1 sm:flex-initial">
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTeam} disabled={creating || !teamName.trim()} className="flex-1 sm:flex-initial">
+              {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Add Member Dialog */}
+      <ResponsiveDialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+        <ResponsiveDialogContent
+          title="Add Team Member"
+          description="Enter the username to add to the team"
+        >
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -454,17 +459,17 @@ const Teams = () => {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddMemberOpen(false)}>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setAddMemberOpen(false)} className="flex-1 sm:flex-initial">
               Cancel
             </Button>
-            <Button onClick={handleAddMember} disabled={adding || !memberUsername.trim()}>
+            <Button onClick={handleAddMember} disabled={adding || !memberUsername.trim()} className="flex-1 sm:flex-initial">
               {adding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Add Member
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Incoming Team Call Dialog */}
       <IncomingTeamCallDialog

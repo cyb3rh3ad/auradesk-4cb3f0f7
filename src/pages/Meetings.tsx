@@ -5,7 +5,11 @@ import { useTeams } from '@/hooks/useTeams';
 import { useTranscription } from '@/hooks/useTranscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -170,110 +174,13 @@ const Meetings = () => {
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
               Instant Meeting
             </Button>
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25">
-                  <Plus className="w-4 h-4" />
-                  Schedule
-                </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Schedule New Meeting</DialogTitle>
-                <DialogDescription>Create a video meeting with AI transcription</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Weekly team sync"
-                    className="bg-background/50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What's this meeting about?"
-                    rows={2}
-                    className="bg-background/50 resize-none"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      className="bg-background/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="time">Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                      className="bg-background/50"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration (minutes)</Label>
-                  <Select value={duration} onValueChange={setDuration}>
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="45">45 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="90">1.5 hours</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="team">Team (optional)</Label>
-                  <Select value={teamId} onValueChange={setTeamId}>
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue placeholder="Select a team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No team</SelectItem>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleCreateMeeting} 
-                  disabled={creating || !title.trim() || !scheduledDate || !scheduledTime}
-                  className="gap-2"
-                >
-                  {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Schedule
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            <Button 
+              onClick={() => setCreateOpen(true)}
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25"
+            >
+              <Plus className="w-4 h-4" />
+              Schedule
+            </Button>
           </div>
         </div>
       </div>
@@ -404,82 +311,190 @@ const Meetings = () => {
               </Card>
             ) : (
               <div className="space-y-3">
-                {pastMeetings.map((meeting) => (
-                  <Card 
-                    key={meeting.id} 
-                    className="group hover:bg-card/80 transition-all border-border/30"
-                  >
-                    <CardContent className="py-4 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
-                        <Video className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{meeting.title}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{format(new Date(meeting.scheduled_at), 'MMM d, yyyy')}</span>
-                          <span className="text-border">•</span>
-                          <span>{meeting.duration_minutes} min</span>
-                          {meeting.team_name && (
-                            <>
+                {pastMeetings.map((meeting) => {
+                  const meetingDate = new Date(meeting.scheduled_at);
+                  const hasTranscript = meeting.transcript && meeting.transcript.length > 0;
+
+                  return (
+                    <Card key={meeting.id} className="group hover:shadow-md transition-all duration-200 border-border/50">
+                      <CardContent className="py-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+                            <Video className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{meeting.title}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{format(meetingDate, 'MMM d, yyyy')}</span>
                               <span className="text-border">•</span>
-                              <span className="flex items-center gap-1">
-                                <Users className="w-3 h-3" />
-                                {meeting.team_name}
-                              </span>
-                            </>
-                          )}
+                              <span>{format(meetingDate, 'h:mm a')}</span>
+                              {meeting.team_name && (
+                                <>
+                                  <span className="text-border hidden sm:inline">•</span>
+                                  <span className="hidden sm:inline">{meeting.team_name}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleViewTranscript(meeting.id)}
-                        className="gap-2 shrink-0"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        AI Summary
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="flex items-center gap-2">
+                          {hasTranscript && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewTranscript(meeting.id)}
+                              className="gap-1.5 text-muted-foreground hover:text-foreground"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="hidden sm:inline">Transcript</span>
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleJoinMeeting(meeting.id, meeting.title)}
+                            className="gap-1.5"
+                          >
+                            <Play className="w-4 h-4" />
+                            <span className="hidden sm:inline">Rejoin</span>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>
         </div>
       </div>
 
-      {/* Transcript Dialog */}
-      <Dialog open={viewTranscriptOpen} onOpenChange={setViewTranscriptOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Meeting Transcript & AI Assistant
-            </DialogTitle>
-            <DialogDescription>
-              View transcript, generate AI summaries, or ask questions about this meeting
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] pr-4">
-            <div className="space-y-6">
-              <TranscriptViewer meetingId={selectedMeetingId} />
-              <AIAssistant transcriptContext="" />
+      {/* Create Meeting Dialog - Now uses ResponsiveDialog */}
+      <ResponsiveDialog open={createOpen} onOpenChange={setCreateOpen}>
+        <ResponsiveDialogContent
+          title="Schedule New Meeting"
+          description="Create a video meeting with AI transcription"
+        >
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Weekly team sync"
+                className="bg-background/50"
+              />
             </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What's this meeting about?"
+                rows={2}
+                className="bg-background/50 resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="time">Time</Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="bg-background/50"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="duration">Duration (minutes)</Label>
+              <ResponsiveSelect value={duration} onValueChange={setDuration}>
+                <ResponsiveSelectTrigger className="bg-background/50">
+                  <ResponsiveSelectValue placeholder="Select duration" />
+                </ResponsiveSelectTrigger>
+                <ResponsiveSelectContent>
+                  <ResponsiveSelectItem value="15">15 minutes</ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="30">30 minutes</ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="45">45 minutes</ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="60">1 hour</ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="90">1.5 hours</ResponsiveSelectItem>
+                  <ResponsiveSelectItem value="120">2 hours</ResponsiveSelectItem>
+                </ResponsiveSelectContent>
+              </ResponsiveSelect>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team">Team (optional)</Label>
+              <ResponsiveSelect value={teamId} onValueChange={setTeamId}>
+                <ResponsiveSelectTrigger className="bg-background/50">
+                  <ResponsiveSelectValue placeholder="Select a team" />
+                </ResponsiveSelectTrigger>
+                <ResponsiveSelectContent>
+                  <ResponsiveSelectItem value="none">No team</ResponsiveSelectItem>
+                  {teams.map((team) => (
+                    <ResponsiveSelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </ResponsiveSelectItem>
+                  ))}
+                </ResponsiveSelectContent>
+              </ResponsiveSelect>
+            </div>
+          </div>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} className="flex-1 sm:flex-initial">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateMeeting} 
+              disabled={creating || !title.trim() || !scheduledDate || !scheduledTime}
+              className="flex-1 sm:flex-initial gap-2"
+            >
+              {creating && <Loader2 className="w-4 h-4 animate-spin" />}
+              Schedule
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
-      {/* Meeting Room Dialog */}
-      <Dialog open={meetingRoomOpen} onOpenChange={setMeetingRoomOpen}>
-        <DialogContent className="max-w-6xl h-[90vh] p-0">
-          <MeetingRoom 
-            meetingId={selectedMeetingId}
-            meetingTitle={selectedMeetingTitle}
-            onClose={() => setMeetingRoomOpen(false)}
-            initialVideo={initialVideo}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Transcript Viewer Modal */}
+      {viewTranscriptOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Meeting Transcript</h2>
+              <Button variant="ghost" size="sm" onClick={() => setViewTranscriptOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden grid md:grid-cols-2 gap-0 md:gap-4 p-4">
+              <TranscriptViewer meetingId={selectedMeetingId} />
+              <AIAssistant meetingId={selectedMeetingId} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Room Modal */}
+      {meetingRoomOpen && (
+        <MeetingRoom
+          meetingId={selectedMeetingId}
+          meetingTitle={selectedMeetingTitle}
+          onClose={() => setMeetingRoomOpen(false)}
+          initialVideo={initialVideo}
+        />
+      )}
     </div>
   );
 
