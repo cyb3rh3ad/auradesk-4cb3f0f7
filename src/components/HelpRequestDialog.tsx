@@ -84,7 +84,7 @@ export const HelpRequestDialog = ({ open, onOpenChange }: HelpRequestDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[500px] max-h-[85vh] overflow-y-auto mx-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Request Help</DialogTitle>
           <DialogDescription>
