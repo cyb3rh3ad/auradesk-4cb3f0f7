@@ -162,7 +162,7 @@ export const HelpNotification = () => {
   const visibleRequests = isLoaded ? filterDismissed(requests) : [];
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+    <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-[99999] space-y-2 sm:max-w-sm pointer-events-none">
       <AnimatePresence>
         {visibleRequests.map((request) => (
           <motion.div
@@ -172,7 +172,7 @@ export const HelpNotification = () => {
             exit={{ opacity: 0, x: 100, scale: 0.9 }}
             transition={{ duration: 0.2 }}
           >
-            <Card className="p-4 bg-card shadow-lg border">
+            <Card className="p-4 bg-card shadow-lg border pointer-events-auto">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Headphones className="h-5 w-5 text-primary" />

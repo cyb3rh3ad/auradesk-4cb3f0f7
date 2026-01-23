@@ -50,13 +50,36 @@ export const NotificationsDropdown = () => {
     setOpen(false);
   }, []);
 
-  // Update position when opening
+  // Update position when opening with viewport-aware positioning
   useEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 320; // max menu width
+      const padding = 16;
+      
+      // Calculate right position, ensuring menu stays within viewport
+      let rightPos = window.innerWidth - rect.right;
+      
+      // If menu would overflow left side, adjust
+      if (rect.right - menuWidth < padding) {
+        rightPos = window.innerWidth - menuWidth - padding;
+      }
+      
+      // Ensure minimum padding from right edge
+      rightPos = Math.max(rightPos, padding);
+      
+      // Calculate top position
+      let topPos = rect.bottom + 8;
+      
+      // If menu would overflow bottom, position above the button instead
+      const estimatedMenuHeight = 300;
+      if (topPos + estimatedMenuHeight > window.innerHeight - padding) {
+        topPos = Math.max(rect.top - estimatedMenuHeight - 8, padding);
+      }
+      
       setMenuPosition({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
+        top: topPos,
+        right: rightPos,
       });
     }
   }, [open]);
@@ -124,10 +147,11 @@ export const NotificationsDropdown = () => {
               style={{
                 position: 'fixed',
                 top: menuPosition.top,
-                right: Math.max(menuPosition.right, 8),
+                right: menuPosition.right,
                 zIndex: 99999,
+                maxWidth: 'calc(100vw - 32px)',
               }}
-              className="w-80 max-w-[calc(100vw-16px)] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+              className="w-80 rounded-xl border border-border bg-background shadow-xl overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
