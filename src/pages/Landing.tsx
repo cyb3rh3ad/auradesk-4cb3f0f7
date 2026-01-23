@@ -323,8 +323,6 @@ const Landing = () => {
               </Button>
             </div>
 
-            {/* App Preview */}
-            <AppPreview />
           </motion.div>
         </div>
       </section>
@@ -375,6 +373,17 @@ const Landing = () => {
               </motion.div>
             ))}
           </div>
+
+          {/* Interactive App Preview */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="mt-12 md:mt-16"
+          >
+            <AppPreview />
+          </motion.div>
         </div>
       </section>
 
