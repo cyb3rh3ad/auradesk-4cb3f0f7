@@ -33,17 +33,25 @@ export const Header = () => {
       const rect = buttonRef.current.getBoundingClientRect();
       const menuWidth = 256; // w-64 = 16rem = 256px
       const padding = 16;
+      const viewportWidth = window.innerWidth;
       
-      // Calculate right position, ensure menu stays within viewport
-      let rightPos = window.innerWidth - rect.right;
-      
-      // If menu would overflow left side, adjust
-      if (rect.right - menuWidth < padding) {
-        rightPos = window.innerWidth - menuWidth - padding;
+      // For mobile, center the menu
+      let rightPos: number;
+      if (viewportWidth < 640) {
+        // Mobile: center will be handled via CSS
+        rightPos = padding;
+      } else {
+        // Desktop: align to button
+        rightPos = viewportWidth - rect.right;
+        
+        // If menu would overflow left side, adjust
+        if (rect.right - menuWidth < padding) {
+          rightPos = viewportWidth - menuWidth - padding;
+        }
+        
+        // Ensure minimum padding from right edge
+        rightPos = Math.max(rightPos, padding);
       }
-      
-      // Ensure minimum padding from right edge
-      rightPos = Math.max(rightPos, padding);
       
       setMenuPosition({
         top: rect.bottom + 8,
@@ -156,12 +164,15 @@ export const Header = () => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="fixed w-[calc(100vw-2rem)] sm:w-64 max-w-64 bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden"
+                  className="fixed bg-popover border border-border/50 shadow-2xl rounded-2xl overflow-hidden"
                   style={{ 
                     transformOrigin: "top right",
                     top: menuPosition.top,
-                    right: Math.max(menuPosition.right, 16),
-                    left: 'auto',
+                    right: window.innerWidth < 640 ? 'auto' : Math.max(menuPosition.right, 16),
+                    left: window.innerWidth < 640 ? '50%' : 'auto',
+                    transform: window.innerWidth < 640 ? 'translateX(-50%)' : 'none',
+                    width: window.innerWidth < 640 ? 'calc(100vw - 2rem)' : '256px',
+                    maxWidth: '256px',
                     zIndex: 99999
                   }}
               >

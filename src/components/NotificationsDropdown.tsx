@@ -56,24 +56,33 @@ export const NotificationsDropdown = () => {
       const rect = buttonRef.current.getBoundingClientRect();
       const menuWidth = 320; // max menu width
       const padding = 16;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       
-      // Calculate right position, ensuring menu stays within viewport
-      let rightPos = window.innerWidth - rect.right;
-      
-      // If menu would overflow left side, adjust
-      if (rect.right - menuWidth < padding) {
-        rightPos = window.innerWidth - menuWidth - padding;
+      // For mobile, center the menu
+      let rightPos: number;
+      if (viewportWidth < 640) {
+        // Mobile: center the menu
+        rightPos = (viewportWidth - Math.min(menuWidth, viewportWidth - 32)) / 2;
+      } else {
+        // Desktop: align to button
+        rightPos = viewportWidth - rect.right;
+        
+        // If menu would overflow left side, adjust
+        if (rect.right - menuWidth < padding) {
+          rightPos = viewportWidth - menuWidth - padding;
+        }
+        
+        // Ensure minimum padding from right edge
+        rightPos = Math.max(rightPos, padding);
       }
-      
-      // Ensure minimum padding from right edge
-      rightPos = Math.max(rightPos, padding);
       
       // Calculate top position
       let topPos = rect.bottom + 8;
       
       // If menu would overflow bottom, position above the button instead
       const estimatedMenuHeight = 300;
-      if (topPos + estimatedMenuHeight > window.innerHeight - padding) {
+      if (topPos + estimatedMenuHeight > viewportHeight - padding) {
         topPos = Math.max(rect.top - estimatedMenuHeight - 8, padding);
       }
       
@@ -147,11 +156,14 @@ export const NotificationsDropdown = () => {
               style={{
                 position: 'fixed',
                 top: menuPosition.top,
-                right: menuPosition.right,
+                right: window.innerWidth < 640 ? 'auto' : menuPosition.right,
+                left: window.innerWidth < 640 ? '50%' : 'auto',
+                transform: window.innerWidth < 640 ? 'translateX(-50%)' : 'none',
                 zIndex: 99999,
-                maxWidth: 'calc(100vw - 32px)',
+                width: window.innerWidth < 640 ? 'calc(100vw - 2rem)' : '320px',
+                maxWidth: '320px',
               }}
-              className="w-80 rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+              className="rounded-xl border border-border bg-popover shadow-xl overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">

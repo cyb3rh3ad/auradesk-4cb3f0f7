@@ -69,18 +69,26 @@ export const AIModelSelector = ({
       const rect = buttonRef.current.getBoundingClientRect();
       const menuWidth = 320;
       const padding = 16;
+      const viewportWidth = window.innerWidth;
       
-      // Calculate left position - try to align right edge with button, but don't overflow
-      let leftPos = rect.right - menuWidth;
-      
-      // If would overflow left, align to left edge with padding
-      if (leftPos < padding) {
+      // For mobile, center the menu
+      let leftPos: number;
+      if (viewportWidth < 640) {
+        // Mobile: will center via CSS
         leftPos = padding;
-      }
-      
-      // If would overflow right, align to right edge with padding
-      if (leftPos + menuWidth > window.innerWidth - padding) {
-        leftPos = window.innerWidth - menuWidth - padding;
+      } else {
+        // Desktop: try to align right edge with button, but don't overflow
+        leftPos = rect.right - menuWidth;
+        
+        // If would overflow left, align to left edge with padding
+        if (leftPos < padding) {
+          leftPos = padding;
+        }
+        
+        // If would overflow right, align to right edge with padding
+        if (leftPos + menuWidth > viewportWidth - padding) {
+          leftPos = viewportWidth - menuWidth - padding;
+        }
       }
       
       setMenuPosition({
@@ -153,12 +161,14 @@ export const AIModelSelector = ({
               style={{
                 position: 'fixed',
                 top: menuPosition.top,
-                left: Math.max(menuPosition.left, 16),
+                left: window.innerWidth < 640 ? '50%' : Math.max(menuPosition.left, 16),
                 right: 'auto',
+                transform: window.innerWidth < 640 ? 'translateX(-50%)' : 'none',
                 zIndex: 99999,
-                maxWidth: 'calc(100vw - 2rem)',
+                width: window.innerWidth < 640 ? 'calc(100vw - 2rem)' : '320px',
+                maxWidth: '320px',
               }}
-              className="w-[320px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+              className="rounded-xl border border-border bg-popover shadow-xl overflow-hidden"
             >
               {/* Execution Mode Toggle */}
               <div className="p-2 border-b border-border">
