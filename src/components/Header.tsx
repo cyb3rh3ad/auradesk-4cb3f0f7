@@ -198,9 +198,9 @@ export const Header = () => {
           <button 
             ref={buttonRef}
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-primary/30"
+            className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-muted-foreground/30 focus:outline-none"
           >
-            <Avatar className="w-9 h-9 ring-2 ring-primary/20">
+            <Avatar className="w-9 h-9 ring-2 ring-border">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
                 {user?.email ? getInitials(user.email) : "AD"}
