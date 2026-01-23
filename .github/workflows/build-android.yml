@@ -1,4 +1,3 @@
-# AuraDesk Android Build Workflow
 name: Build Android APK
 
 on:
@@ -10,12 +9,11 @@ permissions:
   contents: write
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,109 +21,62 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Install Android SDK components
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-35"
-
-      - name: Setup Gradle cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Build web app
         run: npm run build
 
-      - name: Create production Capacitor config
-        run: node scripts/create-capacitor-config.js
-
-      - name: Add Android platform if needed
+      - name: Create Capacitor config for production
         run: |
-          if [ ! -d "android/capacitor-cordova-android-plugins" ]; then
-            echo "Android capacitor plugins folder missing, will be created by cap sync"
-          fi
+          echo '{
+            "appId": "app.lovable.auradesk",
+            "appName": "AuraDesk",
+            "webDir": "dist"
+          }' > capacitor.config.json
 
-      - name: Sync Capacitor with Android
+      - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      - name: Build Android APK
+      - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Find APK
-        id: find-apk
         run: |
-          APK_PATH=$(find android -name "*.apk" -type f | head -1)
-          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-          echo "Found APK at: $APK_PATH"
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Get version
-        id: version
+      - name: Prepare APK for release
         run: |
-          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
-          BUILD_VERSION="${VERSION}-build.${{ github.run_number }}"
-          echo "version=$BUILD_VERSION" >> $GITHUB_OUTPUT
+          mkdir -p release
+          find android -name "*.apk" -type f -exec cp {} release/AuraDesk.apk \;
+          ls -la release/
 
-      - name: Rename APK
-        run: |
-          if [ -n "${{ steps.find-apk.outputs.apk_path }}" ]; then
-            cp "${{ steps.find-apk.outputs.apk_path }}" AuraDesk-${{ steps.version.outputs.version }}.apk
-            cp "${{ steps.find-apk.outputs.apk_path }}" AuraDesk.apk
-          else
-            echo "No APK found!"
-            exit 1
-          fi
-
-      - name: Upload APK as artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: |
-            AuraDesk-${{ steps.version.outputs.version }}.apk
-            AuraDesk.apk
-          retention-days: 30
+          name: AuraDesk-APK
+          path: release/AuraDesk.apk
 
-      - name: Upload APK to Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: android-v${{ steps.version.outputs.version }}
-          name: AuraDesk Android v${{ steps.version.outputs.version }}
+          tag_name: android-build-${{ github.run_number }}
+          name: AuraDesk Android (Build ${{ github.run_number }})
           body: |
-            ## AuraDesk Android Update
+            **AuraDesk for Android**
             
-            Automatic Android build from #${{ github.run_number }}
-            
-            ### Installation
-            1. Download the APK file below
-            2. Enable "Install from unknown sources" in your Android settings
-            3. Open the APK to install
-            
-            **Note**: This is an unsigned APK for testing/sideloading.
-          files: |
-            AuraDesk-${{ steps.version.outputs.version }}.apk
-            AuraDesk.apk
-          draft: false
-          prerelease: false
+            To install:
+            1. Download AuraDesk.apk
+            2. Enable "Install from unknown sources" in Android settings
+            3. Open the APK file to install
+          files: release/AuraDesk.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
