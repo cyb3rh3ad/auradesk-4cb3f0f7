@@ -321,7 +321,7 @@ const Auth = () => {
       
       {/* Back button for web only - positioned above card on mobile */}
       {!isElectron && (
-        <div className="w-full max-w-md mb-2 sm:absolute sm:top-4 sm:left-4 sm:w-auto sm:mb-0 z-10">
+        <div className="w-full max-w-md mb-2 sm:absolute sm:top-4 sm:left-4 sm:w-auto sm:mb-0 sm:z-10">
           <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -333,9 +333,9 @@ const Auth = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md relative"
+        className="w-full max-w-md relative z-20"
       >
-        <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl">
+        <Card className="border-border/50 bg-card shadow-2xl">
           <CardHeader className="text-center space-y-3">
             <div className="flex justify-center">
               <InteractiveLogo />
