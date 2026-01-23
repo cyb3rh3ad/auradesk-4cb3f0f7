@@ -31,6 +31,12 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
       - name: Install dependencies
         run: npm ci
 
@@ -39,7 +45,32 @@ jobs:
 
       - name: Create production Capacitor config
         run: |
-          echo '{"appId":"app.lovable.fc4bd383e19d4e41b174125d10b92719","appName":"AuraDesk","webDir":"dist","ios":{"contentInset":"automatic"},"android":{"allowMixedContent":true},"plugins":{"SplashScreen":{"launchShowDuration":2000,"launchAutoHide":true,"launchFadeOutDuration":500,"backgroundColor":"#0a0a0f","androidSplashResourceName":"splash","androidScaleType":"CENTER_CROP","showSpinner":false,"splashFullScreen":true,"splashImmersive":true}}}' > capacitor.config.json
+          cat > capacitor.config.json << 'CONFIGEND'
+          {
+            "appId": "app.lovable.fc4bd383e19d4e41b174125d10b92719",
+            "appName": "AuraDesk",
+            "webDir": "dist",
+            "ios": {
+              "contentInset": "automatic"
+            },
+            "android": {
+              "allowMixedContent": true
+            },
+            "plugins": {
+              "SplashScreen": {
+                "launchShowDuration": 2000,
+                "launchAutoHide": true,
+                "launchFadeOutDuration": 500,
+                "backgroundColor": "#0a0a0f",
+                "androidSplashResourceName": "splash",
+                "androidScaleType": "CENTER_CROP",
+                "showSpinner": false,
+                "splashFullScreen": true,
+                "splashImmersive": true
+              }
+            }
+          }
+          CONFIGEND
 
       - name: Sync Capacitor with Android
         run: npx cap sync android
@@ -49,7 +80,7 @@ jobs:
 
       - name: Build Android APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: List APK output
         run: find android -name "*.apk" -type f
