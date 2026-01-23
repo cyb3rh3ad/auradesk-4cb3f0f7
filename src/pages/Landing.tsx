@@ -21,7 +21,9 @@ import {
   Play,
   Smartphone,
   Monitor,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -176,9 +178,19 @@ const Landing = () => {
               <Mail className="w-4 h-4" />
               <span className="hidden md:inline">info.auradesk@gmail.com</span>
             </a>
-            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
-              Sign In
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/auth")} className="gap-1.5">
+                    Sign In
+                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[280px] text-center">
+                  <p className="text-xs">Google Sign-In will redirect you to a secure authentication page. This is normal and keeps your data safe.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </nav>
