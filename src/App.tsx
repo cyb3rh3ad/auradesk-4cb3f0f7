@@ -58,11 +58,35 @@ const isPWAInstalled = () => {
   return isStandalone || isIOSStandalone;
 };
 
+// Check if current URL contains OAuth callback tokens
+const hasOAuthTokens = () => {
+  const hash = window.location.hash;
+  const search = window.location.search;
+  const fullUrl = window.location.href;
+  
+  return (
+    hash.includes('access_token') ||
+    hash.includes('refresh_token') ||
+    search.includes('access_token') ||
+    search.includes('code=') ||
+    fullUrl.includes('access_token=')
+  );
+};
+
 // Component to handle root route - redirect Electron/PWA users to auth
 const RootRoute = memo(() => {
   const { user, loading } = useAuth();
   const isElectron = isElectronApp();
   const isPWA = isPWAInstalled();
+  const isOAuthCallback = hasOAuthTokens();
+  
+  // If this is an OAuth callback, show loading while AuthProvider processes tokens
+  // Then redirect based on auth state
+  if (isOAuthCallback) {
+    if (loading) return <PageLoader />;
+    // After OAuth processing, redirect to dashboard if authenticated, otherwise to auth
+    return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
+  }
   
   // If Electron app or installed PWA, skip landing page entirely
   if (isElectron || isPWA) {

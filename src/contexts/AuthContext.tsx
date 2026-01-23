@@ -390,12 +390,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Mark OAuth login as pending BEFORE redirect - this ensures MFA check runs
     sessionStorage.setItem('oauth_login_pending', 'true');
+    sessionStorage.setItem('oauth_login_time', Date.now().toString());
     
-    // Web: Normal OAuth flow - redirect to auth page for MFA check
+    // Web: Normal OAuth flow
+    // IMPORTANT: Do NOT use hash routes in redirectTo - it creates double-hash URLs
+    // that break token parsing (e.g., /#/auth#access_token=...). 
+    // Redirect to origin only and let AuthProvider handle routing after session is established.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/#/auth`,
+        redirectTo: window.location.origin,
       }
     });
     return { error };
