@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Tooltip,
   TooltipContent,
@@ -64,6 +65,7 @@ export function WebRTCRoom({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
   const orientation = useOrientation();
+  const isMobile = useIsMobile();
 
   // Set up real-time channel for call control events
   useEffect(() => {
@@ -325,18 +327,31 @@ export function WebRTCRoom({
 
   const numParticipants = allParticipants.length;
   
-  // Adaptive grid based on participant count and orientation
+  // Adaptive grid based on participant count, orientation, and device type
   const getGridClasses = () => {
+    // Mobile-specific grid that fits all participants without cutting off
+    if (isMobile) {
+      if (numParticipants === 1) {
+        return "grid-cols-1";
+      } else if (numParticipants === 2) {
+        return "grid-cols-2";
+      } else if (numParticipants <= 4) {
+        return "grid-cols-2 grid-rows-2";
+      } else {
+        return "grid-cols-2 grid-rows-3";
+      }
+    }
+    
+    // Desktop behavior
     if (numParticipants === 1) {
       return "grid-cols-1";
     } else if (numParticipants === 2) {
-      // For 2 participants on portrait, stack vertically
       return orientation === 'portrait' 
         ? "grid-cols-1 grid-rows-2" 
         : "grid-cols-2 grid-rows-1";
     } else if (numParticipants <= 4) {
       return orientation === 'portrait'
-        ? "grid-cols-1 sm:grid-cols-2"
+        ? "grid-cols-2"
         : "grid-cols-2";
     } else {
       return orientation === 'portrait'
@@ -345,30 +360,34 @@ export function WebRTCRoom({
     }
   };
 
-  // Get aspect ratio class based on camera state and orientation
+  // Get aspect ratio class based on camera state, orientation, and device
   const getAspectRatioClass = (hasVideo: boolean) => {
-    if (!hasVideo) {
-      // When camera is off, use square or vertical rectangle
-      return orientation === 'portrait' 
-        ? "aspect-[3/4]"  // Vertical rectangle in portrait
-        : "aspect-square"; // Square in landscape
+    // Mobile: use square aspect ratio to fit more participants
+    if (isMobile) {
+      return "aspect-square";
     }
-    // When camera is on, adapt to orientation
+    
+    if (!hasVideo) {
+      return orientation === 'portrait' 
+        ? "aspect-[3/4]"
+        : "aspect-square";
+    }
     return orientation === 'portrait' 
-      ? "aspect-[3/4]"   // Vertical in portrait
-      : "aspect-video";  // 16:9 in landscape
+      ? "aspect-[3/4]"
+      : "aspect-video";
   };
 
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
       {/* Connection Quality Indicator */}
       {connectionStats && (
-        <ConnectionQualityIndicator stats={connectionStats} />
+        <ConnectionQualityIndicator stats={connectionStats} isMobile={isMobile} />
       )}
       
-      {/* Participants grid */}
+      {/* Participants grid - with proper mobile spacing */}
       <div className={cn(
-        "p-2 sm:p-4 grid gap-2 sm:gap-4 flex-1 auto-rows-fr",
+        "grid gap-1.5 flex-1 auto-rows-fr overflow-hidden",
+        isMobile ? "p-1.5 pb-0" : "p-2 sm:p-4 gap-2 sm:gap-4",
         getGridClasses()
       )}>
         {allParticipants.map((participant) => {
@@ -381,10 +400,10 @@ export function WebRTCRoom({
             <div
               key={participant.id}
               className={cn(
-                "relative rounded-xl overflow-hidden bg-muted group transition-all duration-300 border-2 border-border",
+                "relative rounded-lg overflow-hidden bg-muted group transition-all duration-300 border border-border",
+                isMobile ? "rounded-md" : "rounded-xl border-2",
                 getAspectRatioClass(!!hasVideo && !isCameraOff),
                 participant.isLocal && "order-first",
-                // Add subtle glow when video is active
                 hasVideo && !isCameraOff && "shadow-lg"
               )}
             >
@@ -396,41 +415,60 @@ export function WebRTCRoom({
                   isLocal={participant.isLocal}
                   participantId={participant.id}
                   hasVideo={!!hasVideo}
+                  isMobile={isMobile}
                 />
               )}
 
-              {/* Avatar when camera off - centered with animation */}
+              {/* Avatar when camera off - smaller on mobile */}
               {(!participant.stream || !hasVideo) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/80">
                   <Avatar className={cn(
                     "transition-all duration-300",
-                    orientation === 'portrait' ? "h-20 w-20 md:h-24 md:w-24" : "h-16 w-16 md:h-20 md:w-20"
+                    isMobile ? "h-12 w-12" : (orientation === 'portrait' ? "h-20 w-20 md:h-24 md:w-24" : "h-16 w-16 md:h-20 md:w-20")
                   )}>
-                    <AvatarFallback className="text-xl md:text-2xl bg-primary/20 text-primary">
+                    <AvatarFallback className={cn(
+                      "bg-primary/20 text-primary",
+                      isMobile ? "text-lg" : "text-xl md:text-2xl"
+                    )}>
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </div>
               )}
 
-              {/* Name label */}
-              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 backdrop-blur-sm rounded-lg text-foreground text-xs sm:text-sm flex items-center gap-2">
-                {displayName}
+              {/* Name label - compact on mobile */}
+              <div className={cn(
+                "absolute bg-background/70 backdrop-blur-sm rounded text-foreground flex items-center gap-1",
+                isMobile ? "bottom-1 left-1 px-1.5 py-0.5 text-[10px]" : "top-2 left-2 px-2 py-1 text-xs sm:text-sm gap-2"
+              )}>
+                <span className="truncate max-w-[80px]">{displayName}</span>
                 {isHost && participant.isLocal && (
-                  <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">Host</span>
+                  <span className={cn(
+                    "bg-primary/20 text-primary px-1 py-0.5 rounded",
+                    isMobile ? "text-[8px]" : "text-[10px] px-1.5"
+                  )}>Host</span>
                 )}
               </div>
 
-              {/* Status icons */}
-              <div className="absolute top-2 right-2 flex gap-1">
+              {/* Status icons - smaller on mobile */}
+              <div className={cn(
+                "absolute flex gap-0.5",
+                isMobile ? "top-1 right-1" : "top-2 right-2 gap-1"
+              )}>
                 {participant.isLocal && isMuted && (
-                  <div className="p-1 bg-background/70 backdrop-blur-sm rounded-full">
-                    <MicOff className="h-4 w-4 text-destructive" />
+                  <div className={cn(
+                    "bg-background/70 backdrop-blur-sm rounded-full",
+                    isMobile ? "p-0.5" : "p-1"
+                  )}>
+                    <MicOff className={cn("text-destructive", isMobile ? "h-3 w-3" : "h-4 w-4")} />
                   </div>
                 )}
                 {participant.isLocal && isCameraOff && (
-                  <div className="p-1 bg-background/70 backdrop-blur-sm rounded-full">
-                    <VideoOff className="h-4 w-4 text-destructive" />
+                  <div className={cn(
+                    "bg-background/70 backdrop-blur-sm rounded-full",
+                    isMobile ? "p-0.5" : "p-1"
+                  )}>
+                    <VideoOff className={cn("text-destructive", isMobile ? "h-3 w-3" : "h-4 w-4")} />
                   </div>
                 )}
               </div>
@@ -446,42 +484,53 @@ export function WebRTCRoom({
         </div>
       )}
 
-      {/* Controls */}
-      <div className="flex justify-center gap-2 p-4 bg-muted border-t border-border flex-wrap">
+      {/* Controls - positioned higher on mobile with safe area */}
+      <div className={cn(
+        "flex justify-center gap-2 bg-muted border-t border-border flex-wrap",
+        isMobile 
+          ? "p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]" 
+          : "p-4"
+      )}>
         <Button 
           onClick={handleToggleMute} 
           variant={isMuted ? "destructive" : "secondary"}
           size="icon"
+          className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
         >
-          {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          {isMuted ? <MicOff className={cn(isMobile ? "h-5 w-5" : "h-5 w-5")} /> : <Mic className={cn(isMobile ? "h-5 w-5" : "h-5 w-5")} />}
         </Button>
 
         <Button 
           onClick={handleToggleCamera} 
           variant={isCameraOff ? "destructive" : "secondary"}
           size="icon"
+          className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
         >
           {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
         </Button>
 
-        <Button 
-          onClick={handleToggleScreenShare} 
-          variant={isScreenSharing ? "default" : "secondary"}
-          size="icon"
-        >
-          {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
-        </Button>
+        {/* Hide screen share on mobile - not useful */}
+        {!isMobile && (
+          <Button 
+            onClick={handleToggleScreenShare} 
+            variant={isScreenSharing ? "default" : "secondary"}
+            size="icon"
+          >
+            {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+          </Button>
+        )}
 
         <Button 
           onClick={toggleAITranscription} 
           variant={isRecording ? "default" : "secondary"}
           size="icon"
           title="AI Transcription"
+          className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
         >
           <Sparkles className={cn("h-5 w-5", isRecording && "text-yellow-400")} />
         </Button>
 
-        {isRecording && (
+        {isRecording && !isMobile && (
           <Button 
             onClick={handleSummarize} 
             variant="outline"
@@ -498,11 +547,22 @@ export function WebRTCRoom({
         )}
 
         {isHost ? (
-          <Button onClick={handleEndCallForAll} variant="destructive" size="icon" title="End call for all">
+          <Button 
+            onClick={handleEndCallForAll} 
+            variant="destructive" 
+            size="icon" 
+            title="End call for all"
+            className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
+          >
             <PhoneOff className="h-5 w-5" />
           </Button>
         ) : (
-          <Button onClick={handleDisconnect} variant="destructive" size="icon">
+          <Button 
+            onClick={handleDisconnect} 
+            variant="destructive" 
+            size="icon"
+            className={cn(isMobile && "h-11 w-11 min-h-[44px] min-w-[44px]")}
+          >
             <PhoneOff className="h-5 w-5" />
           </Button>
         )}
@@ -512,7 +572,7 @@ export function WebRTCRoom({
 }
 
 // Connection quality indicator component
-function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
+function ConnectionQualityIndicator({ stats, isMobile }: { stats: ConnectionStats; isMobile: boolean }) {
   const qualityColors = {
     excellent: 'text-green-500',
     good: 'text-green-400',
@@ -553,32 +613,37 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn(
-            "absolute top-2 right-2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full",
-            qualityBgColors[stats.connectionQuality],
-            "backdrop-blur-sm border border-border/50"
+            "absolute z-10 flex items-center gap-1.5 rounded-full backdrop-blur-sm border border-border/50",
+            isMobile ? "top-1 right-1 px-2 py-1" : "top-2 right-2 px-3 py-1.5 gap-2",
+            qualityBgColors[stats.connectionQuality]
           )}>
             {stats.isRelay ? (
-              <Server className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+              <Server className={cn(isMobile ? "h-3 w-3" : "h-4 w-4", qualityColors[stats.connectionQuality])} />
             ) : (
-              <Radio className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+              <Radio className={cn(isMobile ? "h-3 w-3" : "h-4 w-4", qualityColors[stats.connectionQuality])} />
             )}
-            <span className={cn("text-xs font-medium", qualityColors[stats.connectionQuality])}>
-              {stats.isRelay ? 'Relay' : 'P2P'}
-            </span>
-            <span className="text-xs text-muted-foreground">•</span>
-            <span className={cn("text-xs font-medium", adaptiveModeColors[stats.adaptiveMode])}>
-              {adaptiveModeLabels[stats.adaptiveMode]}
-            </span>
+            {!isMobile && (
+              <>
+                <span className={cn("text-xs font-medium", qualityColors[stats.connectionQuality])}>
+                  {stats.isRelay ? 'Relay' : 'P2P'}
+                </span>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className={cn("text-xs font-medium", adaptiveModeColors[stats.adaptiveMode])}>
+                  {adaptiveModeLabels[stats.adaptiveMode]}
+                </span>
+              </>
+            )}
             <div className="flex gap-0.5">
               {[1, 2, 3, 4].map((bar) => (
                 <div
                   key={bar}
                   className={cn(
-                    "w-1 rounded-full transition-all",
-                    bar === 1 && "h-1.5",
-                    bar === 2 && "h-2",
-                    bar === 3 && "h-2.5",
-                    bar === 4 && "h-3",
+                    "rounded-full transition-all",
+                    isMobile ? "w-0.5" : "w-1",
+                    bar === 1 && (isMobile ? "h-1" : "h-1.5"),
+                    bar === 2 && (isMobile ? "h-1.5" : "h-2"),
+                    bar === 3 && (isMobile ? "h-2" : "h-2.5"),
+                    bar === 4 && (isMobile ? "h-2.5" : "h-3"),
                     (stats.connectionQuality === 'excellent' && bar <= 4) ||
                     (stats.connectionQuality === 'good' && bar <= 3) ||
                     (stats.connectionQuality === 'fair' && bar <= 2) ||
@@ -649,12 +714,13 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
 interface VideoElementProps {
   stream: MediaStream;
   muted: boolean;
+  isMobile?: boolean;
   isLocal: boolean;
   participantId: string;
   hasVideo: boolean;
 }
 
-function VideoElement({ stream, muted, isLocal, participantId, hasVideo }: VideoElementProps) {
+function VideoElement({ stream, muted, isLocal, participantId, hasVideo, isMobile = false }: VideoElementProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playAttemptRef = useRef<number>(0);
@@ -838,16 +904,25 @@ function VideoElement({ stream, muted, isLocal, participantId, hasVideo }: Video
           !hasVideo && "hidden"
         )}
       />
-      {/* Audio debug indicator for remote participants */}
+      {/* Audio debug indicator for remote participants - smaller on mobile */}
       {!isLocal && (
-        <div className="absolute bottom-2 left-2 flex items-center gap-1">
+        <div className={cn(
+          "absolute flex items-center gap-1",
+          isMobile ? "bottom-1 right-1" : "bottom-2 left-2"
+        )}>
           {audioPlaying ? (
-            <div className="p-1 bg-green-500/20 backdrop-blur-sm rounded-full">
-              <Mic className="h-3 w-3 text-green-500" />
+            <div className={cn(
+              "bg-green-500/20 backdrop-blur-sm rounded-full",
+              isMobile ? "p-0.5" : "p-1"
+            )}>
+              <Mic className={cn("text-green-500", isMobile ? "h-2.5 w-2.5" : "h-3 w-3")} />
             </div>
           ) : (
             <div 
-              className="p-1 bg-red-500/20 backdrop-blur-sm rounded-full cursor-pointer"
+              className={cn(
+                "bg-red-500/20 backdrop-blur-sm rounded-full cursor-pointer",
+                isMobile ? "p-0.5" : "p-1"
+              )}
               onClick={() => {
                 if (audioRef.current) {
                   audioRef.current.play().then(() => setAudioPlaying(true)).catch(() => {});
@@ -855,7 +930,7 @@ function VideoElement({ stream, muted, isLocal, participantId, hasVideo }: Video
               }}
               title="Click to enable audio"
             >
-              <MicOff className="h-3 w-3 text-red-500" />
+              <MicOff className={cn("text-red-500", isMobile ? "h-2.5 w-2.5" : "h-3 w-3")} />
             </div>
           )}
         </div>
