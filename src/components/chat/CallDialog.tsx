@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { HybridCallRoom } from "@/components/call/HybridCallRoom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { GripHorizontal, Loader2, Minimize2, Maximize2 } from "lucide-react";
+import { GripHorizontal, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
 
 interface CallDialogProps {
   open: boolean;
@@ -16,6 +15,19 @@ interface CallDialogProps {
   initialVideo: boolean;
   isCaller?: boolean;
 }
+
+// Minimum and maximum sizes for the call window
+const MIN_WIDTH = 280;
+const MIN_HEIGHT = 200;
+const MAX_WIDTH = 1200;
+const MAX_HEIGHT = 900;
+
+// Size thresholds for adaptive content
+const SIZE_THRESHOLDS = {
+  mini: { maxWidth: 320, maxHeight: 260 },
+  small: { maxWidth: 480, maxHeight: 380 },
+  medium: { maxWidth: 640, maxHeight: 500 },
+};
 
 type PiPSize = 'mini' | 'small' | 'medium' | 'full';
 
@@ -32,76 +44,86 @@ export const CallDialog = ({
   const [userName, setUserName] = useState<string | null>(null);
   const [isLoadingName, setIsLoadingName] = useState(true);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasUserMoved, setHasUserMoved] = useState(false);
-  const [pipSize, setPipSize] = useState<PiPSize>('full');
+  
   const dragRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 });
 
-  // Size configurations for PiP modes
-  const sizeConfigs = {
-    mini: { width: 180, height: 140 },
-    small: { width: 320, height: 240 },
-    medium: { width: 480, height: 360 },
-    full: { width: Math.min(800, window.innerWidth * 0.9), height: Math.min(600, window.innerHeight * 0.8) },
-  };
-
-  const currentSize = sizeConfigs[pipSize];
-
-  // Calculate centered position - on mobile, position near top; on desktop, center
-  const getCenteredPosition = () => {
-    if (pipSize !== 'full') {
-      // PiP mode - position in bottom right
-      return {
-        x: window.innerWidth - currentSize.width - 20,
-        y: window.innerHeight - currentSize.height - 100,
-      };
+  // Determine PiP size based on current dimensions
+  const getPiPSize = useCallback((): PiPSize => {
+    if (size.width <= SIZE_THRESHOLDS.mini.maxWidth && size.height <= SIZE_THRESHOLDS.mini.maxHeight) {
+      return 'mini';
     }
-    const width = isMobile ? window.innerWidth : Math.min(800, window.innerWidth * 0.9);
-    const height = isMobile ? window.innerHeight : Math.min(600, window.innerHeight * 0.8);
-    const centerX = isMobile ? 0 : (window.innerWidth - width) / 2;
-    const topY = isMobile 
-      ? Math.max(0, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0'))
-      : Math.max(20, (window.innerHeight - height) / 2);
-    return { x: Math.max(0, centerX), y: topY };
-  };
+    if (size.width <= SIZE_THRESHOLDS.small.maxWidth && size.height <= SIZE_THRESHOLDS.small.maxHeight) {
+      return 'small';
+    }
+    if (size.width <= SIZE_THRESHOLDS.medium.maxWidth && size.height <= SIZE_THRESHOLDS.medium.maxHeight) {
+      return 'medium';
+    }
+    return 'full';
+  }, [size]);
 
-  // Center the dialog on mount
+  const pipSize = getPiPSize();
+  const isPiPMode = pipSize !== 'full';
+
+  // Get default size based on screen
+  const getDefaultSize = useCallback(() => {
+    if (isMobile) {
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { 
+      width: Math.min(800, window.innerWidth * 0.9), 
+      height: Math.min(600, window.innerHeight * 0.8) 
+    };
+  }, [isMobile]);
+
+  // Calculate centered position
+  const getCenteredPosition = useCallback((currentSize: { width: number; height: number }) => {
+    if (isMobile) {
+      return { x: 0, y: 0 };
+    }
+    const centerX = (window.innerWidth - currentSize.width) / 2;
+    const centerY = Math.max(20, (window.innerHeight - currentSize.height) / 2);
+    return { x: Math.max(0, centerX), y: centerY };
+  }, [isMobile]);
+
+  // Initialize on open
   useEffect(() => {
     if (open && !isInitialized) {
-      setPosition(getCenteredPosition());
+      const defaultSize = getDefaultSize();
+      setSize(defaultSize);
+      setPosition(getCenteredPosition(defaultSize));
       setIsInitialized(true);
       setHasUserMoved(false);
     }
     if (!open) {
       setIsInitialized(false);
       setHasUserMoved(false);
-      setPipSize('full');
     }
-  }, [open, isInitialized, isMobile]);
-
-  // Update position when size changes
-  useEffect(() => {
-    if (!hasUserMoved && open) {
-      setPosition(getCenteredPosition());
-    }
-  }, [pipSize, hasUserMoved, open]);
+  }, [open, isInitialized, getDefaultSize, getCenteredPosition]);
 
   // Re-center on window resize if user hasn't moved the dialog
   useEffect(() => {
-    if (!open || hasUserMoved) return;
+    if (!open || hasUserMoved || isMobile) return;
 
     const handleResize = () => {
-      setPosition(getCenteredPosition());
+      const newSize = getDefaultSize();
+      setSize(newSize);
+      setPosition(getCenteredPosition(newSize));
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [open, hasUserMoved, isMobile, pipSize]);
+  }, [open, hasUserMoved, isMobile, getDefaultSize, getCenteredPosition]);
 
-  // Fetch user profile name - must complete before joining call
+  // Fetch user profile name
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) {
@@ -136,8 +158,9 @@ export const CallDialog = ({
     }
   }, [user, open]);
 
-  // Handle drag start - supports both mouse and touch
+  // Handle drag start
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if (isMobile) return;
     e.preventDefault();
     setIsDragging(true);
     setHasUserMoved(true);
@@ -149,32 +172,86 @@ export const CallDialog = ({
     positionRef.current = position;
   };
 
-  // Handle drag move - supports both mouse and touch
+  // Handle resize start
+  const handleResizeStart = (e: React.MouseEvent | React.TouchEvent, direction: string) => {
+    if (isMobile) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeDirection(direction);
+    setHasUserMoved(true);
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    resizeStartRef.current = { 
+      x: clientX, 
+      y: clientY, 
+      width: size.width, 
+      height: size.height,
+      posX: position.x,
+      posY: position.y,
+    };
+  };
+
+  // Handle drag/resize move
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging && !isResizing) return;
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
       
-      const deltaX = clientX - dragStartRef.current.x;
-      const deltaY = clientY - dragStartRef.current.y;
+      if (isDragging) {
+        const deltaX = clientX - dragStartRef.current.x;
+        const deltaY = clientY - dragStartRef.current.y;
+        
+        const newX = Math.max(0, Math.min(window.innerWidth - size.width, positionRef.current.x + deltaX));
+        const newY = Math.max(0, Math.min(window.innerHeight - size.height, positionRef.current.y + deltaY));
+        
+        setPosition({ x: newX, y: newY });
+      }
       
-      const dialogWidth = pipSize === 'full' 
-        ? (isMobile ? window.innerWidth : currentSize.width)
-        : currentSize.width;
-      const dialogHeight = pipSize === 'full'
-        ? (isMobile ? window.innerHeight : currentSize.height)
-        : currentSize.height;
-      
-      const newX = Math.max(0, Math.min(window.innerWidth - dialogWidth, positionRef.current.x + deltaX));
-      const newY = Math.max(0, Math.min(window.innerHeight - dialogHeight, positionRef.current.y + deltaY));
-      
-      setPosition({ x: newX, y: newY });
+      if (isResizing && resizeDirection) {
+        const deltaX = clientX - resizeStartRef.current.x;
+        const deltaY = clientY - resizeStartRef.current.y;
+        
+        let newWidth = resizeStartRef.current.width;
+        let newHeight = resizeStartRef.current.height;
+        let newX = resizeStartRef.current.posX;
+        let newY = resizeStartRef.current.posY;
+        
+        // Handle each resize direction
+        if (resizeDirection.includes('e')) {
+          newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeStartRef.current.width + deltaX));
+        }
+        if (resizeDirection.includes('w')) {
+          const widthDelta = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeStartRef.current.width - deltaX)) - resizeStartRef.current.width;
+          newWidth = resizeStartRef.current.width + widthDelta;
+          newX = resizeStartRef.current.posX - widthDelta;
+        }
+        if (resizeDirection.includes('s')) {
+          newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, resizeStartRef.current.height + deltaY));
+        }
+        if (resizeDirection.includes('n')) {
+          const heightDelta = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, resizeStartRef.current.height - deltaY)) - resizeStartRef.current.height;
+          newHeight = resizeStartRef.current.height + heightDelta;
+          newY = resizeStartRef.current.posY - heightDelta;
+        }
+        
+        // Clamp position to viewport
+        newX = Math.max(0, Math.min(window.innerWidth - newWidth, newX));
+        newY = Math.max(0, Math.min(window.innerHeight - newHeight, newY));
+        
+        setSize({ width: newWidth, height: newHeight });
+        setPosition({ x: newX, y: newY });
+      }
     };
 
     const handleEnd = () => {
       setIsDragging(false);
+      setIsResizing(false);
+      setResizeDirection(null);
     };
 
     document.addEventListener("mousemove", handleMove);
@@ -188,31 +265,11 @@ export const CallDialog = ({
       document.removeEventListener("touchmove", handleMove);
       document.removeEventListener("touchend", handleEnd);
     };
-  }, [isDragging, isMobile, pipSize, currentSize]);
-
-  // Cycle through PiP sizes
-  const cyclePipSize = () => {
-    const sizes: PiPSize[] = ['mini', 'small', 'medium', 'full'];
-    const currentIndex = sizes.indexOf(pipSize);
-    const nextIndex = (currentIndex + 1) % sizes.length;
-    setPipSize(sizes[nextIndex]);
-    setHasUserMoved(false); // Reset position on size change
-  };
-
-  // Toggle between full and mini
-  const togglePiP = () => {
-    if (pipSize === 'full') {
-      setPipSize('small');
-    } else {
-      setPipSize('full');
-    }
-    setHasUserMoved(false);
-  };
+  }, [isDragging, isResizing, resizeDirection, size]);
 
   if (!user || !open) return null;
 
-  const isFullScreen = pipSize === 'full' && isMobile;
-  const isPiPMode = pipSize !== 'full';
+  const isFullScreen = isMobile;
 
   // Show loading state while fetching name
   if (isLoadingName || !userName) {
@@ -223,8 +280,8 @@ export const CallDialog = ({
       )} style={isFullScreen ? {} : {
         left: position.x,
         top: position.y,
-        width: currentSize.width,
-        height: currentSize.height,
+        width: size.width,
+        height: size.height,
       }}>
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -237,13 +294,27 @@ export const CallDialog = ({
   // Generate unique room name based on conversation
   const roomName = `call-${conversationId}`;
 
+  // Resize handle component
+  const ResizeHandle = ({ direction, className }: { direction: string; className: string }) => (
+    <div
+      className={cn(
+        "absolute z-20 opacity-0 hover:opacity-100 transition-opacity",
+        className,
+        (isResizing && resizeDirection === direction) && "opacity-100"
+      )}
+      onMouseDown={(e) => handleResizeStart(e, direction)}
+      onTouchStart={(e) => handleResizeStart(e, direction)}
+    />
+  );
+
   return (
     <div
       ref={dragRef}
       className={cn(
-        "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background transition-all duration-200",
+        "fixed z-[9999] overflow-hidden shadow-2xl border border-border bg-background transition-shadow duration-200",
         isFullScreen ? "rounded-none inset-0" : "rounded-xl",
-        isDragging && "cursor-grabbing select-none",
+        (isDragging || isResizing) && "select-none",
+        isDragging && "cursor-grabbing",
         isFullScreen ? "animate-in slide-in-from-top duration-300" : "",
         isPiPMode && "ring-2 ring-primary/30"
       )}
@@ -253,11 +324,28 @@ export const CallDialog = ({
       } : {
         left: position.x,
         top: position.y,
-        width: currentSize.width,
-        height: currentSize.height,
+        width: size.width,
+        height: size.height,
       }}
     >
-      {/* Drag handle with PiP controls */}
+      {/* Resize handles - only show on desktop */}
+      {!isFullScreen && (
+        <>
+          {/* Corner handles */}
+          <ResizeHandle direction="nw" className="top-0 left-0 w-4 h-4 cursor-nw-resize" />
+          <ResizeHandle direction="ne" className="top-0 right-0 w-4 h-4 cursor-ne-resize" />
+          <ResizeHandle direction="sw" className="bottom-0 left-0 w-4 h-4 cursor-sw-resize" />
+          <ResizeHandle direction="se" className="bottom-0 right-0 w-4 h-4 cursor-se-resize" />
+          
+          {/* Edge handles */}
+          <ResizeHandle direction="n" className="top-0 left-4 right-4 h-2 cursor-n-resize" />
+          <ResizeHandle direction="s" className="bottom-0 left-4 right-4 h-2 cursor-s-resize" />
+          <ResizeHandle direction="w" className="left-0 top-4 bottom-4 w-2 cursor-w-resize" />
+          <ResizeHandle direction="e" className="right-0 top-4 bottom-4 w-2 cursor-e-resize" />
+        </>
+      )}
+
+      {/* Drag handle */}
       <div
         className={cn(
           "absolute top-0 left-0 right-0 bg-muted/80 backdrop-blur-sm flex items-center justify-between z-10 border-b border-border/50 px-2",
@@ -270,29 +358,20 @@ export const CallDialog = ({
       >
         <div className="flex items-center gap-1">
           <GripHorizontal className={cn("text-muted-foreground", isPiPMode ? "w-4 h-4" : "w-5 h-5")} />
-          {isPiPMode && (
-            <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
-              {conversationName}
-            </span>
-          )}
+          <span className={cn(
+            "text-muted-foreground truncate",
+            isPiPMode ? "text-[10px] max-w-[100px]" : "text-xs max-w-[200px]"
+          )}>
+            {conversationName}
+          </span>
         </div>
         
-        {/* PiP size controls */}
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(isPiPMode ? "h-5 w-5" : "h-6 w-6")}
-            onClick={(e) => { e.stopPropagation(); cyclePipSize(); }}
-            title={`Current: ${pipSize}`}
-          >
-            {pipSize === 'full' ? (
-              <Minimize2 className={cn(isPiPMode ? "h-3 w-3" : "h-4 w-4")} />
-            ) : (
-              <Maximize2 className={cn(isPiPMode ? "h-3 w-3" : "h-4 w-4")} />
-            )}
-          </Button>
-        </div>
+        {/* Size indicator */}
+        {!isFullScreen && (
+          <span className="text-[10px] text-muted-foreground/60">
+            {size.width}×{size.height}
+          </span>
+        )}
         
         <VisuallyHidden.Root>Call with {conversationName}</VisuallyHidden.Root>
       </div>
