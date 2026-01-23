@@ -369,7 +369,9 @@ export function WebRTCRoom({
         getGridClasses()
       )}>
         {allParticipants.map((participant) => {
-          const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
+          const hasVideoTrack = participant.stream?.getVideoTracks().length > 0;
+          const isVideoEnabled = participant.stream?.getVideoTracks().some(t => t.enabled) ?? false;
+          const hasVideo = hasVideoTrack && (participant.isLocal ? !isCameraOff : isVideoEnabled);
           const displayName = participant.isLocal ? "You" : participant.name;
 
           return (
@@ -642,64 +644,95 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
 function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: boolean; isLocal: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playAttemptRef = useRef<number>(0);
 
   useEffect(() => {
     if (!stream) return;
 
-    // Attach video stream
+    // Attach video stream to video element
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
+      // Force play for video
+      videoRef.current.play().catch((err) => {
+        console.warn('[VideoElement] Video autoplay blocked:', err);
+      });
     }
 
-    // For remote participants, create a separate audio element for reliable audio playback
-    // This bypasses issues with video element audio autoplay policies
-    if (!isLocal && !muted) {
-      const hasAudio = stream.getAudioTracks().length > 0;
-      if (hasAudio) {
-        // Create audio element if it doesn't exist
+    // For remote participants, we need to handle audio separately
+    // This is critical for reliable audio playback
+    if (!isLocal) {
+      const audioTracks = stream.getAudioTracks();
+      console.log('[VideoElement] Remote stream audio tracks:', audioTracks.length, audioTracks.map(t => ({ enabled: t.enabled, muted: t.muted })));
+      
+      if (audioTracks.length > 0) {
+        // Create or reuse audio element
         if (!audioRef.current) {
           const audio = document.createElement('audio');
+          audio.id = `remote-audio-${Date.now()}`;
           audio.autoplay = true;
-          (audio as any).playsInline = true; // For Safari compatibility
-          audio.style.display = 'none';
+          (audio as any).playsInline = true; // Safari compatibility
+          audio.volume = 1.0;
+          audio.style.cssText = 'position:absolute;left:-9999px;';
           document.body.appendChild(audio);
           audioRef.current = audio;
+          console.log('[VideoElement] Created audio element for remote audio');
         }
         
+        // Set stream on audio element
         audioRef.current.srcObject = stream;
+        audioRef.current.muted = false;
         
-        // Try to play with user gesture fallback
-        audioRef.current.play().catch((err) => {
-          console.warn('[VideoElement] Audio autoplay blocked, will retry on user interaction:', err);
-          // Audio will start on next user interaction with the page
-          const resumeAudio = () => {
-            audioRef.current?.play().catch(() => {});
-            document.removeEventListener('click', resumeAudio);
-            document.removeEventListener('touchstart', resumeAudio);
-          };
-          document.addEventListener('click', resumeAudio, { once: true });
-          document.addEventListener('touchstart', resumeAudio, { once: true });
-        });
+        // Aggressive play attempts
+        const tryPlay = () => {
+          if (!audioRef.current) return;
+          
+          playAttemptRef.current++;
+          audioRef.current.play()
+            .then(() => {
+              console.log('[VideoElement] Remote audio playing successfully');
+            })
+            .catch((err) => {
+              console.warn('[VideoElement] Audio play attempt', playAttemptRef.current, 'failed:', err.name);
+              
+              // Keep retrying with user interaction
+              if (playAttemptRef.current < 5) {
+                const resumeAudio = () => {
+                  audioRef.current?.play().catch(() => {});
+                  document.removeEventListener('click', resumeAudio);
+                  document.removeEventListener('touchstart', resumeAudio);
+                  document.removeEventListener('keydown', resumeAudio);
+                };
+                document.addEventListener('click', resumeAudio, { once: true });
+                document.addEventListener('touchstart', resumeAudio, { once: true });
+                document.addEventListener('keydown', resumeAudio, { once: true });
+              }
+            });
+        };
+        
+        tryPlay();
+        // Also try after a short delay
+        setTimeout(tryPlay, 500);
       }
     }
 
     // Cleanup audio element on unmount
     return () => {
       if (audioRef.current) {
+        console.log('[VideoElement] Cleaning up audio element');
         audioRef.current.pause();
         audioRef.current.srcObject = null;
         audioRef.current.remove();
         audioRef.current = null;
       }
     };
-  }, [stream, isLocal, muted]);
+  }, [stream, isLocal]);
 
   return (
     <video
       ref={videoRef}
       autoPlay
       playsInline
-      muted={isLocal || muted} // Always mute local video to prevent echo, mute video element for remote (audio handled separately)
+      muted={isLocal} // Only mute local video to prevent echo, remote video audio is handled by separate audio element
       className={cn("w-full h-full object-cover", isLocal && "transform scale-x-[-1]")}
     />
   );
