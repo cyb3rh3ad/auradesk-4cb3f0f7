@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { PushNotificationInit } from "@/components/PushNotificationInit";
 import { UpdateNotification } from "@/components/UpdateNotification";
+import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronApp } from "@/hooks/useIsElectron";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -175,6 +176,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <UpdateNotification />
+        <PWAUpdateNotification />
         <HashRouter>
           <AuthProvider>
             <ThemeInit />

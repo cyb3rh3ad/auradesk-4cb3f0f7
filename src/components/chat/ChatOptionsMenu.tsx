@@ -151,7 +151,7 @@ export const ChatOptionsMenu = ({
         <DropdownMenuTrigger asChild>
           {children}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 py-1">
+        <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-56 py-1">
           <DropdownMenuItem 
             onClick={() => {
               setNicknameValue(currentNickname || '');
