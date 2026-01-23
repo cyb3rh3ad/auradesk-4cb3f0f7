@@ -20,14 +20,17 @@ import {
   ArrowRight,
   Play,
   Smartphone,
+  Monitor,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 
 const Landing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   const features = [
     {
@@ -210,47 +213,70 @@ const Landing = () => {
               Discord meets Zoom, but better.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4 flex-wrap">
-              {/* Windows Download */}
-              <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 px-8 py-4 w-full sm:w-auto"
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+              {/* Expandable Download Button */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setShowDownloadOptions(true)}
+                onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                <Download className="w-5 h-5 mr-2" />
-                Download for Windows
-              </a>
+                <motion.div
+                  animate={{ 
+                    opacity: showDownloadOptions ? 0 : 1,
+                    scale: showDownloadOptions ? 0.95 : 1,
+                    pointerEvents: showDownloadOptions ? "none" : "auto"
+                  }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0"
+                >
+                  <Button
+                    size="lg"
+                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 h-14 px-8 w-[280px]"
+                    onClick={() => setShowDownloadOptions(true)}
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download App
+                  </Button>
+                </motion.div>
 
-              {/* Mobile Install (PWA) */}
-              <Button
-                size="lg"
-                className="text-lg font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 px-8 py-4 w-full sm:w-auto"
-                onClick={() => navigate("/install")}
-              >
-                <Smartphone className="w-5 h-5 mr-2" />
-                Install on Mobile
-              </Button>
+                <motion.div
+                  animate={{ 
+                    opacity: showDownloadOptions ? 1 : 0,
+                    scale: showDownloadOptions ? 1 : 0.95,
+                  }}
+                  transition={{ duration: 0.2 }}
+                  className="flex gap-2"
+                  style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
+                >
+                  <a
+                    href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 h-14 px-6 w-[136px]"
+                  >
+                    <Monitor className="w-4 h-4 mr-2" />
+                    Windows
+                  </a>
+                  <Button
+                    size="lg"
+                    className="text-base font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-green-500/25 h-14 px-6 w-[136px]"
+                    onClick={() => navigate("/install")}
+                  >
+                    <Smartphone className="w-4 h-4 mr-2" />
+                    Mobile
+                  </Button>
+                </motion.div>
+              </div>
 
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg px-8 py-6 rounded-xl border-2 w-full sm:w-auto"
+                className="text-lg h-14 px-8 rounded-xl border-2 w-[280px] sm:w-auto"
                 onClick={() => navigate(user ? "/dashboard" : "/auth")}
               >
                 <Globe className="w-5 h-5 mr-2" />
                 Use in Browser
               </Button>
-            </div>
-
-            <div className="pt-4">
-              <a
-                href="mailto:info.auradesk@gmail.com"
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Mail className="w-4 h-4" />
-                <span>Questions? Contact us at info.auradesk@gmail.com</span>
-              </a>
             </div>
           </motion.div>
         </div>
