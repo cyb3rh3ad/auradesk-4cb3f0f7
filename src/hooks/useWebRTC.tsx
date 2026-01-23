@@ -354,20 +354,58 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       
       // Add local tracks to the connection
       localStreamRef.current.getTracks().forEach((track) => {
-        console.log("[WebRTC] Adding local track:", track.kind);
+        console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled);
         pc.addTrack(track, localStreamRef.current!);
       });
 
+      // Create a single stream for all remote tracks from this peer
+      const remoteStream = new MediaStream();
+
       pc.ontrack = (event) => {
-        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId);
-        if (event.streams[0]) {
-          setParticipants((prev) => {
-            const newMap = new Map(prev);
-            newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
-            return newMap;
+        const track = event.track;
+        console.log("[WebRTC] Received remote track:", track.kind, "from:", remoteUserId, {
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          streamId: event.streams[0]?.id
+        });
+        
+        // Add track to our managed remote stream
+        remoteStream.addTrack(track);
+        
+        // Log all tracks in the stream
+        console.log("[WebRTC] Remote stream now has tracks:", remoteStream.getTracks().map(t => ({
+          kind: t.kind,
+          enabled: t.enabled,
+          muted: t.muted
+        })));
+        
+        // Update participants with the stream - create new reference to trigger React update
+        setParticipants((prev) => {
+          const newMap = new Map(prev);
+          // Create a new MediaStream reference to ensure React sees the update
+          const updatedStream = new MediaStream(remoteStream.getTracks());
+          newMap.set(remoteUserId, { 
+            odakle: remoteUserId, 
+            stream: updatedStream, 
+            name: remoteName 
           });
-          setCallStatus("IN_CALL");
-        }
+          return newMap;
+        });
+        setCallStatus("IN_CALL");
+        
+        // Listen for track ending
+        track.onended = () => {
+          console.log("[WebRTC] Remote track ended:", track.kind, "from:", remoteUserId);
+        };
+        
+        // Listen for track mute/unmute
+        track.onmute = () => {
+          console.log("[WebRTC] Remote track muted:", track.kind, "from:", remoteUserId);
+        };
+        track.onunmute = () => {
+          console.log("[WebRTC] Remote track unmuted:", track.kind, "from:", remoteUserId);
+        };
       };
 
       pc.onicecandidate = (event) => {
