@@ -498,55 +498,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 md:py-24 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-blue-500/10" />
-        <div className="container mx-auto max-w-4xl relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center space-y-6"
-          >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">Ready to transform your workflow?</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Join thousands of teams already using AuraDesk. Free forever tier available.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 flex-wrap">
-              {/* Windows Download */}
-              <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg px-8 py-4"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Windows
-              </a>
-              {/* Android Download */}
-              <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk.apk"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-500 hover:via-emerald-500 hover:to-teal-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg px-8 py-4"
-              >
-                <Smartphone className="w-5 h-5 mr-2" />
-                Android
-              </a>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg px-8 py-6 rounded-xl"
-                onClick={() => navigate("/auth")}
-              >
-                Get Started Free
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Contact Section */}
       <section className="py-12 md:py-16 px-6 border-t border-border/50">
         <div className="container mx-auto max-w-4xl text-center">
