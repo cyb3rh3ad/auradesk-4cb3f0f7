@@ -221,15 +221,16 @@ const Landing = () => {
                 onMouseEnter={() => setShowDownloadOptions(true)}
                 onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                {/* The unified button - fades as cells appear */}
+                {/* The unified button - fades out cleanly */}
                 <motion.div
-                  className="absolute inset-0 flex items-center justify-center"
+                  className="absolute inset-0 flex items-center justify-center z-10"
                   animate={{ 
                     opacity: showDownloadOptions ? 0 : 1,
+                    scaleX: showDownloadOptions ? 1.02 : 1,
                   }}
                   transition={{ 
-                    duration: 0.6,
-                    ease: "easeInOut",
+                    opacity: { duration: 0.3, ease: "easeOut" },
+                    scaleX: { duration: 0.4, ease: "easeOut" },
                   }}
                   style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                 >
@@ -243,79 +244,20 @@ const Landing = () => {
                   </Button>
                 </motion.div>
 
-                {/* The dividing cell membrane - figure 8 shape */}
-                <motion.div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  animate={{
-                    opacity: showDownloadOptions ? [0, 1, 1, 0] : 0,
-                  }}
-                  transition={{
-                    duration: 1.4,
-                    times: [0, 0.1, 0.75, 1],
-                    ease: "easeInOut",
-                  }}
-                >
-                  {/* Left bulge */}
-                  <motion.div
-                    className="absolute left-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-violet-600 via-purple-600 to-purple-500 shadow-lg"
-                    animate={{
-                      x: showDownloadOptions ? [0, 0, -2] : 0,
-                      scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [1, 1.03, 1] : 1,
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      times: [0, 0.5, 1],
-                      ease: "easeInOut",
-                    }}
-                    style={{ originX: 1 }}
-                  />
-                  {/* Right bulge */}
-                  <motion.div
-                    className="absolute right-0 w-[140px] h-14 rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-blue-600 shadow-lg"
-                    animate={{
-                      x: showDownloadOptions ? [0, 0, 2] : 0,
-                      scaleX: showDownloadOptions ? [0.5, 1, 1] : 0.5,
-                      scaleY: showDownloadOptions ? [1, 1.03, 1] : 1,
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      times: [0, 0.5, 1],
-                      ease: "easeInOut",
-                    }}
-                    style={{ originX: 0 }}
-                  />
-                  {/* Center bridge/pinch point - smoother narrowing */}
-                  <motion.div
-                    className="absolute left-1/2 -translate-x-1/2 bg-gradient-to-b from-purple-500 via-purple-600 to-purple-500 shadow-inner"
-                    animate={{
-                      width: showDownloadOptions ? ["80px", "50px", "24px", "8px", "0px"] : "80px",
-                      height: showDownloadOptions ? ["56px", "48px", "36px", "20px", "0px"] : "56px",
-                      borderRadius: showDownloadOptions ? ["28px", "24px", "18px", "10px", "0px"] : "28px",
-                      opacity: showDownloadOptions ? [1, 1, 0.9, 0.7, 0] : 1,
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      times: [0, 0.25, 0.5, 0.8, 1],
-                      ease: "easeInOut",
-                    }}
-                  />
-                </motion.div>
-
-                {/* The two daughter cells */}
+                {/* The two daughter cells - simple and clean */}
                 <div className="relative flex items-center justify-center h-full w-full">
                   {/* Left cell - Windows */}
                   <motion.div
                     className="absolute left-0"
                     animate={{ 
-                      opacity: showDownloadOptions ? [0, 0, 1] : 0,
-                      scale: showDownloadOptions ? [0.95, 0.95, 1.02, 0.99, 1] : 0.95,
-                      x: showDownloadOptions ? [0, 0, -3, -1, -2] : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
+                      x: showDownloadOptions ? [-8, -3, -4, -4] : -8,
                     }}
                     transition={{ 
-                      opacity: { duration: 1, times: [0, 0.6, 1], ease: "easeOut" },
-                      scale: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
-                      x: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
+                      opacity: { duration: 0.4, ease: "easeOut" },
+                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
@@ -334,14 +276,14 @@ const Landing = () => {
                   <motion.div
                     className="absolute right-0"
                     animate={{ 
-                      opacity: showDownloadOptions ? [0, 0, 1] : 0,
-                      scale: showDownloadOptions ? [0.95, 0.95, 1.02, 0.99, 1] : 0.95,
-                      x: showDownloadOptions ? [0, 0, 3, 1, 2] : 0,
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
+                      x: showDownloadOptions ? [8, 3, 4, 4] : 8,
                     }}
                     transition={{ 
-                      opacity: { duration: 1, times: [0, 0.6, 1], ease: "easeOut" },
-                      scale: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
-                      x: { duration: 1.4, times: [0, 0.6, 0.75, 0.9, 1], ease: "easeOut" },
+                      opacity: { duration: 0.4, ease: "easeOut" },
+                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
