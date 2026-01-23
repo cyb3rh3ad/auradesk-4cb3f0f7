@@ -14,7 +14,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 
 interface ResponsiveSelectProps {
   value: string;
@@ -29,6 +29,8 @@ interface ResponsiveSelectContextType {
   open: boolean;
   setOpen: (open: boolean) => void;
   isMobile: boolean;
+  registerOption: (value: string, label: string) => void;
+  getLabel: (value: string) => string | undefined;
 }
 
 const ResponsiveSelectContext = React.createContext<ResponsiveSelectContextType | null>(null);
@@ -36,6 +38,15 @@ const ResponsiveSelectContext = React.createContext<ResponsiveSelectContextType 
 export function ResponsiveSelect({ value, onValueChange, children, disabled }: ResponsiveSelectProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
+  const optionsRef = React.useRef<Map<string, string>>(new Map());
+
+  const registerOption = React.useCallback((optValue: string, label: string) => {
+    optionsRef.current.set(optValue, label);
+  }, []);
+
+  const getLabel = React.useCallback((optValue: string) => {
+    return optionsRef.current.get(optValue);
+  }, []);
 
   if (!isMobile) {
     return (
@@ -46,7 +57,7 @@ export function ResponsiveSelect({ value, onValueChange, children, disabled }: R
   }
 
   return (
-    <ResponsiveSelectContext.Provider value={{ value, onValueChange, open, setOpen, isMobile }}>
+    <ResponsiveSelectContext.Provider value={{ value, onValueChange, open, setOpen, isMobile, registerOption, getLabel }}>
       {children}
     </ResponsiveSelectContext.Provider>
   );
@@ -76,20 +87,7 @@ export function ResponsiveSelectTrigger({ children, className }: ResponsiveSelec
       )}
     >
       {children}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-4 w-4 opacity-50"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
+      <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
     </button>
   );
 }
@@ -106,10 +104,13 @@ export function ResponsiveSelectValue({ placeholder }: ResponsiveSelectValueProp
     return <SelectValue placeholder={placeholder} />;
   }
 
-  // Mobile mode - show current value or placeholder
+  // Mobile mode - show current label or placeholder
+  const label = context.value ? context.getLabel(context.value) : undefined;
+  const displayValue = label || context.value;
+  
   return (
-    <span className={cn(!context.value && "text-muted-foreground")}>
-      {context.value || placeholder || 'Select...'}
+    <span className={cn("truncate", !context.value && "text-muted-foreground")}>
+      {displayValue || placeholder || 'Select...'}
     </span>
   );
 }
@@ -131,10 +132,10 @@ export function ResponsiveSelectContent({ children, title = "Select an option" }
   return (
     <Drawer open={context.open} onOpenChange={context.setOpen}>
       <DrawerContent>
-        <DrawerHeader className="text-left">
+        <DrawerHeader className="text-left border-b border-border pb-3">
           <DrawerTitle>{title}</DrawerTitle>
         </DrawerHeader>
-        <div className="px-4 pb-8 space-y-1">
+        <div className="px-2 py-2 pb-8 max-h-[60vh] overflow-y-auto">
           {children}
         </div>
       </DrawerContent>
@@ -150,6 +151,32 @@ interface ResponsiveSelectItemProps {
 
 export function ResponsiveSelectItem({ value, children, className }: ResponsiveSelectItemProps) {
   const context = React.useContext(ResponsiveSelectContext);
+  
+  // Extract text content for label registration
+  const labelText = React.useMemo(() => {
+    if (typeof children === 'string') return children;
+    if (React.isValidElement(children)) {
+      // Try to extract text from children
+      const extractText = (node: React.ReactNode): string => {
+        if (typeof node === 'string') return node;
+        if (typeof node === 'number') return String(node);
+        if (Array.isArray(node)) return node.map(extractText).join('');
+        if (React.isValidElement(node) && node.props.children) {
+          return extractText(node.props.children);
+        }
+        return '';
+      };
+      return extractText(children);
+    }
+    return String(children);
+  }, [children]);
+  
+  // Register this option's value and label
+  React.useEffect(() => {
+    if (context) {
+      context.registerOption(value, labelText);
+    }
+  }, [context, value, labelText]);
   
   if (!context) {
     // Desktop mode - render standard SelectItem
@@ -167,14 +194,14 @@ export function ResponsiveSelectItem({ value, children, className }: ResponsiveS
         context.setOpen(false);
       }}
       className={cn(
-        "flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm transition-colors",
-        "hover:bg-muted focus:bg-muted focus:outline-none",
-        isSelected && "bg-primary/10 text-primary",
+        "flex w-full items-center justify-between rounded-lg px-4 py-3.5 text-left text-sm transition-colors",
+        "hover:bg-muted active:bg-muted/80 focus:bg-muted focus:outline-none",
+        isSelected && "bg-primary/10 text-primary font-medium",
         className
       )}
     >
       <span className="flex items-center gap-2">{children}</span>
-      {isSelected && <Check className="h-4 w-4" />}
+      {isSelected && <Check className="h-4 w-4 shrink-0" />}
     </button>
   );
 }
