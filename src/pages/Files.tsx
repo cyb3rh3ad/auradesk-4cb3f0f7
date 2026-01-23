@@ -1,15 +1,17 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useFiles } from '@/hooks/useFiles';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Upload, Download, Trash2, File, Loader2, FileText, HardDrive, FolderUp, Search, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ResponsiveAlertDialog } from '@/components/ui/alert-dialog';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Files = () => {
   const isMobile = useIsMobile();
@@ -18,26 +20,30 @@ const Files = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const dragCountRef = useRef(0);
 
   const handleRefresh = async () => {
     await refetch();
   };
 
+  // Filter files based on search query
+  const filteredFiles = useMemo(() => {
+    if (!searchQuery.trim()) return files;
+    const query = searchQuery.toLowerCase().trim();
+    return files.filter(file => 
+      file.name.toLowerCase().includes(query)
+    );
+  }, [files, searchQuery]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    setUploading(true);
-    setUploadProgress({ current: 0, total: selectedFiles.length, fileName: '' });
-    
-    await uploadFiles(selectedFiles, (current, total, fileName) => {
-      setUploadProgress({ current, total, fileName });
-    });
-    
-    setUploading(false);
-    setUploadProgress(null);
+    await processFiles(selectedFiles);
     
     // Reset the input
     if (fileInputRef.current) {
@@ -47,6 +53,106 @@ const Files = () => {
       folderInputRef.current.value = '';
     }
   };
+
+  const processFiles = async (fileList: FileList | File[]) => {
+    setUploading(true);
+    setUploadProgress({ current: 0, total: fileList.length, fileName: '' });
+    
+    await uploadFiles(fileList, (current, total, fileName) => {
+      setUploadProgress({ current, total, fileName });
+    });
+    
+    setUploading(false);
+    setUploadProgress(null);
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCountRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCountRef.current--;
+    if (dragCountRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCountRef.current = 0;
+
+    const items = e.dataTransfer.items;
+    const collectedFiles: File[] = [];
+
+    // Process all items (files and folders)
+    const processEntry = async (entry: FileSystemEntry, path: string = ''): Promise<void> => {
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        return new Promise((resolve) => {
+          fileEntry.file((file) => {
+            // Attach relative path for folder structure
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: path + file.name,
+              writable: false,
+            });
+            collectedFiles.push(file);
+            resolve();
+          });
+        });
+      } else if (entry.isDirectory) {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const dirReader = dirEntry.createReader();
+        return new Promise((resolve) => {
+          const readEntries = () => {
+            dirReader.readEntries(async (entries) => {
+              if (entries.length === 0) {
+                resolve();
+                return;
+              }
+              for (const childEntry of entries) {
+                await processEntry(childEntry, path + entry.name + '/');
+              }
+              readEntries(); // Continue reading (directories may have batched results)
+            });
+          };
+          readEntries();
+        });
+      }
+    };
+
+    if (items) {
+      const entries: FileSystemEntry[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+        if (entry) {
+          entries.push(entry);
+        }
+      }
+      
+      for (const entry of entries) {
+        await processEntry(entry);
+      }
+    }
+
+    if (collectedFiles.length > 0) {
+      await processFiles(collectedFiles);
+    }
+  }, [uploadFiles]);
 
   const handleDelete = async () => {
     if (!deleteFileData) return;
@@ -74,7 +180,35 @@ const Files = () => {
   const storagePercentage = (storageUsage.usedGB / storageUsage.limitGB) * 100;
 
   const content = (
-    <div className="flex flex-col h-full p-4 md:p-6 space-y-6">
+    <div 
+      className="flex flex-col h-full p-4 md:p-6 space-y-6 relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-xl m-2"
+          >
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 mx-auto rounded-2xl bg-primary/20 flex items-center justify-center">
+                <Upload className="w-10 h-10 text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-semibold text-foreground">Drop files here</p>
+                <p className="text-sm text-muted-foreground">Files and folders are supported</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold">Cloud Storage</h2>
@@ -188,20 +322,63 @@ const Files = () => {
         </CardContent>
       </Card>
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search files..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 pr-10"
+        />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+            onClick={() => setSearchQuery('')}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Files list */}
       <ScrollArea className="flex-1">
         {files.length === 0 ? (
+          <Card className="border-dashed border-2 cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <CardContent className="pt-6 pb-8 text-center space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Upload className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">No files yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Drag & drop files here or click to upload
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredFiles.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="pt-6 text-center space-y-2">
-              <File className="w-12 h-12 mx-auto text-muted-foreground" />
-              <h3 className="text-lg font-semibold">No files yet</h3>
+              <Search className="w-12 h-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-semibold">No files found</h3>
               <p className="text-sm text-muted-foreground">
-                Upload files to get started
+                No files match "{searchQuery}"
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-2">
-            {files.map((file) => (
+            {searchQuery && (
+              <p className="text-sm text-muted-foreground mb-3">
+                {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} found
+              </p>
+            )}
+            {filteredFiles.map((file) => (
               <Card key={file.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
