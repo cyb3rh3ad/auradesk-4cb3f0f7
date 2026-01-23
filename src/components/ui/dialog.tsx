@@ -3,6 +3,15 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+} from "@/components/ui/drawer";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -86,6 +95,91 @@ const DialogDescription = React.forwardRef<
   <DialogPrimitive.Description ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
+
+// ========== RESPONSIVE DIALOG ==========
+// Automatically uses Drawer on mobile, Dialog on desktop
+
+interface ResponsiveDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}
+
+interface ResponsiveDialogContentProps {
+  children: React.ReactNode;
+  className?: string;
+  title: string;
+  description?: string;
+}
+
+export const ResponsiveDialog = ({ open, onOpenChange, children }: ResponsiveDialogProps) => {
+  const isMobile = useIsMobile();
+  
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        {children}
+      </Drawer>
+    );
+  }
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {children}
+    </Dialog>
+  );
+};
+
+export const ResponsiveDialogContent = ({ 
+  children, 
+  className,
+  title,
+  description 
+}: ResponsiveDialogContentProps) => {
+  const isMobile = useIsMobile();
+  
+  if (isMobile) {
+    return (
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+          {description && <DrawerDescription>{description}</DrawerDescription>}
+        </DrawerHeader>
+        <div className={cn("px-4 pb-4", className)}>
+          {children}
+        </div>
+      </DrawerContent>
+    );
+  }
+  
+  return (
+    <DialogContent className={className}>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        {description && <DialogDescription>{description}</DialogDescription>}
+      </DialogHeader>
+      {children}
+    </DialogContent>
+  );
+};
+
+export const ResponsiveDialogFooter = ({ children, className }: { children: React.ReactNode; className?: string }) => {
+  const isMobile = useIsMobile();
+  
+  if (isMobile) {
+    return (
+      <DrawerFooter className={cn("flex-row gap-2", className)}>
+        {children}
+      </DrawerFooter>
+    );
+  }
+  
+  return (
+    <DialogFooter className={className}>
+      {children}
+    </DialogFooter>
+  );
+};
 
 export {
   Dialog,

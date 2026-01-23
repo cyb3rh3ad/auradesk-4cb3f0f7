@@ -2,12 +2,9 @@ import { useState } from 'react';
 import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,36 +75,39 @@ export const CreateGroupDialog = ({ onGroupCreated }: CreateGroupDialogProps) =>
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Users className="w-4 h-4" />
-          New Group
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Group</DialogTitle>
-          <DialogDescription>
-            Create a new group chat for your team.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="group-name">Group Name</Label>
-            <Input
-              id="group-name"
-              placeholder="Enter group name..."
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
+    <>
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <Users className="w-4 h-4" />
+        New Group
+      </Button>
+      
+      <ResponsiveDialog open={open} onOpenChange={setOpen}>
+        <ResponsiveDialogContent
+          title="Create Group"
+          description="Create a new group chat for your team."
+        >
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="group-name">Group Name</Label>
+              <Input
+                id="group-name"
+                placeholder="Enter group name..."
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
           </div>
-          <Button onClick={handleCreate} disabled={!groupName.trim() || loading} className="w-full">
-            {loading ? 'Creating...' : 'Create Group'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1 sm:flex-initial">
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={!groupName.trim() || loading} className="flex-1 sm:flex-initial">
+              {loading ? 'Creating...' : 'Create Group'}
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+    </>
   );
 };

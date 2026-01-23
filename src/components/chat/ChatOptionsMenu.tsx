@@ -7,35 +7,34 @@ import {
   ShieldOff,
   AlertTriangle,
   Trash2,
-  BellOff
+  BellOff,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useChatActions } from '@/hooks/useChatActions';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 interface ChatOptionsMenuProps {
   children: React.ReactNode;
@@ -61,6 +60,7 @@ export const ChatOptionsMenu = ({
   targetUserName,
   onActionComplete 
 }: ChatOptionsMenuProps) => {
+  const isMobile = useIsMobile();
   const { 
     blockUser, 
     unblockUser, 
@@ -73,12 +73,14 @@ export const ChatOptionsMenu = ({
     loading 
   } = useChatActions();
 
+  const [menuOpen, setMenuOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
   const [nickname, setNicknameValue] = useState('');
   const [currentNickname, setCurrentNickname] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
+  const [reasonSelectorOpen, setReasonSelectorOpen] = useState(false);
 
   useEffect(() => {
     const loadUserState = async () => {
@@ -105,6 +107,7 @@ export const ChatOptionsMenu = ({
     const success = await unblockUser(targetUserId);
     if (success) {
       setIsBlocked(false);
+      setMenuOpen(false);
     }
   };
 
@@ -145,71 +148,109 @@ export const ChatOptionsMenu = ({
     }
   };
 
+  const openDialogAction = (type: DialogType) => {
+    setMenuOpen(false);
+    setOpenDialog(type);
+  };
+
+  const menuItems = [
+    {
+      icon: Edit3,
+      label: currentNickname ? 'Edit nickname' : 'Set nickname',
+      onClick: () => {
+        setNicknameValue(currentNickname || '');
+        openDialogAction('nickname');
+      },
+    },
+    {
+      icon: BellOff,
+      label: 'Mute conversation',
+      onClick: () => setMenuOpen(false),
+    },
+    {
+      icon: UserMinus,
+      label: 'Remove friend',
+      onClick: () => openDialogAction('unfriend'),
+      className: 'text-destructive',
+    },
+    {
+      icon: Flag,
+      label: 'Report user',
+      onClick: () => openDialogAction('report'),
+      className: 'text-yellow-500',
+    },
+    isBlocked ? {
+      icon: ShieldOff,
+      label: 'Unblock user',
+      onClick: handleUnblock,
+    } : {
+      icon: UserX,
+      label: 'Block user',
+      onClick: () => openDialogAction('block'),
+      className: 'text-orange-500',
+    },
+  ];
+
+  const selectedReasonLabel = REPORT_REASONS.find(r => r.value === reportReason)?.label || 'Select a reason';
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {children}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-56 py-1">
-          <DropdownMenuItem 
-            onClick={() => {
-              setNicknameValue(currentNickname || '');
-              setOpenDialog('nickname');
-            }}
-            className="py-3"
-          >
-            <Edit3 className="w-4 h-4 mr-3" />
-            {currentNickname ? 'Edit nickname' : 'Set nickname'}
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem className="py-3">
-            <BellOff className="w-4 h-4 mr-3" />
-            Mute conversation
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => setOpenDialog('unfriend')}
-            className="py-3 text-destructive focus:text-destructive"
-          >
-            <UserMinus className="w-4 h-4 mr-3" />
-            Remove friend
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => setOpenDialog('report')}
-            className="py-3 text-yellow-500 focus:text-yellow-500"
-          >
-            <Flag className="w-4 h-4 mr-3" />
-            Report user
-          </DropdownMenuItem>
-          
-          {isBlocked ? (
-            <DropdownMenuItem onClick={handleUnblock} className="py-3">
-              <ShieldOff className="w-4 h-4 mr-3" />
-              Unblock user
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem 
-              onClick={() => setOpenDialog('block')}
-              className="py-3 text-orange-500 focus:text-orange-500"
-            >
-              <UserX className="w-4 h-4 mr-3" />
-              Block user
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Mobile: Use Drawer for menu */}
+      {isMobile ? (
+        <>
+          <div onClick={() => setMenuOpen(true)}>
+            {children}
+          </div>
+          <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+            <DrawerContent>
+              <DrawerHeader className="border-b border-border">
+                <DrawerTitle>Options for {targetUserName}</DrawerTitle>
+              </DrawerHeader>
+              <div className="py-2">
+                {menuItems.map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={item.onClick}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors",
+                      "hover:bg-accent/50 active:bg-accent",
+                      item.className
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-base">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
+      ) : (
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            {children}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-56 py-1">
+            {menuItems.map((item, index) => (
+              <DropdownMenuItem 
+                key={index}
+                onClick={item.onClick}
+                className={cn("py-3", item.className)}
+              >
+                <item.icon className="w-4 h-4 mr-3" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {/* Nickname Dialog */}
-      <Dialog open={openDialog === 'nickname'} onOpenChange={(open) => !open && setOpenDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Set nickname for {targetUserName}</DialogTitle>
-            <DialogDescription>
-              Give this person a custom name that only you will see.
-            </DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog open={openDialog === 'nickname'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <ResponsiveDialogContent
+          title={`Set nickname for ${targetUserName}`}
+          description="Give this person a custom name that only you will see."
+        >
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="nickname">Nickname</Label>
@@ -222,47 +263,69 @@ export const ChatOptionsMenu = ({
               />
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <ResponsiveDialogFooter className="gap-2">
             {currentNickname && (
-              <Button variant="outline" onClick={handleRemoveNickname} disabled={loading}>
+              <Button variant="outline" onClick={handleRemoveNickname} disabled={loading} className="flex-1 sm:flex-initial">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Remove
               </Button>
             )}
-            <Button onClick={handleSetNickname} disabled={loading || !nickname.trim()}>
+            <Button onClick={handleSetNickname} disabled={loading || !nickname.trim()} className="flex-1 sm:flex-initial">
               Save
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Report Dialog */}
-      <Dialog open={openDialog === 'report'} onOpenChange={(open) => !open && setOpenDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Flag className="w-5 h-5 text-yellow-500" />
-              Report {targetUserName}
-            </DialogTitle>
-            <DialogDescription>
-              Help us understand what's happening. Your report is confidential.
-            </DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog open={openDialog === 'report'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <ResponsiveDialogContent
+          title={`Report ${targetUserName}`}
+          description="Help us understand what's happening. Your report is confidential."
+        >
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Reason for report</Label>
-              <Select value={reportReason} onValueChange={setReportReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPORT_REASONS.map((reason) => (
-                    <SelectItem key={reason.value} value={reason.value}>
-                      {reason.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Custom select button for mobile-safe selection */}
+              <button
+                type="button"
+                onClick={() => setReasonSelectorOpen(true)}
+                className={cn(
+                  "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
+                  !reportReason && "text-muted-foreground"
+                )}
+              >
+                <span>{selectedReasonLabel}</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </button>
+              
+              {/* Reason selector drawer */}
+              <Drawer open={reasonSelectorOpen} onOpenChange={setReasonSelectorOpen}>
+                <DrawerContent>
+                  <DrawerHeader className="border-b border-border">
+                    <DrawerTitle>Select reason</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="py-2">
+                    {REPORT_REASONS.map((reason) => (
+                      <button
+                        key={reason.value}
+                        onClick={() => {
+                          setReportReason(reason.value);
+                          setReasonSelectorOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                          "hover:bg-accent/50 active:bg-accent",
+                          reportReason === reason.value && "bg-accent/30"
+                        )}
+                      >
+                        <span className="flex-1">{reason.label}</span>
+                        {reportReason === reason.value && <Check className="h-5 w-5 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                </DrawerContent>
+              </Drawer>
             </div>
             <div className="space-y-2">
               <Label htmlFor="details">Additional details (optional)</Label>
@@ -275,66 +338,55 @@ export const ChatOptionsMenu = ({
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(null)}>
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(null)} className="flex-1 sm:flex-initial">
               Cancel
             </Button>
             <Button 
               onClick={handleReport} 
               disabled={loading || !reportReason}
               variant="destructive"
+              className="flex-1 sm:flex-initial"
             >
               Submit Report
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Block Confirmation Dialog */}
-      <Dialog open={openDialog === 'block'} onOpenChange={(open) => !open && setOpenDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Block {targetUserName}?
-            </DialogTitle>
-            <DialogDescription>
-              They won't be able to send you messages or see your online status. You can unblock them anytime.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(null)}>
+      <ResponsiveDialog open={openDialog === 'block'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <ResponsiveDialogContent
+          title={`Block ${targetUserName}?`}
+          description="They won't be able to send you messages or see your online status. You can unblock them anytime."
+        >
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(null)} className="flex-1 sm:flex-initial">
               Cancel
             </Button>
-            <Button onClick={handleBlock} disabled={loading} variant="destructive">
+            <Button onClick={handleBlock} disabled={loading} variant="destructive" className="flex-1 sm:flex-initial">
               Block
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* Unfriend Confirmation Dialog */}
-      <Dialog open={openDialog === 'unfriend'} onOpenChange={(open) => !open && setOpenDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserMinus className="w-5 h-5 text-destructive" />
-              Remove {targetUserName}?
-            </DialogTitle>
-            <DialogDescription>
-              You'll no longer be friends. You can add them back later if you change your mind.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(null)}>
+      <ResponsiveDialog open={openDialog === 'unfriend'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <ResponsiveDialogContent
+          title={`Remove ${targetUserName}?`}
+          description="You'll no longer be friends. You can add them back later if you change your mind."
+        >
+          <ResponsiveDialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(null)} className="flex-1 sm:flex-initial">
               Cancel
             </Button>
-            <Button onClick={handleUnfriend} disabled={loading} variant="destructive">
+            <Button onClick={handleUnfriend} disabled={loading} variant="destructive" className="flex-1 sm:flex-initial">
               Remove Friend
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </>
   );
 };
