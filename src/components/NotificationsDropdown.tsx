@@ -5,6 +5,13 @@ import { Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { triggerHaptic } from '@/utils/haptics';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 
 interface Notification {
   id: string;
@@ -19,6 +26,7 @@ export const NotificationsDropdown = () => {
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const [notifications, setNotifications] = useState<Notification[]>([
     {
@@ -32,8 +40,8 @@ export const NotificationsDropdown = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const removeNotification = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const removeNotification = useCallback((id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     triggerHaptic('light');
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
@@ -50,51 +58,31 @@ export const NotificationsDropdown = () => {
     setOpen(false);
   }, []);
 
-  // Update position when opening with viewport-aware positioning
+  // Desktop: Update position when opening
   useEffect(() => {
-    if (open && buttonRef.current) {
+    if (!isMobile && open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const menuWidth = 320; // max menu width
+      const menuWidth = 320;
       const padding = 16;
       const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
       
-      // For mobile, center the menu
-      let rightPos: number;
-      if (viewportWidth < 640) {
-        // Mobile: center the menu
-        rightPos = (viewportWidth - Math.min(menuWidth, viewportWidth - 32)) / 2;
-      } else {
-        // Desktop: align to button
-        rightPos = viewportWidth - rect.right;
-        
-        // If menu would overflow left side, adjust
-        if (rect.right - menuWidth < padding) {
-          rightPos = viewportWidth - menuWidth - padding;
-        }
-        
-        // Ensure minimum padding from right edge
-        rightPos = Math.max(rightPos, padding);
+      let rightPos = viewportWidth - rect.right;
+      if (rect.right - menuWidth < padding) {
+        rightPos = viewportWidth - menuWidth - padding;
       }
-      
-      // Calculate top position
-      let topPos = rect.bottom + 8;
-      
-      // If menu would overflow bottom, position above the button instead
-      const estimatedMenuHeight = 300;
-      if (topPos + estimatedMenuHeight > viewportHeight - padding) {
-        topPos = Math.max(rect.top - estimatedMenuHeight - 8, padding);
-      }
+      rightPos = Math.max(rightPos, padding);
       
       setMenuPosition({
-        top: topPos,
+        top: rect.bottom + 8,
         right: rightPos,
       });
     }
-  }, [open]);
+  }, [open, isMobile]);
 
-  // Close on click outside
+  // Desktop: Close on click outside
   useEffect(() => {
+    if (isMobile) return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (
         menuRef.current && 
@@ -113,12 +101,54 @@ export const NotificationsDropdown = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   const handleToggle = () => {
     triggerHaptic('selection');
     setOpen(!open);
   };
+
+  const NotificationsList = () => (
+    <>
+      {notifications.length === 0 ? (
+        <div className="p-6 text-center text-muted-foreground text-sm">
+          <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p>No notifications</p>
+          <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
+        </div>
+      ) : (
+        notifications.map((notification) => (
+          <div key={notification.id} className="relative group">
+            <button
+              className="w-full flex flex-col items-start gap-1 p-3 pr-10 hover:bg-accent/30 active:bg-accent/50 transition-colors text-left"
+              onClick={() => {
+                markAsRead(notification.id);
+                setOpen(false);
+              }}
+            >
+              <div className="flex items-center gap-2 w-full">
+                <span className="font-medium text-foreground">{notification.title}</span>
+                {!notification.read && (
+                  <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+              <span className="text-xs text-muted-foreground/60">{notification.time}</span>
+            </button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => removeNotification(notification.id, e)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ))
+      )}
+    </>
+  );
 
   return (
     <div className="relative">
@@ -140,7 +170,41 @@ export const NotificationsDropdown = () => {
         )}
       </Button>
 
-      {typeof document !== 'undefined' && createPortal(
+      {/* Mobile: Bottom Sheet Drawer */}
+      {isMobile && (
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerContent>
+            <DrawerHeader className="border-b border-border pb-3">
+              <div className="flex items-center justify-between">
+                <DrawerTitle>Notifications</DrawerTitle>
+                <div className="flex items-center gap-2">
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2 text-muted-foreground hover:text-destructive"
+                      onClick={clearAll}
+                    >
+                      Clear all
+                    </Button>
+                  )}
+                  {unreadCount > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {unreadCount} new
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </DrawerHeader>
+            <div className="py-2 max-h-[60vh] overflow-y-auto">
+              <NotificationsList />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Desktop: Positioned Dropdown */}
+      {!isMobile && typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {open && (
             <motion.div
@@ -148,20 +212,13 @@ export const NotificationsDropdown = () => {
               initial={{ opacity: 0, y: -8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
-              transition={{
-                type: 'spring',
-                stiffness: 500,
-                damping: 30,
-              }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               style={{
                 position: 'fixed',
                 top: menuPosition.top,
-                right: window.innerWidth < 640 ? 'auto' : menuPosition.right,
-                left: window.innerWidth < 640 ? '50%' : 'auto',
-                transform: window.innerWidth < 640 ? 'translateX(-50%)' : 'none',
+                right: menuPosition.right,
                 zIndex: 99999,
-                width: window.innerWidth < 640 ? 'calc(100vw - 2rem)' : '320px',
-                maxWidth: '320px',
+                width: '320px',
               }}
               className="rounded-xl border border-border bg-popover shadow-xl overflow-hidden"
             >
@@ -189,47 +246,7 @@ export const NotificationsDropdown = () => {
 
               {/* Notifications List */}
               <div className="py-1 max-h-[60vh] overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground text-sm">
-                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p>No notifications</p>
-                    <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
-                  </div>
-                ) : (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className="relative group"
-                    >
-                      <button
-                        className="w-full flex flex-col items-start gap-1 p-3 pr-10 hover:bg-accent/30 transition-colors text-left"
-                        onClick={() => {
-                          markAsRead(notification.id);
-                          setOpen(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <span className="font-medium text-foreground">{notification.title}</span>
-                          {!notification.read && (
-                            <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
-                        <span className="text-xs text-muted-foreground/60">{notification.time}</span>
-                      </button>
-                      
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 opacity-100 md:opacity-0 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => removeNotification(notification.id, e)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))
-                )}
+                <NotificationsList />
               </div>
             </motion.div>
           )}

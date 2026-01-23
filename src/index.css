@@ -3,25 +3,11 @@
 @tailwind utilities;
 
 /* 
- * Radix UI Popup Positioning - CRITICAL
- * DO NOT override transform, left, right, or top on popper wrappers
- * Radix uses these for its collision detection algorithm
+ * Radix UI Popup Positioning - Simple and Clean
+ * Only set z-index, let Radix handle all positioning
  */
 [data-radix-popper-content-wrapper] {
   z-index: 99999 !important;
-}
-
-/* Ensure popup content respects viewport on all devices */
-[data-radix-menu-content],
-[data-radix-select-content],
-[data-radix-popover-content],
-[data-radix-dropdown-menu-content],
-[data-radix-context-menu-content],
-[data-radix-hover-card-content],
-[data-radix-tooltip-content] {
-  max-width: calc(100vw - 2rem) !important;
-  max-height: calc(100vh - 4rem) !important;
-  overflow: auto !important;
 }
 
 /* Ensure Radix dialog/alert overlays work on mobile */
