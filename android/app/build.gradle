@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "app.lovable.fc4bd383e19d4e41b174125d10b92719"
-    compileSdk = rootProject.ext.compileSdkVersion
+    compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "app.lovable.fc4bd383e19d4e41b174125d10b92719"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -21,6 +21,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 }
 
