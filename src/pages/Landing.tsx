@@ -28,6 +28,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
+import { AppPreview } from "@/components/landing/AppPreview";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -321,6 +322,9 @@ const Landing = () => {
                 Use in Browser
               </Button>
             </div>
+
+            {/* App Preview */}
+            <AppPreview />
           </motion.div>
         </div>
       </section>
