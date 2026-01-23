@@ -103,6 +103,9 @@ export function WebRTCRoom({
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(err => {
+        console.warn('[WebRTCRoom] Local video play error:', err);
+      });
     }
   }, [localStream]);
 
@@ -386,11 +389,13 @@ export function WebRTCRoom({
               )}
             >
               {/* Video display */}
-              {participant.stream && hasVideo && (
+              {participant.stream && (
                 <VideoElement 
                   stream={participant.stream} 
                   muted={participant.isLocal}
                   isLocal={participant.isLocal}
+                  participantId={participant.id}
+                  hasVideo={!!hasVideo}
                 />
               )}
 
@@ -641,99 +646,220 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
 }
 
 // Helper component for video elements with proper audio handling
-function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: boolean; isLocal: boolean }) {
+interface VideoElementProps {
+  stream: MediaStream;
+  muted: boolean;
+  isLocal: boolean;
+  participantId: string;
+  hasVideo: boolean;
+}
+
+function VideoElement({ stream, muted, isLocal, participantId, hasVideo }: VideoElementProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playAttemptRef = useRef<number>(0);
+  const streamIdRef = useRef<string>('');
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
+  // Force re-attachment when stream changes or tracks are updated
   useEffect(() => {
     if (!stream) return;
 
+    const streamId = stream.id;
+    const videoTracks = stream.getVideoTracks();
+    const audioTracks = stream.getAudioTracks();
+    
+    console.log(`[VideoElement ${participantId}] Stream update - ID: ${streamId}, video tracks: ${videoTracks.length}, audio tracks: ${audioTracks.length}`);
+    
     // Attach video stream to video element
     if (videoRef.current) {
+      // Always re-attach the stream
       videoRef.current.srcObject = stream;
-      // Force play for video
-      videoRef.current.play().catch((err) => {
-        console.warn('[VideoElement] Video autoplay blocked:', err);
-      });
-    }
-
-    // For remote participants, we need to handle audio separately
-    // This is critical for reliable audio playback
-    if (!isLocal) {
-      const audioTracks = stream.getAudioTracks();
-      console.log('[VideoElement] Remote stream audio tracks:', audioTracks.length, audioTracks.map(t => ({ enabled: t.enabled, muted: t.muted })));
       
-      if (audioTracks.length > 0) {
-        // Create or reuse audio element
-        if (!audioRef.current) {
-          const audio = document.createElement('audio');
-          audio.id = `remote-audio-${Date.now()}`;
-          audio.autoplay = true;
-          (audio as any).playsInline = true; // Safari compatibility
-          audio.volume = 1.0;
-          audio.style.cssText = 'position:absolute;left:-9999px;';
-          document.body.appendChild(audio);
-          audioRef.current = audio;
-          console.log('[VideoElement] Created audio element for remote audio');
-        }
-        
-        // Set stream on audio element
-        audioRef.current.srcObject = stream;
-        audioRef.current.muted = false;
-        
-        // Aggressive play attempts
-        const tryPlay = () => {
-          if (!audioRef.current) return;
-          
-          playAttemptRef.current++;
-          audioRef.current.play()
-            .then(() => {
-              console.log('[VideoElement] Remote audio playing successfully');
-            })
-            .catch((err) => {
-              console.warn('[VideoElement] Audio play attempt', playAttemptRef.current, 'failed:', err.name);
-              
-              // Keep retrying with user interaction
-              if (playAttemptRef.current < 5) {
-                const resumeAudio = () => {
-                  audioRef.current?.play().catch(() => {});
-                  document.removeEventListener('click', resumeAudio);
-                  document.removeEventListener('touchstart', resumeAudio);
-                  document.removeEventListener('keydown', resumeAudio);
-                };
-                document.addEventListener('click', resumeAudio, { once: true });
-                document.addEventListener('touchstart', resumeAudio, { once: true });
-                document.addEventListener('keydown', resumeAudio, { once: true });
-              }
-            });
-        };
-        
-        tryPlay();
-        // Also try after a short delay
-        setTimeout(tryPlay, 500);
-      }
+      // Force play for video
+      const playVideo = () => {
+        if (!videoRef.current) return;
+        videoRef.current.play()
+          .then(() => {
+            console.log(`[VideoElement ${participantId}] Video playing successfully`);
+          })
+          .catch((err) => {
+            console.warn(`[VideoElement ${participantId}] Video autoplay blocked:`, err.name);
+            // Retry on user interaction
+            const resumeVideo = () => {
+              videoRef.current?.play().catch(() => {});
+              document.removeEventListener('click', resumeVideo);
+              document.removeEventListener('touchstart', resumeVideo);
+            };
+            document.addEventListener('click', resumeVideo, { once: true });
+            document.addEventListener('touchstart', resumeVideo, { once: true });
+          });
+      };
+      
+      playVideo();
     }
 
-    // Cleanup audio element on unmount
+    // For remote participants, handle audio through a separate element for reliability
+    if (!isLocal && audioTracks.length > 0) {
+      console.log(`[VideoElement ${participantId}] Setting up remote audio - tracks:`, audioTracks.map(t => ({ 
+        enabled: t.enabled, 
+        muted: t.muted, 
+        readyState: t.readyState 
+      })));
+      
+      // Create audio element if needed
+      if (!audioRef.current) {
+        const audio = document.createElement('audio');
+        audio.id = `remote-audio-${participantId}-${Date.now()}`;
+        audio.autoplay = true;
+        (audio as any).playsInline = true;
+        audio.volume = 1.0;
+        audio.style.cssText = 'position:fixed;left:-9999px;top:-9999px;pointer-events:none;';
+        document.body.appendChild(audio);
+        audioRef.current = audio;
+        console.log(`[VideoElement ${participantId}] Created new audio element`);
+      }
+      
+      // Always re-set the stream on the audio element
+      const audioElement = audioRef.current;
+      audioElement.srcObject = stream;
+      audioElement.muted = false;
+      audioElement.volume = 1.0;
+      
+      playAttemptRef.current = 0;
+      
+      // Aggressive audio playback with multiple retry strategies
+      const tryPlayAudio = async () => {
+        if (!audioElement) return;
+        
+        playAttemptRef.current++;
+        const attempt = playAttemptRef.current;
+        
+        try {
+          // Ensure audio context is unlocked
+          if (typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined') {
+            const AudioContextClass = AudioContext || (window as any).webkitAudioContext;
+            const testContext = new AudioContextClass();
+            if (testContext.state === 'suspended') {
+              await testContext.resume();
+            }
+            testContext.close();
+          }
+          
+          await audioElement.play();
+          console.log(`[VideoElement ${participantId}] Audio play attempt ${attempt} succeeded`);
+          setAudioPlaying(true);
+        } catch (err: any) {
+          console.warn(`[VideoElement ${participantId}] Audio play attempt ${attempt} failed:`, err.name);
+          setAudioPlaying(false);
+          
+          // Set up user interaction listeners if not playing
+          if (attempt <= 3) {
+            const resumeAudio = async () => {
+              try {
+                if (audioElement) {
+                  audioElement.muted = false;
+                  audioElement.volume = 1.0;
+                  await audioElement.play();
+                  console.log(`[VideoElement ${participantId}] Audio resumed after user interaction`);
+                  setAudioPlaying(true);
+                }
+              } catch (e) {
+                console.warn(`[VideoElement ${participantId}] Resume audio failed:`, e);
+              }
+              document.removeEventListener('click', resumeAudio);
+              document.removeEventListener('touchstart', resumeAudio);
+              document.removeEventListener('keydown', resumeAudio);
+            };
+            
+            document.addEventListener('click', resumeAudio, { once: true });
+            document.addEventListener('touchstart', resumeAudio, { once: true });
+            document.addEventListener('keydown', resumeAudio, { once: true });
+            
+            // Also retry after a delay
+            setTimeout(() => {
+              if (!audioPlaying && audioRef.current) {
+                tryPlayAudio();
+              }
+            }, 500 * attempt);
+          }
+        }
+      };
+      
+      // Start playback attempts
+      tryPlayAudio();
+      
+      // Also try again after the stream has time to settle
+      setTimeout(tryPlayAudio, 100);
+      setTimeout(tryPlayAudio, 500);
+      
+      // Listen for track changes
+      const handleTrackEvent = () => {
+        console.log(`[VideoElement ${participantId}] Track event - re-attaching stream`);
+        if (audioRef.current) {
+          audioRef.current.srcObject = stream;
+          tryPlayAudio();
+        }
+      };
+      
+      stream.addEventListener('addtrack', handleTrackEvent);
+      stream.addEventListener('removetrack', handleTrackEvent);
+      
+      return () => {
+        stream.removeEventListener('addtrack', handleTrackEvent);
+        stream.removeEventListener('removetrack', handleTrackEvent);
+      };
+    }
+  }, [stream, isLocal, participantId, audioPlaying]);
+
+  // Cleanup audio element on unmount
+  useEffect(() => {
     return () => {
       if (audioRef.current) {
-        console.log('[VideoElement] Cleaning up audio element');
+        console.log(`[VideoElement ${participantId}] Cleaning up audio element`);
         audioRef.current.pause();
         audioRef.current.srcObject = null;
         audioRef.current.remove();
         audioRef.current = null;
       }
     };
-  }, [stream, isLocal]);
+  }, [participantId]);
 
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted={isLocal} // Only mute local video to prevent echo, remote video audio is handled by separate audio element
-      className={cn("w-full h-full object-cover", isLocal && "transform scale-x-[-1]")}
-    />
+    <>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal} // Only mute local video to prevent echo
+        className={cn(
+          "w-full h-full object-cover",
+          isLocal && "transform scale-x-[-1]",
+          !hasVideo && "hidden"
+        )}
+      />
+      {/* Audio debug indicator for remote participants */}
+      {!isLocal && (
+        <div className="absolute bottom-2 left-2 flex items-center gap-1">
+          {audioPlaying ? (
+            <div className="p-1 bg-green-500/20 backdrop-blur-sm rounded-full">
+              <Mic className="h-3 w-3 text-green-500" />
+            </div>
+          ) : (
+            <div 
+              className="p-1 bg-red-500/20 backdrop-blur-sm rounded-full cursor-pointer"
+              onClick={() => {
+                if (audioRef.current) {
+                  audioRef.current.play().then(() => setAudioPlaying(true)).catch(() => {});
+                }
+              }}
+              title="Click to enable audio"
+            >
+              <MicOff className="h-3 w-3 text-red-500" />
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
