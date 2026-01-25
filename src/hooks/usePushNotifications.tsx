@@ -13,11 +13,18 @@ export const usePushNotifications = () => {
     const isNative = Capacitor.isNativePlatform();
     setIsSupported(isNative);
 
-    if (isNative && user) {
-      // Initialize push notifications when user is logged in
-      pushNotificationService.initialize().then(() => {
+    if (isNative) {
+      // Initialize push notifications regardless of login state
+      // This ensures we get a token stored locally
+      pushNotificationService.initialize().then(async () => {
         setIsInitialized(pushNotificationService.isInitialized());
         setToken(pushNotificationService.getToken());
+        
+        // If user is logged in, associate any stored token
+        if (user) {
+          await pushNotificationService.associateStoredToken();
+          setToken(pushNotificationService.getToken());
+        }
       });
     }
 
@@ -25,6 +32,15 @@ export const usePushNotifications = () => {
       // Cleanup on unmount if needed
     };
   }, [user]);
+
+  // Re-associate token when user logs in
+  useEffect(() => {
+    if (user && isInitialized) {
+      pushNotificationService.associateStoredToken().then(() => {
+        setToken(pushNotificationService.getToken());
+      });
+    }
+  }, [user, isInitialized]);
 
   const removeToken = async () => {
     await pushNotificationService.removeToken();

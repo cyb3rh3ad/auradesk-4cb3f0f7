@@ -64,6 +64,15 @@
             </intent-filter>
         </service>
 
+        <!-- Broadcast receiver for call actions (decline, etc.) -->
+        <receiver
+            android:name=".CallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="DECLINE_CALL" />
+            </intent-filter>
+        </receiver>
+
         <!-- Notification channels metadata -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
