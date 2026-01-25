@@ -112,8 +112,16 @@ class PushNotificationService {
   private async saveToken(token: string): Promise<void> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Store token locally even if user isn't logged in
+      // This allows re-association when user logs in later
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('fcm_push_token', token);
+        localStorage.setItem('fcm_push_token_platform', Capacitor.getPlatform());
+      }
+      
       if (!user) {
-        console.log('No user logged in, cannot save push token');
+        console.log('No user logged in, token stored locally for later association');
         return;
       }
 
@@ -134,6 +142,37 @@ class PushNotificationService {
       }
     } catch (error) {
       console.error('Error saving push token:', error);
+    }
+  }
+  
+  // Associate stored token when user logs in
+  async associateStoredToken(): Promise<void> {
+    try {
+      const storedToken = localStorage.getItem('fcm_push_token');
+      const storedPlatform = localStorage.getItem('fcm_push_token_platform');
+      
+      if (!storedToken) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const platform = (storedPlatform || Capacitor.getPlatform()) as 'ios' | 'android' | 'web';
+      
+      const { error } = await supabase
+        .from('push_tokens')
+        .upsert(
+          { user_id: user.id, token: storedToken, platform },
+          { onConflict: 'user_id,token' }
+        );
+      
+      if (error) {
+        console.error('Error associating stored push token:', error);
+      } else {
+        console.log('Stored push token associated with user');
+        this.token = storedToken;
+      }
+    } catch (error) {
+      console.error('Error associating stored token:', error);
     }
   }
 
@@ -225,23 +264,11 @@ class PushNotificationService {
   }
 
   async removeToken(): Promise<void> {
-    if (!this.token) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await supabase
-        .from('push_tokens')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('token', this.token);
-
-      this.token = null;
-      console.log('Push token removed');
-    } catch (error) {
-      console.error('Error removing push token:', error);
-    }
+    // Don't remove token on logout - keep it so user can still receive calls
+    // The token is device-specific and can be re-associated on next login
+    console.log('Push token preserved for background notifications');
+    // Just clear the in-memory reference
+    this.token = null;
   }
 
   getToken(): string | null {
