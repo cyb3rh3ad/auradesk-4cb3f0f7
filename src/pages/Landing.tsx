@@ -19,14 +19,29 @@ import {
   Sparkles,
   ArrowRight,
   Play,
+  Smartphone,
+  Monitor,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { AppPreview } from "@/components/landing/AppPreview";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Landing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+  const [showMobileOptions, setShowMobileOptions] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const features = [
     {
@@ -172,9 +187,19 @@ const Landing = () => {
               <Mail className="w-4 h-4" />
               <span className="hidden md:inline">info.auradesk@gmail.com</span>
             </a>
-            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
-              Sign In
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/auth")} className="gap-1.5">
+                    Sign In
+                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[280px] text-center">
+                  <p className="text-xs">Google Sign-In will redirect you to a secure authentication page. This is normal and keeps your data safe.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </nav>
@@ -210,20 +235,137 @@ const Landing = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              {/* FIXED LINK BELOW */}
-              <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk.Setup.exe"
-                download
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 px-8 py-4 w-full sm:w-auto"
+              {/* Meiosis-style Splitting Download Button */}
+              <div 
+                className="relative h-14 flex items-center justify-center"
+                style={{ width: '280px' }}
+                onMouseEnter={() => setShowDownloadOptions(true)}
+                onMouseLeave={() => setShowDownloadOptions(false)}
               >
-                <Download className="w-5 h-5 mr-2" />
-                Download for Windows
-              </a>
+                {/* The unified button - fades out cleanly */}
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center z-10"
+                  animate={{ 
+                    opacity: showDownloadOptions ? 0 : 1,
+                    scaleX: showDownloadOptions ? 1.02 : 1,
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.3, ease: "easeOut" },
+                    scaleX: { duration: 0.4, ease: "easeOut" },
+                  }}
+                  style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
+                >
+                  <Button
+                    size="lg"
+                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
+                    onClick={() => setShowDownloadOptions(true)}
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download App
+                  </Button>
+                </motion.div>
+
+                {/* The two daughter cells - simple and clean */}
+                <div className="relative flex items-center justify-center h-full w-full">
+                  {/* Left cell - Windows */}
+                  <motion.div
+                    className="absolute left-0"
+                    animate={{ 
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
+                      x: showDownloadOptions ? [-8, -3, -4, -4] : -8,
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.4, ease: "easeOut" },
+                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
+                  >
+                    <a
+                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
+                    >
+                      <Monitor className="w-4 h-4 mr-2" />
+                      Windows
+                    </a>
+                  </motion.div>
+
+                  {/* Right cell - Mobile (expands to iOS/Android) */}
+                  <motion.div
+                    className="absolute right-0"
+                    animate={{ 
+                      opacity: showDownloadOptions ? 1 : 0,
+                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
+                      x: showDownloadOptions ? [8, 3, 4, 4] : 8,
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.4, ease: "easeOut" },
+                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
+                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
+                  >
+                    <div 
+                      className="relative h-14 flex items-center justify-center"
+                      style={{ width: '136px' }}
+                      onMouseEnter={() => setShowMobileOptions(true)}
+                      onMouseLeave={() => setShowMobileOptions(false)}
+                    >
+                      {/* Mobile button - splits into iOS/Android */}
+                      <motion.button
+                        className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg shadow-emerald-500/30 h-14 px-6 w-full"
+                        animate={{ 
+                          opacity: showMobileOptions ? 0 : 1,
+                        }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        style={{ pointerEvents: showMobileOptions ? "none" : "auto" }}
+                        onClick={() => setShowMobileOptions(true)}
+                      >
+                        <Smartphone className="w-4 h-4 mr-2" />
+                        Mobile
+                      </motion.button>
+
+                      {/* iOS Button */}
+                      <motion.button
+                        className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 hover:from-slate-600 hover:via-slate-500 hover:to-slate-600 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-slate-500/30 h-14 px-4 w-[66px]"
+                        animate={{ 
+                          opacity: showMobileOptions ? 1 : 0,
+                          x: showMobileOptions ? -35 : 0,
+                        }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
+                        onClick={() => setShowIOSInstructions(true)}
+                      >
+                        iOS
+                      </motion.button>
+
+                      {/* Android Button */}
+                      <motion.a
+                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/app-debug.apk"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
+                        animate={{ 
+                          opacity: showMobileOptions ? 1 : 0,
+                          x: showMobileOptions ? 35 : 0,
+                        }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
+                      >
+                        Android
+                      </motion.a>
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
 
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg px-8 py-6 rounded-xl border-2 w-full sm:w-auto"
+                className="text-lg h-14 px-8 rounded-full border-2 w-[280px]"
                 onClick={() => navigate(user ? "/dashboard" : "/auth")}
               >
                 <Globe className="w-5 h-5 mr-2" />
@@ -231,15 +373,6 @@ const Landing = () => {
               </Button>
             </div>
 
-            <div className="pt-4">
-              <a
-                href="mailto:info.auradesk@gmail.com"
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Mail className="w-4 h-4" />
-                <span>Questions? Contact us at info.auradesk@gmail.com</span>
-              </a>
-            </div>
           </motion.div>
         </div>
       </section>
@@ -290,6 +423,17 @@ const Landing = () => {
               </motion.div>
             ))}
           </div>
+
+          {/* Interactive App Preview */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="mt-12 md:mt-16"
+          >
+            <AppPreview />
+          </motion.div>
         </div>
       </section>
 
@@ -417,44 +561,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 md:py-24 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-blue-500/10" />
-        <div className="container mx-auto max-w-4xl relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center space-y-6"
-          >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">Ready to transform your workflow?</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Join thousands of teams already using AuraDesk. Free forever tier available.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              {/* FIXED LINK BELOW */}
-              <a
-                href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.0/AuraDesk.Setup.exe"
-                download="AuraDesk.Setup.exe"
-                className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg px-8 py-4"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Download Now
-              </a>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg px-8 py-6 rounded-xl"
-                onClick={() => navigate("/auth")}
-              >
-                Get Started Free
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Contact Section */}
       <section className="py-12 md:py-16 px-6 border-t border-border/50">
         <div className="container mx-auto max-w-4xl text-center">
@@ -502,6 +608,62 @@ const Landing = () => {
           </div>
         </div>
       </footer>
+
+      {/* iOS Installation Instructions Dialog */}
+      <Dialog open={showIOSInstructions} onOpenChange={setShowIOSInstructions}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5" />
+              Install AuraDesk on iOS
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-muted-foreground text-sm">
+              AuraDesk can be installed as a web app on your iPhone or iPad for a native app experience.
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  1
+                </div>
+                <p className="text-sm">
+                  Open <span className="font-medium text-foreground">auradesk.lovable.app</span> in Safari
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  2
+                </div>
+                <p className="text-sm">
+                  Tap the <span className="font-medium text-foreground">Share</span> button (square with arrow)
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  3
+                </div>
+                <p className="text-sm">
+                  Scroll down and tap <span className="font-medium text-foreground">"Add to Home Screen"</span>
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  4
+                </div>
+                <p className="text-sm">
+                  Tap <span className="font-medium text-foreground">Add</span> to install the app
+                </p>
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                The app will appear on your home screen and work just like a native app, with offline support and push notifications.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
