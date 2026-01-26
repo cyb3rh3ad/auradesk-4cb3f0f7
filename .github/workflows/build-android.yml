@@ -1,0 +1,129 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android || true
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Copy app icon
+        run: |
+          # Copy icon to Android resources
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          
+          # Use the existing icon if available
+          if [ -f "public/icon.png" ]; then
+            cp public/icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp public/icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            cp public/icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp public/icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp public/icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          fi
+
+      - name: Create splash screen
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          cat > android/app/src/main/res/drawable/splash.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@color/splash_background"/>
+              <item>
+                  <bitmap
+                      android:gravity="center"
+                      android:src="@mipmap/ic_launcher"/>
+              </item>
+          </layer-list>
+          EOF
+          
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="splash_background">#0a0a0b</color>
+          </resources>
+          EOF
+
+      - name: Update splash theme
+        run: |
+          cat > android/app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+                  <item name="android:statusBarColor">@color/splash_background</item>
+                  <item name="android:navigationBarColor">@color/splash_background</item>
+              </style>
+              <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+                  <item name="android:statusBarColor">@color/splash_background</item>
+                  <item name="android:navigationBarColor">@color/splash_background</item>
+                  <item name="android:windowBackground">@drawable/splash</item>
+              </style>
+          </resources>
+          EOF
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/AuraDesk.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuraDesk-Android
+          path: android/app/build/outputs/apk/debug/AuraDesk.apk
+          retention-days: 30
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: android-${{ github.run_number }}
+          name: AuraDesk Android Build ${{ github.run_number }}
+          files: android/app/build/outputs/apk/debug/AuraDesk.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -18,11 +21,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build web app
         run: npm run build
@@ -30,12 +32,31 @@ jobs:
       - name: Build Electron app
         run: npx electron-builder --win --config electron-builder.json
 
+      - name: Rename installer
+        run: |
+          Get-ChildItem -Path release -Filter "*.exe" | ForEach-Object {
+            $newName = "AuraDesk-Setup.exe"
+            Rename-Item -Path $_.FullName -NewName $newName
+          }
+        shell: pwsh
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: AuraDesk-Windows
-          path: release/*.exe
+          path: release/AuraDesk-Setup.exe
           retention-days: 30
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: desktop-${{ github.run_number }}
+          name: AuraDesk Desktop Build ${{ github.run_number }}
+          files: release/AuraDesk-Setup.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-mac:
     runs-on: macos-latest
@@ -47,11 +68,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build web app
         run: npm run build
@@ -76,11 +96,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build web app
         run: npm run build

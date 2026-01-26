@@ -283,7 +283,7 @@ const Landing = () => {
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
                     <a
-                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases"
+                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
@@ -344,7 +344,7 @@ const Landing = () => {
 
                       {/* Android Button */}
                       <motion.a
-                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases"
+                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
