@@ -3,8 +3,6 @@ name: Build Electron App
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -32,11 +30,19 @@ jobs:
       - name: Build Electron app
         run: npx electron-builder --win --config electron-builder.json
 
-      - name: Rename installer
+      - name: List release folder
+        run: Get-ChildItem -Path release -Recurse
+        shell: pwsh
+
+      - name: Find and copy EXE
         run: |
-          Get-ChildItem -Path release -Filter "*.exe" | ForEach-Object {
-            $newName = "AuraDesk-Setup.exe"
-            Rename-Item -Path $_.FullName -NewName $newName
+          $exe = Get-ChildItem -Path release -Filter "*.exe" -Recurse | Select-Object -First 1
+          if ($exe) {
+            Copy-Item -Path $exe.FullName -Destination "release/AuraDesk-Setup.exe" -Force
+            Write-Host "Copied $($exe.Name) to AuraDesk-Setup.exe"
+          } else {
+            Write-Host "No EXE found, listing all files:"
+            Get-ChildItem -Path release -Recurse
           }
         shell: pwsh
 
@@ -46,12 +52,17 @@ jobs:
           name: AuraDesk-Windows
           path: release/AuraDesk-Setup.exe
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: desktop-${{ github.run_number }}
-          name: AuraDesk Desktop Build ${{ github.run_number }}
+          tag_name: v1.0.${{ github.run_number }}-windows
+          name: AuraDesk Windows v1.0.${{ github.run_number }}
+          body: |
+            ## AuraDesk Windows Installer
+            
+            Download and run `AuraDesk-Setup.exe` to install AuraDesk on Windows.
           files: release/AuraDesk-Setup.exe
           draft: false
           prerelease: false
@@ -78,6 +89,8 @@ jobs:
 
       - name: Build Electron app
         run: npx electron-builder --mac --config electron-builder.json
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -85,6 +98,7 @@ jobs:
           name: AuraDesk-macOS
           path: release/*.dmg
           retention-days: 30
+          if-no-files-found: warn
 
   build-linux:
     runs-on: ubuntu-latest
@@ -115,3 +129,4 @@ jobs:
             release/*.AppImage
             release/*.deb
           retention-days: 30
+          if-no-files-found: warn

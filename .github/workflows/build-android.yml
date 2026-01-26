@@ -37,68 +37,11 @@ jobs:
         run: npm run build
 
       - name: Add Android platform
-        run: npx cap add android || true
+        run: npx cap add android
+        continue-on-error: true
 
       - name: Sync Capacitor
         run: npx cap sync android
-
-      - name: Copy app icon
-        run: |
-          # Copy icon to Android resources
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-          mkdir -p android/app/src/main/res/mipmap-mdpi
-          mkdir -p android/app/src/main/res/mipmap-xhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-          
-          # Use the existing icon if available
-          if [ -f "public/icon.png" ]; then
-            cp public/icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-            cp public/icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-            cp public/icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-            cp public/icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-            cp public/icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          fi
-
-      - name: Create splash screen
-        run: |
-          mkdir -p android/app/src/main/res/drawable
-          cat > android/app/src/main/res/drawable/splash.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:drawable="@color/splash_background"/>
-              <item>
-                  <bitmap
-                      android:gravity="center"
-                      android:src="@mipmap/ic_launcher"/>
-              </item>
-          </layer-list>
-          EOF
-          
-          mkdir -p android/app/src/main/res/values
-          cat > android/app/src/main/res/values/colors.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="splash_background">#0a0a0b</color>
-          </resources>
-          EOF
-
-      - name: Update splash theme
-        run: |
-          cat > android/app/src/main/res/values/styles.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:statusBarColor">@color/splash_background</item>
-                  <item name="android:navigationBarColor">@color/splash_background</item>
-              </style>
-              <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:statusBarColor">@color/splash_background</item>
-                  <item name="android:navigationBarColor">@color/splash_background</item>
-                  <item name="android:windowBackground">@drawable/splash</item>
-              </style>
-          </resources>
-          EOF
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
@@ -107,22 +50,30 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - name: Rename APK
-        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/AuraDesk.apk
+      - name: Prepare APK for release
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/AuraDesk.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: AuraDesk-Android
-          path: android/app/build/outputs/apk/debug/AuraDesk.apk
+          path: release/AuraDesk.apk
           retention-days: 30
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-${{ github.run_number }}
-          name: AuraDesk Android Build ${{ github.run_number }}
-          files: android/app/build/outputs/apk/debug/AuraDesk.apk
+          tag_name: v1.0.${{ github.run_number }}-android
+          name: AuraDesk Android v1.0.${{ github.run_number }}
+          body: |
+            ## AuraDesk Android APK
+            
+            Download and install `AuraDesk.apk` on your Android device.
+            
+            **Note:** You may need to enable "Install from unknown sources" in your device settings.
+          files: release/AuraDesk.apk
           draft: false
           prerelease: false
         env:
