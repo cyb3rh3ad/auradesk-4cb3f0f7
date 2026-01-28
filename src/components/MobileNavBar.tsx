@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { triggerHaptic } from "@/utils/haptics";
@@ -14,7 +14,7 @@ import {
   Shield,
   MoreHorizontal
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface NavItemProps {
@@ -36,25 +36,39 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
       onClick={handleClick}
       className={({ isActive }) =>
         cn(
-          "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all touch-manipulation",
-          "active:scale-95",
+          "relative flex flex-col items-center justify-center gap-1 py-2.5 px-4 rounded-2xl transition-all duration-300 touch-manipulation min-w-[64px]",
+          "active:scale-90 active:opacity-70",
           isActive
             ? "text-primary"
-            : "text-muted-foreground"
+            : "text-muted-foreground hover:text-foreground"
         )
       }
     >
       {({ isActive }) => (
         <>
-          <Icon className={cn("w-5 h-5", isActive && "text-primary")} />
-          <span className="text-[10px] font-medium">{label}</span>
+          {/* Active background glow */}
           {isActive && (
             <motion.div
-              layoutId="activeTab"
-              className="absolute bottom-1 w-8 h-1 bg-primary rounded-full"
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              layoutId="navActiveBackground"
+              className="absolute inset-0 bg-primary/10 rounded-2xl"
+              transition={{ type: "spring", stiffness: 500, damping: 35 }}
             />
           )}
+          <motion.div
+            animate={isActive ? { scale: 1.1, y: -2 } : { scale: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          >
+            <Icon className={cn(
+              "w-5 h-5 transition-colors duration-200",
+              isActive && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
+            )} />
+          </motion.div>
+          <span className={cn(
+            "text-[10px] font-semibold tracking-wide transition-all duration-200",
+            isActive && "text-primary"
+          )}>
+            {label}
+          </span>
         </>
       )}
     </NavLink>
@@ -64,6 +78,12 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
 export const MobileNavBar = () => {
   const { isOwner } = useUserRole();
   const [showMore, setShowMore] = useState(false);
+  const location = useLocation();
+
+  // Close more menu on route change
+  useEffect(() => {
+    setShowMore(false);
+  }, [location.pathname]);
 
   // Primary nav items (shown in bottom bar)
   const primaryItems = [
@@ -97,18 +117,21 @@ export const MobileNavBar = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
               onClick={() => setShowMore(false)}
             />
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
+              initial={{ opacity: 0, y: 100, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="fixed bottom-20 left-4 right-4 bg-card border border-border rounded-2xl p-4 z-50 shadow-2xl safe-area-pb"
+              className="fixed bottom-24 left-4 right-4 bg-card/95 backdrop-blur-xl border border-border/50 rounded-3xl p-5 z-50 shadow-2xl shadow-black/20"
             >
-              <div className="grid grid-cols-4 gap-4">
-                {secondaryItems.map((item) => (
+              {/* Handle bar */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-muted-foreground/30 rounded-full" />
+              
+              <div className="grid grid-cols-4 gap-3 mt-2">
+                {secondaryItems.map((item, index) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
@@ -118,15 +141,22 @@ export const MobileNavBar = () => {
                     }}
                     className={({ isActive }) =>
                       cn(
-                        "flex flex-col items-center gap-2 p-3 rounded-xl transition-colors touch-manipulation",
+                        "flex flex-col items-center gap-2.5 p-4 rounded-2xl transition-all duration-200 touch-manipulation",
+                        "active:scale-90",
                         isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-accent"
+                          ? "bg-primary/15 text-primary shadow-lg shadow-primary/10"
+                          : "text-muted-foreground hover:bg-accent/50 active:bg-accent"
                       )
                     }
                   >
-                    <item.icon className="w-6 h-6" />
-                    <span className="text-xs font-medium">{item.label}</span>
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <item.icon className="w-6 h-6" />
+                    </motion.div>
+                    <span className="text-xs font-semibold">{item.label}</span>
                   </NavLink>
                 ))}
               </div>
@@ -136,22 +166,47 @@ export const MobileNavBar = () => {
       </AnimatePresence>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border safe-area-pb">
-        <div className="flex items-center justify-around px-2 py-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-xl border-t border-border/30 safe-area-pb">
+        {/* Gradient glow effect */}
+        <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+        
+        <div className="flex items-center justify-around px-1 py-1.5">
           {primaryItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}
-          <button
+          <motion.button
             onClick={handleMoreClick}
+            whileTap={{ scale: 0.9 }}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all touch-manipulation",
-              "active:scale-95",
-              showMore ? "text-primary" : "text-muted-foreground"
+              "relative flex flex-col items-center justify-center gap-1 py-2.5 px-4 rounded-2xl transition-all duration-300 touch-manipulation min-w-[64px]",
+              showMore 
+                ? "text-primary" 
+                : "text-muted-foreground"
             )}
           >
-            <MoreHorizontal className="w-5 h-5" />
-            <span className="text-[10px] font-medium">More</span>
-          </button>
+            {showMore && (
+              <motion.div
+                layoutId="navActiveBackground"
+                className="absolute inset-0 bg-primary/10 rounded-2xl"
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              />
+            )}
+            <motion.div
+              animate={showMore ? { rotate: 90 } : { rotate: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
+              <MoreHorizontal className={cn(
+                "w-5 h-5 transition-colors duration-200",
+                showMore && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
+              )} />
+            </motion.div>
+            <span className={cn(
+              "text-[10px] font-semibold tracking-wide transition-all duration-200",
+              showMore && "text-primary"
+            )}>
+              More
+            </span>
+          </motion.button>
         </div>
       </nav>
     </>

@@ -7,6 +7,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -56,42 +57,48 @@ const Dashboard = () => {
   const content = (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
       <div className="relative">
-        <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 md:p-0 md:bg-transparent md:rounded-none">
+              <Zap className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+            </div>
+            <h1 className="text-xl md:text-4xl font-bold text-foreground">
               Welcome to AuraDesk
             </h1>
           </div>
-          <p className="text-sm md:text-lg text-muted-foreground">Your intelligent collaboration workspace</p>
+          <p className="text-sm md:text-lg text-muted-foreground pl-0 md:pl-0">Your intelligent collaboration workspace</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         {stats.map((stat, i) => (
           <Card 
             key={i} 
             onClick={() => stat.path && navigate(stat.path)}
-            className={`relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group ${stat.path ? 'cursor-pointer' : ''}`}
+            className={cn(
+              "relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 group touch-feedback",
+              stat.path && 'cursor-pointer',
+              "hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1"
+            )}
             style={{ animationDelay: `${i * 100}ms` }}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} opacity-5 rounded-full blur-2xl`} />
+            <div className={`absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} opacity-5 rounded-full blur-2xl`} />
             
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                <stat.icon className="h-4 w-4 text-primary-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium">{stat.title}</CardTitle>
+              <div className={`p-1.5 md:p-2 rounded-lg md:rounded-xl bg-gradient-to-br ${stat.gradientFrom} ${stat.gradientTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                <stat.icon className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold mb-1">{stat.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <ArrowUpRight className="w-3 h-3" />
-                {stat.change}
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-2xl md:text-3xl font-bold mb-1">{stat.value}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1">
+                <ArrowUpRight className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <span className="line-clamp-1">{stat.change}</span>
               </p>
             </CardContent>
           </Card>
@@ -100,36 +107,36 @@ const Dashboard = () => {
         {/* Upcoming Meeting Card */}
         <Card 
           onClick={() => navigate('/meetings')}
-          className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group cursor-pointer"
+          className="relative overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 group cursor-pointer touch-feedback hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1"
           style={{ animationDelay: '300ms' }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-gradient-green to-gradient-green-end opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-gradient-green to-gradient-green-end opacity-5 rounded-full blur-2xl" />
+          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gradient-to-br from-gradient-green to-gradient-green-end opacity-5 rounded-full blur-2xl" />
           
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Meeting</CardTitle>
-            <div className="p-2 rounded-xl bg-gradient-to-br from-gradient-green to-gradient-green-end shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <Video className="h-4 w-4 text-primary-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium">Next Meeting</CardTitle>
+            <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-gradient-to-br from-gradient-green to-gradient-green-end shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Video className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             {upcomingMeeting ? (
               <>
-                <div className="text-lg font-bold mb-1 line-clamp-1">{upcomingMeeting.title}</div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                  <Clock className="w-3 h-3" />
+                <div className="text-base md:text-lg font-bold mb-1 line-clamp-1">{upcomingMeeting.title}</div>
+                <p className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 mb-0.5 md:mb-1">
+                  <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   {format(new Date(upcomingMeeting.scheduled_at), 'MMM d, h:mm a')}
                 </p>
                 {upcomingMeeting.duration_minutes && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] md:text-xs text-muted-foreground">
                     Duration: {upcomingMeeting.duration_minutes} min
                   </p>
                 )}
               </>
             ) : (
               <>
-                <div className="text-2xl font-bold mb-1">No meetings</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-xl md:text-2xl font-bold mb-1">No meetings</div>
+                <p className="text-[10px] md:text-xs text-muted-foreground">
                   Schedule your next meeting
                 </p>
               </>
