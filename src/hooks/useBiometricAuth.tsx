@@ -25,20 +25,42 @@ const SERVER_IDENTIFIER = 'app.auradesk.biometric';
 const BIOMETRIC_ENABLED_KEY = 'auradesk_biometric_enabled';
 const BIOMETRIC_PROMPT_SHOWN_KEY = 'auradesk_biometric_prompt_shown';
 
-// Check if running on native mobile
+// Check if running on native mobile (not Electron, not web)
 const isNativeMobile = (): boolean => {
-  return typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  if (typeof window === 'undefined') return false;
+  
+  // Explicitly check for Capacitor native platform
+  const capacitor = (window as any).Capacitor;
+  if (!capacitor) return false;
+  
+  // Must be native platform (not web)
+  const isNative = typeof capacitor.isNativePlatform === 'function' 
+    ? capacitor.isNativePlatform() 
+    : false;
+  
+  // Double-check we're not in Electron
+  const isElectron = !!(window as any).electronAPI?.isElectron || 
+    window.location.protocol === 'file:' ||
+    navigator.userAgent.toLowerCase().includes('electron');
+  
+  return isNative && !isElectron;
 };
 
-// Get the NativeBiometric plugin
+// Get the NativeBiometric plugin safely
 const getNativeBiometric = async (): Promise<NativeBiometric | null> => {
   if (!isNativeMobile()) return null;
   
   try {
-    const { NativeBiometric } = await import('capacitor-native-biometric');
-    return NativeBiometric as NativeBiometric;
+    // Dynamic import with error boundary
+    const module = await import('capacitor-native-biometric');
+    if (!module || !module.NativeBiometric) {
+      console.warn('NativeBiometric module not available');
+      return null;
+    }
+    return module.NativeBiometric as NativeBiometric;
   } catch (e) {
-    console.error('Failed to load NativeBiometric:', e);
+    // Silently fail on non-mobile platforms
+    console.warn('NativeBiometric not available on this platform:', e);
     return null;
   }
 };

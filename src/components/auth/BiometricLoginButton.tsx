@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Fingerprint, ScanFace, Loader2 } from 'lucide-react';
 import { BiometryType } from '@/hooks/useBiometricAuth';
@@ -10,6 +10,15 @@ interface BiometricLoginButtonProps {
   onPress: () => Promise<void>;
   disabled?: boolean;
 }
+
+// Safety check for platform - only render on native mobile
+const canShowBiometric = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const capacitor = (window as any).Capacitor;
+  const isNative = capacitor?.isNativePlatform?.() ?? false;
+  const isElectron = !!(window as any).electronAPI?.isElectron;
+  return isNative && !isElectron;
+};
 
 export const BiometricLoginButton = ({
   biometryType,
@@ -33,14 +42,23 @@ export const BiometricLoginButton = ({
 
   const Icon = getBiometricIcon();
 
-  const handlePress = async () => {
+  const handlePress = useCallback(async () => {
+    if (!canShowBiometric()) return;
+    
     setIsLoading(true);
     try {
       await onPress();
+    } catch (e) {
+      console.warn('Biometric login failed:', e);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onPress]);
+
+  // Don't render on non-native platforms
+  if (!canShowBiometric()) {
+    return null;
+  }
 
   return (
     <motion.div
