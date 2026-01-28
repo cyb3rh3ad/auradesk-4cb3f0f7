@@ -9,8 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload } from 'lucide-react';
+import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload, Info } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+
+// App version - this will be shown in the About section
+const APP_VERSION = '1.0.0';
+const BUILD_DATE = '2026-01-28';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -342,7 +346,7 @@ const Settings = () => {
             "w-full gap-1 md:gap-1.5 bg-muted/50 p-1 rounded-lg",
             isMobile 
               ? "flex overflow-x-auto justify-start scrollbar-hide scroll-smooth" 
-              : "grid grid-cols-5"
+              : "grid grid-cols-6"
           )}>
             <TabsTrigger value="profile" className={cn(
               "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
@@ -378,6 +382,13 @@ const Settings = () => {
             )}>
               <Users className="w-4 h-4 md:w-5 md:h-5" />
               <span className="hidden sm:inline text-sm">Nicknames</span>
+            </TabsTrigger>
+            <TabsTrigger value="about" className={cn(
+              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
+              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+            )}>
+              <Info className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm">About</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -706,14 +717,82 @@ const Settings = () => {
                           Remove
                         </Button>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                ))
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+
+    <TabsContent value="about" className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="w-5 h-5" />
+            About AuraDesk
+          </CardTitle>
+          <CardDescription>App information and version details</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-blue-500 flex items-center justify-center shadow-lg shadow-primary/30">
+              <span className="text-3xl font-bold text-primary-foreground">A</span>
+            </div>
+          </div>
+          
+          <div className="text-center space-y-1 mb-6">
+            <h3 className="text-xl font-semibold">AuraDesk</h3>
+            <p className="text-sm text-muted-foreground">Your Unified Workspace</p>
+          </div>
+
+          <Separator />
+          
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-muted-foreground">Version</span>
+              <span className="text-sm font-medium">{APP_VERSION}</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-muted-foreground">Build Date</span>
+              <span className="text-sm font-medium">{BUILD_DATE}</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-muted-foreground">Platform</span>
+              <span className="text-sm font-medium">
+                {typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.() 
+                  ? 'Android' 
+                  : typeof window !== 'undefined' && (window as any).electronAPI?.isElectron
+                    ? 'Desktop'
+                    : 'Web'}
+              </span>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="text-center space-y-2">
+            <p className="text-xs text-muted-foreground">
+              © 2024-2026 AuraDesk. All rights reserved.
+            </p>
+            <div className="flex items-center justify-center gap-4 text-xs">
+              <a href="mailto:info.auradesk@gmail.com" className="text-primary hover:underline">
+                Contact Support
+              </a>
+              <span className="text-muted-foreground">•</span>
+              <a href="/#/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </a>
+              <span className="text-muted-foreground">•</span>
+              <a href="/#/terms" className="text-primary hover:underline">
+                Terms
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  </Tabs>
     </div>
   );
 };
