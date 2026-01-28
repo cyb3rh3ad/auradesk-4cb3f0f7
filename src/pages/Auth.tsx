@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,10 @@ import auraLogo from '@/assets/auradesk-logo.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
-import { Monitor, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Monitor, ArrowLeft } from 'lucide-react';
+import { useBiometricAuth } from '@/hooks/useBiometricAuth';
+import { BiometricPromptDialog } from '@/components/auth/BiometricPromptDialog';
+import { BiometricLoginButton } from '@/components/auth/BiometricLoginButton';
 
 // Interactive Logo Component with creative effects
 const InteractiveLogo = () => {
@@ -122,6 +125,23 @@ const Auth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const isElectron = isElectronApp();
   
+  // Biometric authentication
+  const {
+    isNativeMobile,
+    isAvailable: biometricAvailable,
+    biometryType,
+    biometryName,
+    isEnabled: biometricEnabled,
+    isChecking: biometricChecking,
+    enableBiometric,
+    verifyAndGetCredentials,
+    shouldShowPrompt,
+    markPromptShown,
+  } = useBiometricAuth();
+  
+  const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null);
+  
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -156,11 +176,17 @@ const Auth = () => {
     window.addEventListener('oauth-complete', handleOAuthComplete as EventListener);
     return () => window.removeEventListener('oauth-complete', handleOAuthComplete as EventListener);
   }, [mfaRequired, toast]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    await performLogin(loginEmail, loginPassword);
+  };
+  
+  // Core login function that can be called from form or biometric
+  const performLogin = async (email: string, password: string, fromBiometric = false) => {
     setLoading(true);
     
-    const result = await signIn(loginEmail, loginPassword, rememberMe);
+    const result = await signIn(email, password, rememberMe);
     
     if (result.error) {
       toast({
@@ -173,10 +199,45 @@ const Auth = () => {
       // MFA required - the component will show MFA verification
       setLoading(false);
     } else {
-      navigate('/dashboard');
+      // Login successful - check if we should prompt for biometric
+      if (!fromBiometric && shouldShowPrompt()) {
+        setPendingCredentials({ email, password });
+        setShowBiometricPrompt(true);
+      } else {
+        navigate('/dashboard');
+      }
       setLoading(false);
     }
   };
+  
+  // Handle biometric login button press
+  const handleBiometricLogin = async () => {
+    const credentials = await verifyAndGetCredentials();
+    if (credentials) {
+      await performLogin(credentials.email, credentials.password, true);
+    }
+  };
+  
+  // Handle enabling biometric after first login
+  const handleEnableBiometric = async () => {
+    if (pendingCredentials) {
+      const success = await enableBiometric(pendingCredentials.email, pendingCredentials.password);
+      if (success) {
+        setShowBiometricPrompt(false);
+        setPendingCredentials(null);
+        navigate('/dashboard');
+      }
+    }
+  };
+  
+  // Handle skipping biometric prompt
+  const handleSkipBiometric = () => {
+    markPromptShown();
+    setShowBiometricPrompt(false);
+    setPendingCredentials(null);
+    navigate('/dashboard');
+  };
+
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -403,11 +464,21 @@ const Auth = () => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full h-11 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25" 
+                    className="w-full h-11" 
                     disabled={loading}
                   >
                     {loading ? "Signing in..." : "Sign In"}
                   </Button>
+                  
+                  {/* Biometric login button - only on mobile when enabled */}
+                  {isNativeMobile && biometricEnabled && !biometricChecking && (
+                    <BiometricLoginButton
+                      biometryType={biometryType}
+                      biometryName={biometryName}
+                      onPress={handleBiometricLogin}
+                      disabled={loading}
+                    />
+                  )}
                 </form>
               </TabsContent>
               
@@ -477,7 +548,7 @@ const Auth = () => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full h-11 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25" 
+                    className="w-full h-11" 
                     disabled={loading}
                   >
                     {loading ? "Creating account..." : "Create Account"}
@@ -519,6 +590,16 @@ const Auth = () => {
           </p>
         )}
       </motion.div>
+      
+      {/* Biometric prompt dialog - shown after first successful login on mobile */}
+      <BiometricPromptDialog
+        open={showBiometricPrompt}
+        onOpenChange={setShowBiometricPrompt}
+        biometryType={biometryType}
+        biometryName={biometryName}
+        onEnable={handleEnableBiometric}
+        onSkip={handleSkipBiometric}
+      />
     </div>
   );
 };
