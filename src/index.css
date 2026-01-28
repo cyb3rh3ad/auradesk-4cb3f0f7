@@ -157,8 +157,19 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
   
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
   .glow {
     box-shadow: var(--glow);
+  }
+  
+  .glow-sm {
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.2);
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -175,6 +186,17 @@
   /* Mobile touch optimization */
   .touch-manipulation {
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Premium touch feedback */
+  .touch-feedback {
+    transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+  }
+  
+  .touch-feedback:active {
+    transform: scale(0.95);
+    opacity: 0.8;
   }
 
   /* Safe area padding for notched devices */
@@ -182,10 +204,41 @@
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
   }
   
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
   .safe-area-inset {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Premium card hover effect */
+  .card-hover {
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -15px hsl(var(--primary) / 0.15);
+  }
+  
+  /* Smooth button press animation */
+  .btn-press {
+    transition: transform 0.1s ease-out;
+  }
+  
+  .btn-press:active {
+    transform: scale(0.97);
+  }
+  
+  /* Premium text gradient */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 

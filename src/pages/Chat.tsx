@@ -73,20 +73,20 @@ const Chat = () => {
           {selectedConversationId ? (
             // Mobile Chat View - Full screen messaging
             <div className="flex-1 flex flex-col min-h-0">
-              {/* Chat Header - Compact like Snap/Discord */}
-              <div className="h-14 px-2 flex items-center gap-2 border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0 safe-area-pt">
+              {/* Chat Header - Premium glassmorphism style */}
+              <div className="h-14 px-2 flex items-center gap-2 border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleBackToList}
-                  className="h-10 w-10 touch-manipulation shrink-0"
+                  className="h-9 w-9 rounded-xl touch-feedback shrink-0"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
                     {selectedConversation?.is_group ? (
-                      <Users className="w-5 h-5 text-primary-foreground" />
+                      <Users className="w-4 h-4 text-primary-foreground" />
                     ) : (
                       <span className="text-sm font-bold text-primary-foreground">
                         {getConversationName().slice(0, 2).toUpperCase()}
@@ -95,9 +95,12 @@ const Chat = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">{getConversationName()}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedConversation?.is_group ? 'Group' : 'Active now'}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+                      <p className="text-xs text-muted-foreground">
+                        {selectedConversation?.is_group ? 'Group' : 'Active now'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -115,9 +118,9 @@ const Chat = () => {
           ) : (
             // Mobile Friends List View - Clean like Discord/Snap
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0 safe-area-pt">
+              <div className="h-14 px-4 flex items-center justify-between border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                     <MessageSquare className="w-5 h-5 text-primary" />
                   </div>
                   <h2 className="text-lg font-bold">Chats</h2>

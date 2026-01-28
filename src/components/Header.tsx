@@ -72,8 +72,10 @@ export const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b border-border/50 bg-background flex items-center justify-between px-4 md:px-6 relative z-[100]">
+    <header className="h-14 md:h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-6 relative z-[100]">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      {/* Subtle top glow */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
 
       {!isMobile && (
         <div className="flex items-center flex-1 max-w-2xl relative z-10">
@@ -91,14 +93,14 @@ export const Header = () => {
         </div>
       )}
 
-      <div className={cn("flex items-center gap-1 relative z-10", isMobile && "ml-auto")}>
+      <div className={cn("flex items-center gap-1.5 relative z-10", isMobile && "ml-auto")}>
         {/* Mobile: Icon-only help button */}
         {isMobile ? (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setHelpDialogOpen(true)}
-            className="w-10 h-10 rounded-xl hover:bg-accent/10 transition-all duration-200"
+            className="w-9 h-9 rounded-xl hover:bg-accent/10 transition-all duration-200 touch-feedback"
           >
             <AnimatedHeadphonesIcon className="h-5 w-5" />
           </Button>
@@ -114,18 +116,21 @@ export const Header = () => {
           </Button>
         )}
 
-        <div className={cn(isMobile ? "mx-1" : "mx-2")}>
+        <div className={cn(isMobile ? "mx-0.5" : "mx-2")}>
           <NotificationsDropdown />
         </div>
 
         {/* Profile Menu */}
-        <div className="relative ml-4">
+        <div className="relative ml-1 md:ml-4">
           <button 
             ref={buttonRef}
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-primary/30"
+            className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-primary/30 touch-feedback"
           >
-            <Avatar className="w-9 h-9 ring-2 ring-primary/20">
+            <Avatar className={cn(
+              "ring-2 ring-primary/20 transition-all",
+              isMobile ? "w-8 h-8" : "w-9 h-9"
+            )}>
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
                 {user?.email ? getInitials(user.email) : "AD"}
