@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dark gradient background -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#0c0a14"
+                android:centerColor="#1a1625"
+                android:endColor="#0f0d1a" />
+        </shape>
+    </item>
+    
+    <!-- Subtle violet glow effect at top -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="400dp"
+                android:centerX="0.3"
+                android:centerY="0.2"
+                android:startColor="#2a1f4e"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+    
+    <!-- Subtle blue glow effect at bottom -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="350dp"
+                android:centerX="0.7"
+                android:centerY="0.8"
+                android:startColor="#1a2a4e"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+</layer-list>

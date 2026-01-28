@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- AuraDesk "A" Logo with Aura Effect -->
+    <group
+        android:translateX="27"
+        android:translateY="27">
+        
+        <!-- Outer glow ring -->
+        <path
+            android:pathData="M27,5 A22,22 0 1,1 27,49 A22,22 0 1,1 27,5"
+            android:strokeWidth="2"
+            android:strokeColor="#ffffff"
+            android:strokeAlpha="0.3"
+            android:fillColor="#00000000"/>
+        
+        <!-- Inner glow ring -->
+        <path
+            android:pathData="M27,10 A17,17 0 1,1 27,44 A17,17 0 1,1 27,10"
+            android:strokeWidth="1.5"
+            android:strokeColor="#ffffff"
+            android:strokeAlpha="0.5"
+            android:fillColor="#00000000"/>
+        
+        <!-- Stylized "A" letter -->
+        <path
+            android:pathData="M27,14 L38,40 L34,40 L31.5,34 L22.5,34 L20,40 L16,40 L27,14 Z M27,20 L24,30 L30,30 L27,20 Z"
+            android:fillColor="#ffffff"/>
+        
+        <!-- Small accent dot (representing the desk/dot) -->
+        <path
+            android:pathData="M27,43 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
+            android:fillColor="#ffffff"
+            android:fillAlpha="0.8"/>
+    </group>
+</vector>
