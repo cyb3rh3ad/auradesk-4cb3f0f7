@@ -344,7 +344,7 @@ const Landing = () => {
 
                       {/* Android Button */}
                       <motion.a
-                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
+                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.98-android/AuraDesk.apk"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
