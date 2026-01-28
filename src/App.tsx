@@ -3,8 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SplashScreen } from "@/components/SplashScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -144,54 +145,70 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 const cn = (...classes: (string | boolean | undefined)[]) => 
   classes.filter(Boolean).join(' ');
 
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <HashRouter>
-          <AuthProvider>
-            <ThemeInit />
-            <OwnerInitializer />
-            <HelpNotification />
-            <Routes>
-              <Route path="/" element={<RootRoute />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route
-                path="/*"
-                element={
-                <ProtectedRoute>
-                    <OnboardingCheck />
-                    <PushNotificationInit />
-                    <CallProvider>
-                      <AppLayout>
-                        <Routes>
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/chat" element={<Chat />} />
-                          <Route path="/teams" element={<Teams />} />
-                          <Route path="/meetings" element={<Meetings />} />
-                          <Route path="/files" element={<Files />} />
-                          <Route path="/ai" element={<AI />} />
-                          <Route path="/ai-settings" element={<AISettings />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="/subscription" element={<Subscription />} />
-                          <Route path="/admin" element={<Admin />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </AppLayout>
-                    </CallProvider>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </AuthProvider>
-        </HashRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+// Check if we should show splash (native mobile only)
+const isNativeMobile = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const capacitor = (window as any).Capacitor;
+  const isNative = capacitor?.isNativePlatform?.() ?? false;
+  const isElectron = !!(window as any).electronAPI?.isElectron || window.location.protocol === 'file:';
+  return isNative && !isElectron;
+};
+
+const App = () => {
+  const [showSplash, setShowSplash] = useState(() => isNativeMobile());
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          {showSplash && (
+            <SplashScreen onComplete={() => setShowSplash(false)} />
+          )}
+          <Toaster />
+          <Sonner />
+          <HashRouter>
+            <AuthProvider>
+              <ThemeInit />
+              <OwnerInitializer />
+              <HelpNotification />
+              <Routes>
+                <Route path="/" element={<RootRoute />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route
+                  path="/*"
+                  element={
+                  <ProtectedRoute>
+                      <OnboardingCheck />
+                      <PushNotificationInit />
+                      <CallProvider>
+                        <AppLayout>
+                          <Routes>
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/chat" element={<Chat />} />
+                            <Route path="/teams" element={<Teams />} />
+                            <Route path="/meetings" element={<Meetings />} />
+                            <Route path="/files" element={<Files />} />
+                            <Route path="/ai" element={<AI />} />
+                            <Route path="/ai-settings" element={<AISettings />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/subscription" element={<Subscription />} />
+                            <Route path="/admin" element={<Admin />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </AppLayout>
+                      </CallProvider>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </AuthProvider>
+          </HashRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;
