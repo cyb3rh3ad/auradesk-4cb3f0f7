@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchParams } from 'react-router-dom';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Chat = () => {
   const isMobile = useIsMobile();
@@ -70,72 +71,118 @@ const Chat = () => {
     return (
       <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-hidden">
         <div className="flex flex-col h-full overflow-hidden bg-background">
-          {selectedConversationId ? (
-            // Mobile Chat View - Full screen messaging
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Chat Header - Premium glassmorphism style */}
-              <div className="h-14 px-2 flex items-center gap-2 border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleBackToList}
-                  className="h-9 w-9 rounded-xl touch-feedback shrink-0"
+          <AnimatePresence mode="wait" initial={false}>
+            {selectedConversationId ? (
+              // Mobile Chat View - Full screen messaging with slide animation
+              <motion.div
+                key="chat-view"
+                initial={{ x: '100%', opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: '100%', opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="flex-1 flex flex-col min-h-0"
+              >
+                {/* Chat Header - Premium glassmorphism style */}
+                <motion.div 
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="h-14 px-2 flex items-center gap-2 border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt"
                 >
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-                    {selectedConversation?.is_group ? (
-                      <Users className="w-4 h-4 text-primary-foreground" />
-                    ) : (
-                      <span className="text-sm font-bold text-primary-foreground">
-                        {getConversationName().slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{getConversationName()}</p>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                      <p className="text-xs text-muted-foreground">
-                        {selectedConversation?.is_group ? 'Group' : 'Active now'}
-                      </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleBackToList}
+                    className="h-9 w-9 rounded-xl touch-feedback shrink-0"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <motion.div 
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    <motion.div 
+                      layoutId={`avatar-${selectedConversationId}`}
+                      className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 shadow-lg shadow-primary/20"
+                    >
+                      {selectedConversation?.is_group ? (
+                        <Users className="w-4 h-4 text-primary-foreground" />
+                      ) : (
+                        <span className="text-sm font-bold text-primary-foreground">
+                          {getConversationName().slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </motion.div>
+                    <div className="min-w-0 flex-1">
+                      <motion.p 
+                        layoutId={`name-${selectedConversationId}`}
+                        className="font-semibold text-sm truncate"
+                      >
+                        {getConversationName()}
+                      </motion.p>
+                      <div className="flex items-center gap-1.5">
+                        <motion.span 
+                          className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {selectedConversation?.is_group ? 'Group' : 'Active now'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
+                </motion.div>
+                <div className="flex-1 min-h-0">
+                  <MessageArea
+                    messages={messages}
+                    onSendMessage={sendMessage}
+                    conversationName={getConversationName()}
+                    isGroup={selectedConversation?.is_group || false}
+                    conversationId={selectedConversationId}
+                    otherUserId={getOtherUserId()}
+                  />
                 </div>
-              </div>
-              <div className="flex-1 min-h-0">
-                <MessageArea
-                  messages={messages}
-                  onSendMessage={sendMessage}
-                  conversationName={getConversationName()}
-                  isGroup={selectedConversation?.is_group || false}
-                  conversationId={selectedConversationId}
-                  otherUserId={getOtherUserId()}
-                />
-              </div>
-            </div>
-          ) : (
-            // Mobile Friends List View - Clean like Discord/Snap
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="h-14 px-4 flex items-center justify-between border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-primary" />
+              </motion.div>
+            ) : (
+              // Mobile Friends List View - Clean like Discord/Snap with slide animation
+              <motion.div
+                key="list-view"
+                initial={{ x: '-100%', opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: '-100%', opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="flex-1 flex flex-col min-h-0"
+              >
+                <motion.div 
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="h-14 px-4 flex items-center justify-between border-b border-border/30 bg-card/80 backdrop-blur-xl shrink-0 safe-area-pt"
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.div 
+                      className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <MessageSquare className="w-5 h-5 text-primary" />
+                    </motion.div>
+                    <h2 className="text-lg font-bold">Chats</h2>
                   </div>
-                  <h2 className="text-lg font-bold">Chats</h2>
+                  <AddFriendDialog />
+                </motion.div>
+                <div className="flex-1 overflow-hidden">
+                  <FriendsList
+                    onSelectConversation={handleSelectConversation}
+                    selectedConversationId={selectedConversationId}
+                    conversations={conversations}
+                  />
                 </div>
-                <AddFriendDialog />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <FriendsList
-                  onSelectConversation={handleSelectConversation}
-                  selectedConversationId={selectedConversationId}
-                  conversations={conversations}
-                />
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </PullToRefresh>
     );
