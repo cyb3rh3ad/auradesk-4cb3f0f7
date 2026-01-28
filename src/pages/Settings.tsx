@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
+import { BiometricSettings } from '@/components/settings/BiometricSettings';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -525,6 +526,8 @@ const Settings = () => {
           </Card>
           
           <TwoFactorAuth />
+          
+          <BiometricSettings />
         </TabsContent>
 
         <TabsContent value="audio-video" className="space-y-4">
