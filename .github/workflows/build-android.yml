@@ -91,13 +91,31 @@ jobs:
           cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
           
+          # Copy network security config
+          mkdir -p android/app/src/main/res/xml
+          cp android-resources/res/xml/network_security_config.xml android/app/src/main/res/xml/network_security_config.xml
+          
           echo "✅ Premium branding resources applied"
 
-      - name: Update AndroidManifest for splash theme
+      - name: Update AndroidManifest for splash theme and network security
         run: |
           # Update the activity theme to use splash screen
           sed -i 's/android:theme="@style\/AppTheme"/android:theme="@style\/AppTheme.SplashScreen"/g' android/app/src/main/AndroidManifest.xml
-          echo "✅ Splash screen theme configured"
+          
+          # Add network security config reference to application tag
+          sed -i 's/<application/<application android:networkSecurityConfig="@xml\/network_security_config"/g' android/app/src/main/AndroidManifest.xml
+          
+          # Ensure INTERNET permission is present (Capacitor adds it, but let's be safe)
+          if ! grep -q "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          fi
+          
+          # Add ACCESS_NETWORK_STATE permission for network status checks
+          if ! grep -q "android.permission.ACCESS_NETWORK_STATE" android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' android/app/src/main/AndroidManifest.xml
+          fi
+          
+          echo "✅ Splash screen theme and network security configured"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
