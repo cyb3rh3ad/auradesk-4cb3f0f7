@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Fingerprint, ScanFace, Shield } from 'lucide-react';
 import { BiometryType } from '@/hooks/useBiometricAuth';
 import { motion } from 'framer-motion';
+
+// Safety check for platform
+const canShowBiometric = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const capacitor = (window as any).Capacitor;
+  const isNative = capacitor?.isNativePlatform?.() ?? false;
+  const isElectron = !!(window as any).electronAPI?.isElectron;
+  return isNative && !isElectron;
+};
 
 interface BiometricPromptDialogProps {
   open: boolean;
@@ -45,19 +54,31 @@ export const BiometricPromptDialog = ({
 
   const Icon = getBiometricIcon();
 
-  const handleEnable = async () => {
+  const handleEnable = useCallback(async () => {
+    if (!canShowBiometric()) {
+      onOpenChange(false);
+      return;
+    }
+    
     setIsEnabling(true);
     try {
       await onEnable();
+    } catch (e) {
+      console.warn('Failed to enable biometric:', e);
     } finally {
       setIsEnabling(false);
     }
-  };
+  }, [onEnable, onOpenChange]);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     onSkip();
     onOpenChange(false);
-  };
+  }, [onSkip, onOpenChange]);
+
+  // Don't render dialog on non-native platforms
+  if (!canShowBiometric()) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

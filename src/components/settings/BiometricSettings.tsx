@@ -35,8 +35,14 @@ export const BiometricSettings = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Don't render anything if not on mobile
+  // Don't render anything if not on native mobile platform
+  // This ensures the component is completely hidden on web and desktop
   if (!isNativeMobile) {
+    return null;
+  }
+
+  // Also check window to prevent SSR issues
+  if (typeof window === 'undefined') {
     return null;
   }
 
