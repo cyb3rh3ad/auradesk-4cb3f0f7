@@ -27,6 +27,10 @@ export const useLocalAI = () => {
     const isElectron = typeof window !== 'undefined' && 
       ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
     
+    // Check for Capacitor/mobile environment
+    const isCapacitor = typeof window !== 'undefined' && 
+      !!(window as any).Capacitor?.isNativePlatform?.();
+    
     if (isElectron) {
       setState(prev => ({ 
         ...prev, 
@@ -35,6 +39,19 @@ export const useLocalAI = () => {
       toast({
         title: 'Local AI Unavailable',
         description: 'Local AI requires WebGPU which is not available in the desktop app. Using cloud mode instead.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    if (isCapacitor) {
+      setState(prev => ({ 
+        ...prev, 
+        error: 'Local AI is not available on mobile devices. Please use cloud mode.' 
+      }));
+      toast({
+        title: 'Local AI Unavailable',
+        description: 'Mobile devices do not support local AI processing. Using cloud mode instead.',
         variant: 'destructive',
       });
       return false;
@@ -157,8 +174,12 @@ export const useLocalAI = () => {
     const isElectron = typeof window !== 'undefined' && 
       ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
     
-    // WebGPU is often not available in Electron
-    if (isElectron) {
+    // Check for Capacitor/mobile environment
+    const isCapacitor = typeof window !== 'undefined' && 
+      !!(window as any).Capacitor?.isNativePlatform?.();
+    
+    // WebGPU is not available in Electron or mobile apps
+    if (isElectron || isCapacitor) {
       return false;
     }
     

@@ -61,7 +61,7 @@ export const AI_MODELS: AIModel[] = [
   {
     id: 'local-small',
     name: 'Local Assistant (Small)',
-    description: 'Run on your device - fast, private',
+    description: 'Run on your device - fast, private (Desktop only)',
     provider: 'local',
     capabilities: ['text'],
     tier: 'advanced',
@@ -113,7 +113,7 @@ export const AI_MODELS: AIModel[] = [
   {
     id: 'local-medium',
     name: 'Local Assistant (Medium)',
-    description: 'Run on your device - balanced performance',
+    description: 'Run on your device - balanced performance (Desktop only)',
     provider: 'local',
     capabilities: ['text'],
     tier: 'professional',
@@ -121,6 +121,20 @@ export const AI_MODELS: AIModel[] = [
     localModelId: 'Xenova/Phi-3-mini-4k-instruct',
   },
 ];
+
+// Helper to check if running on mobile/Capacitor
+export const isNativeMobile = (): boolean => {
+  return typeof window !== 'undefined' && 
+    !!(window as any).Capacitor?.isNativePlatform?.();
+};
+
+// Filter out local models for mobile platforms
+export const getModelsForPlatform = (models: AIModel[]): AIModel[] => {
+  if (isNativeMobile()) {
+    return models.filter(model => model.provider !== 'local');
+  }
+  return models;
+};
 
 export type SubscriptionPlan = 'free' | 'advanced' | 'professional';
 

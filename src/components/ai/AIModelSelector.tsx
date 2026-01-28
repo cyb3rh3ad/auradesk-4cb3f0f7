@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Sparkles, Cpu, Cloud, Lock, Check } from 'lucide-react';
-import { AI_MODELS, getAvailableModels, type AIModel, type SubscriptionPlan } from '@/lib/ai-models';
+import { AI_MODELS, getAvailableModels, getModelsForPlatform, type AIModel, type SubscriptionPlan } from '@/lib/ai-models';
 import { cn } from '@/lib/utils';
 
 interface AIModelSelectorProps {
@@ -32,10 +32,15 @@ export const AIModelSelector = ({
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
   const isElectron = typeof window !== 'undefined' && 
     ((window as any).electronAPI?.isElectron || window.location.protocol === 'file:');
-  // Disable local mode in Electron (WebGPU not available)
-  const canUseLocal = subscriptionPlan !== 'free' && !isElectron;
+  const isCapacitor = typeof window !== 'undefined' && 
+    !!(window as any).Capacitor?.isNativePlatform?.();
+  // Disable local mode in Electron and mobile apps (WebGPU not available)
+  const canUseLocal = subscriptionPlan !== 'free' && !isElectron && !isCapacitor;
 
-  const groupedModels = AI_MODELS.reduce((acc, model) => {
+  // Filter out local models on mobile platforms
+  const platformModels = getModelsForPlatform(AI_MODELS);
+  
+  const groupedModels = platformModels.reduce((acc, model) => {
     if (!acc[model.provider]) acc[model.provider] = [];
     acc[model.provider].push(model);
     return acc;
@@ -127,38 +132,40 @@ export const AIModelSelector = ({
               }}
               className="w-[320px] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
             >
-              {/* Execution Mode Toggle */}
-              <div className="p-2 border-b border-border">
-                <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
-                  <button
-                    className={cn(
-                      "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
-                      executionMode === 'cloud' 
-                        ? "bg-background text-foreground shadow-sm" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    onClick={() => onModeChange('cloud')}
-                  >
-                    <Cloud className="h-3.5 w-3.5" />
-                    Cloud
-                  </button>
-                  <button
-                    className={cn(
-                      "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
-                      executionMode === 'local' 
-                        ? "bg-background text-foreground shadow-sm" 
-                        : "text-muted-foreground hover:text-foreground",
-                      !canUseLocal && "opacity-50 cursor-not-allowed"
-                    )}
-                    disabled={!canUseLocal}
-                    onClick={() => canUseLocal && onModeChange('local')}
-                  >
-                    <Cpu className="h-3.5 w-3.5" />
-                    Local
-                    {!canUseLocal && <Lock className="h-3 w-3" />}
-                  </button>
+              {/* Execution Mode Toggle - Only show if local mode is available */}
+              {!isCapacitor && (
+                <div className="p-2 border-b border-border">
+                  <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
+                    <button
+                      className={cn(
+                        "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
+                        executionMode === 'cloud' 
+                          ? "bg-background text-foreground shadow-sm" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => onModeChange('cloud')}
+                    >
+                      <Cloud className="h-3.5 w-3.5" />
+                      Cloud
+                    </button>
+                    <button
+                      className={cn(
+                        "flex-1 h-8 flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
+                        executionMode === 'local' 
+                          ? "bg-background text-foreground shadow-sm" 
+                          : "text-muted-foreground hover:text-foreground",
+                        !canUseLocal && "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={!canUseLocal}
+                      onClick={() => canUseLocal && onModeChange('local')}
+                    >
+                      <Cpu className="h-3.5 w-3.5" />
+                      Local
+                      {!canUseLocal && <Lock className="h-3 w-3" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Models List */}
               <div className="py-1">
