@@ -88,39 +88,18 @@ const ThemeInit = () => {
 
 const queryClient = new QueryClient();
 
-const pageVariants = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 }
-};
+import { PageTransition } from "@/components/PageTransition";
 
-const pageTransition = {
-  type: "tween" as const,
-  ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
-  duration: 0.2
-};
-
-const PageTransition = ({ children }: { children: React.ReactNode }) => {
-  const location = useLocation();
-  
+const PageTransitionWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={pageTransition}
-        className="w-full h-full gpu-accelerated"
-      >
+      <PageTransition>
         {children}
-      </motion.div>
+      </PageTransition>
     </AnimatePresence>
   );
 };
 
-// Layout wrapper component to use hooks
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
   
@@ -131,9 +110,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         {isElectronApp() && <div className="h-8 flex-shrink-0" />}
         <Header />
         <main className={cn("flex-1 overflow-auto", isMobile && "pb-16")}>
-          <PageTransition>
+          <PageTransitionWrapper>
             {children}
-          </PageTransition>
+          </PageTransitionWrapper>
         </main>
       </div>
       {isMobile && <MobileNavBar />}
