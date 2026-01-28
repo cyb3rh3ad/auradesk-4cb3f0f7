@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AuraDesk Brand Colors -->
+    <color name="splash_background">#0c0a14</color>
+    <color name="brand_violet">#8b5cf6</color>
+    <color name="brand_purple">#a855f7</color>
+    <color name="brand_blue">#3b82f6</color>
+    <color name="brand_gradient_start">#7c3aed</color>
+    <color name="brand_gradient_end">#2563eb</color>
+    
+    <!-- Status bar colors -->
+    <color name="status_bar">#0c0a14</color>
+    <color name="navigation_bar">#0c0a14</color>
+    
+    <!-- App theme colors -->
+    <color name="colorPrimary">#8b5cf6</color>
+    <color name="colorPrimaryDark">#7c3aed</color>
+    <color name="colorAccent">#3b82f6</color>
+</resources>

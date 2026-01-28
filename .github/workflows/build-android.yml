@@ -43,12 +43,68 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      # ===== Apply Premium AuraDesk Branding =====
+      
+      - name: Install ImageMagick for icon generation
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      
+      - name: Generate adaptive icon PNGs
+        run: |
+          # Create mipmap directories
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          
+          # Generate icons from public/icon.png at standard Android sizes
+          convert public/icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          convert public/icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          convert public/icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          convert public/icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          convert public/icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          
+          # Also create round icons
+          convert public/icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          convert public/icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          convert public/icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          convert public/icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          convert public/icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          
+          echo "✅ App icons generated successfully"
+
+      - name: Copy premium branding resources
+        run: |
+          # Copy custom styles, colors, and splash screen
+          cp android-resources/res/values/colors.xml android/app/src/main/res/values/colors.xml
+          cp android-resources/res/values/styles.xml android/app/src/main/res/values/styles.xml
+          cp android-resources/res/drawable/splash_background.xml android/app/src/main/res/drawable/splash_background.xml
+          cp android-resources/res/drawable/ic_launcher_background.xml android/app/src/main/res/drawable/ic_launcher_background.xml
+          cp android-resources/res/drawable/ic_launcher_foreground.xml android/app/src/main/res/drawable/ic_launcher_foreground.xml
+          
+          # Create values-v31 directory for Android 12+ splash screen
+          mkdir -p android/app/src/main/res/values-v31
+          cp android-resources/res/values-v31/styles.xml android/app/src/main/res/values-v31/styles.xml
+          
+          # Copy adaptive icon XML
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          
+          echo "✅ Premium branding resources applied"
+
+      - name: Update AndroidManifest for splash theme
+        run: |
+          # Update the activity theme to use splash screen
+          sed -i 's/android:theme="@style\/AppTheme"/android:theme="@style\/AppTheme.SplashScreen"/g' android/app/src/main/AndroidManifest.xml
+          echo "✅ Splash screen theme configured"
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Prepare APK for release
         run: |
@@ -68,11 +124,20 @@ jobs:
           tag_name: v1.0.${{ github.run_number }}-android
           name: AuraDesk Android v1.0.${{ github.run_number }}
           body: |
-            ## AuraDesk Android APK
+            ## 🚀 AuraDesk Android APK
             
-            Download and install `AuraDesk.apk` on your Android device.
+            ### What's New
+            - Premium splash screen with AuraDesk branding
+            - High-quality adaptive app icon
+            - Optimized for Android 12+ with modern splash API
             
-            **Note:** You may need to enable "Install from unknown sources" in your device settings.
+            ### Installation
+            1. Download `AuraDesk.apk` below
+            2. Open the file on your Android device
+            3. Enable "Install from unknown sources" if prompted
+            4. Tap Install
+            
+            **Note:** For updates, download the latest APK and install over the existing app - your data will be preserved.
           files: release/AuraDesk.apk
           draft: false
           prerelease: false
