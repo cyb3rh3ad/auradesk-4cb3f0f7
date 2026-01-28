@@ -124,17 +124,26 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 const cn = (...classes: (string | boolean | undefined)[]) => 
   classes.filter(Boolean).join(' ');
 
-// Check if we should show splash (native mobile only)
-const isNativeMobile = (): boolean => {
+// Check if we should show splash (native mobile OR standalone PWA)
+const shouldShowSplash = (): boolean => {
   if (typeof window === 'undefined') return false;
+  
+  // Native Capacitor app
   const capacitor = (window as any).Capacitor;
   const isNative = capacitor?.isNativePlatform?.() ?? false;
+  
+  // Standalone PWA (installed to home screen)
+  const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches ||
+                          (window.navigator as any).standalone === true;
+  
+  // Electron is excluded - has its own loading
   const isElectron = !!(window as any).electronAPI?.isElectron || window.location.protocol === 'file:';
-  return isNative && !isElectron;
+  
+  return (isNative || isStandalonePWA) && !isElectron;
 };
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => isNativeMobile());
+  const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
 
   return (
     <ErrorBoundary>
