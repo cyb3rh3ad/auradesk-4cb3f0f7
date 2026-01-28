@@ -134,7 +134,7 @@ const AI = () => {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-background relative overflow-hidden">
+    <div className="flex h-full bg-background relative overflow-hidden">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div 
