@@ -120,14 +120,60 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build release APK
+      # ===== Signed Release Build (when secrets are configured) =====
+      
+      - name: Decode Keystore
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/auradesk-release.keystore
+          echo "✅ Keystore decoded successfully"
+
+      - name: Build signed release AAB (for Play Store)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        working-directory: android
+        run: |
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/app/auradesk-release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          echo "✅ Signed AAB built successfully"
+
+      - name: Build signed release APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/app/auradesk-release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          echo "✅ Signed APK built successfully"
+
+      # ===== Debug Build (fallback when no signing keys) =====
+      
+      - name: Build debug APK (unsigned)
+        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare APK for release
+      - name: Prepare release artifacts
         run: |
           mkdir -p release
-          cp android/app/build/outputs/apk/debug/app-debug.apk release/AuraDesk.apk
+          
+          # Check for signed release first
+          if [ -f "android/app/build/outputs/bundle/release/app-release.aab" ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab release/AuraDesk.aab
+            echo "✅ AAB ready for Play Store upload"
+          fi
+          
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk release/AuraDesk.apk
+            echo "✅ Signed APK ready"
+          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk release/AuraDesk.apk
+            echo "⚠️ Using debug APK (configure signing secrets for production)"
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -136,18 +182,31 @@ jobs:
           path: release/AuraDesk.apk
           retention-days: 30
 
+      - name: Upload AAB artifact (for Play Store)
+        uses: actions/upload-artifact@v4
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        with:
+          name: AuraDesk-PlayStore-AAB
+          path: release/AuraDesk.aab
+          retention-days: 30
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}-android
           name: AuraDesk Android v1.0.${{ github.run_number }}
           body: |
-            ## 🚀 AuraDesk Android APK
+            ## 🚀 AuraDesk Android v1.0.${{ github.run_number }}
             
             ### What's New
             - Premium splash screen with AuraDesk branding
             - High-quality adaptive app icon
             - Optimized for Android 12+ with modern splash API
+            - Network security configuration for reliable connectivity
+            
+            ### Downloads
+            - **AuraDesk.apk** - Install directly on your Android device
+            - **AuraDesk.aab** - App Bundle for Google Play Store (if available)
             
             ### Installation
             1. Download `AuraDesk.apk` below
@@ -156,7 +215,9 @@ jobs:
             4. Tap Install
             
             **Note:** For updates, download the latest APK and install over the existing app - your data will be preserved.
-          files: release/AuraDesk.apk
+          files: |
+            release/AuraDesk.apk
+            release/AuraDesk.aab
           draft: false
           prerelease: false
         env:
