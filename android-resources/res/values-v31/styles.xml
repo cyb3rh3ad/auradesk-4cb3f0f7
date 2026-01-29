@@ -1,13 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ Splash Screen API -->
+    <!-- Android 12+ Splash Screen API - Premium Native Experience -->
     <style name="AppTheme.SplashScreen" parent="AppTheme">
+        <!-- Splash screen background color -->
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        
+        <!-- App icon displayed during splash -->
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        
+        <!-- Icon background (circular on Android 12+) -->
         <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        
+        <!-- Branding image at bottom (optional) -->
+        <!-- <item name="android:windowSplashScreenBrandingImage">@drawable/brand_logo</item> -->
+        
+        <!-- Animation duration -->
         <item name="android:windowSplashScreenAnimationDuration">800</item>
+        
+        <!-- System bars match splash theme -->
         <item name="android:statusBarColor">@color/splash_background</item>
         <item name="android:navigationBarColor">@color/splash_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        
+        <!-- Edge-to-edge immersive splash -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

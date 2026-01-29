@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <gradient
-        android:type="linear"
-        android:angle="135"
-        android:startColor="#7c3aed"
-        android:centerColor="#8b5cf6"
-        android:endColor="#3b82f6" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Deep dark base -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#0c0a14"/>
+        </shape>
+    </item>
+    
+    <!-- Subtle radial gradient for depth -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="54dp"
+                android:centerX="50%"
+                android:centerY="50%"
+                android:startColor="#1a1625"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+</layer-list>

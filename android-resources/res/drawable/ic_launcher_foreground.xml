@@ -5,36 +5,51 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- AuraDesk "A" Logo with Aura Effect -->
+    <!-- AuraDesk Premium "A" Logo with Aura Glow Effect -->
+    <!-- Content centered in safe zone (18dp padding on each side = 72dp content area) -->
     <group
-        android:translateX="27"
-        android:translateY="27">
+        android:translateX="18"
+        android:translateY="18">
         
-        <!-- Outer glow ring -->
+        <!-- Outer aura glow ring -->
         <path
-            android:pathData="M27,5 A22,22 0 1,1 27,49 A22,22 0 1,1 27,5"
+            android:pathData="M36,8 A28,28 0 1,1 36,64 A28,28 0 1,1 36,8"
+            android:strokeWidth="1.5"
+            android:strokeColor="#8b5cf6"
+            android:strokeAlpha="0.4"
+            android:fillColor="#00000000"/>
+        
+        <!-- Middle aura ring with gradient effect -->
+        <path
+            android:pathData="M36,12 A24,24 0 1,1 36,60 A24,24 0 1,1 36,12"
             android:strokeWidth="2"
-            android:strokeColor="#ffffff"
-            android:strokeAlpha="0.3"
+            android:strokeColor="#a855f7"
+            android:strokeAlpha="0.6"
             android:fillColor="#00000000"/>
         
         <!-- Inner glow ring -->
         <path
-            android:pathData="M27,10 A17,17 0 1,1 27,44 A17,17 0 1,1 27,10"
-            android:strokeWidth="1.5"
-            android:strokeColor="#ffffff"
+            android:pathData="M36,16 A20,20 0 1,1 36,56 A20,20 0 1,1 36,16"
+            android:strokeWidth="2.5"
+            android:strokeColor="#c084fc"
             android:strokeAlpha="0.5"
             android:fillColor="#00000000"/>
         
-        <!-- Stylized "A" letter -->
+        <!-- Center glow fill -->
         <path
-            android:pathData="M27,14 L38,40 L34,40 L31.5,34 L22.5,34 L20,40 L16,40 L27,14 Z M27,20 L24,30 L30,30 L27,20 Z"
+            android:pathData="M36,20 A16,16 0 1,1 36,52 A16,16 0 1,1 36,20"
+            android:fillColor="#8b5cf6"
+            android:fillAlpha="0.15"/>
+        
+        <!-- Premium stylized "A" letter - elegant and bold -->
+        <path
+            android:pathData="M36,18 L50,54 L45,54 L42,46 L30,46 L27,54 L22,54 L36,18 Z M36,26 L32,42 L40,42 L36,26 Z"
             android:fillColor="#ffffff"/>
         
-        <!-- Small accent dot (representing the desk/dot) -->
+        <!-- Subtle inner shadow on A for depth -->
         <path
-            android:pathData="M27,43 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0"
-            android:fillColor="#ffffff"
-            android:fillAlpha="0.8"/>
+            android:pathData="M36,20 L48,52 L44,52 L41.5,45 L30.5,45 L28,52 L24,52 L36,20 Z"
+            android:fillColor="#e0e7ff"
+            android:fillAlpha="0.3"/>
     </group>
 </vector>
