@@ -1,39 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Dark gradient background -->
+    <!-- Deep dark premium background base -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:type="linear"
                 android:angle="135"
                 android:startColor="#0c0a14"
-                android:centerColor="#1a1625"
-                android:endColor="#0f0d1a" />
+                android:centerColor="#12101c"
+                android:endColor="#0c0a14" />
         </shape>
     </item>
     
-    <!-- Subtle violet glow effect at top -->
+    <!-- Central subtle radial glow for depth -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="400dp"
-                android:centerX="0.3"
-                android:centerY="0.2"
-                android:startColor="#2a1f4e"
+                android:gradientRadius="300dp"
+                android:centerX="0.5"
+                android:centerY="0.45"
+                android:startColor="#1e1a2e"
                 android:endColor="#00000000" />
         </shape>
     </item>
     
-    <!-- Subtle blue glow effect at bottom -->
+    <!-- Purple aura glow effect - premium brand accent -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="350dp"
-                android:centerX="0.7"
-                android:centerY="0.8"
-                android:startColor="#1a2a4e"
+                android:gradientRadius="200dp"
+                android:centerX="0.5"
+                android:centerY="0.45"
+                android:startColor="#208b5cf6"
+                android:centerColor="#108b5cf6"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+    
+    <!-- Blue accent glow - secondary brand color -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="150dp"
+                android:centerX="0.5"
+                android:centerY="0.5"
+                android:startColor="#103b82f6"
                 android:endColor="#00000000" />
         </shape>
     </item>

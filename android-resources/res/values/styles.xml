@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme -->
+    <!-- Base application theme - Premium Dark -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Brand colors -->
         <item name="android:colorPrimary">@color/colorPrimary</item>
         <item name="android:colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="android:colorAccent">@color/colorAccent</item>
+        
+        <!-- System bars - Dark immersive -->
         <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:navigationBarColor">@color/navigation_bar</item>
         <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Window attributes -->
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:colorBackground">@color/splash_background</item>
+        
+        <!-- Edge-to-edge support -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
     </style>
 
     <!-- Premium splash screen theme with smooth transition -->
@@ -21,5 +33,8 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowContentOverlay">@null</item>
+        
+        <!-- Smooth transition to app content -->
+        <item name="android:windowAnimationStyle">@android:style/Animation.Activity</item>
     </style>
 </resources>
