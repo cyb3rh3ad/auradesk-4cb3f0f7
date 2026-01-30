@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext for local development -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Production: HTTPS only, no cleartext traffic -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
     
-    <!-- Production domains with strict security -->
+    <!-- Trusted domains -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">lovableproject.com</domain>
         <domain includeSubdomains="true">lovable.app</domain>
+        <domain includeSubdomains="true">auradesk.lovable.app</domain>
         <domain includeSubdomains="true">supabase.co</domain>
         <domain includeSubdomains="true">supabase.com</domain>
+        <domain includeSubdomains="true">api.github.com</domain>
+        <domain includeSubdomains="true">github.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

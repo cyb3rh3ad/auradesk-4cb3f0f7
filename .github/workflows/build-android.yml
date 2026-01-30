@@ -72,18 +72,32 @@ jobs:
           convert public/icon.png -filter Lanczos -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           convert public/icon.png -filter Lanczos -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           
-          # Generate foreground icons for adaptive icons (108dp with 54dp content)
-          # Scale to 162px for xxxhdpi (108dp * 1.5 density adjustment)
-          convert public/icon-maskable-512.png -filter Lanczos -resize 108x108 -gravity center -background none -extent 162x162 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-          convert public/icon-maskable-512.png -filter Lanczos -resize 72x72 -gravity center -background none -extent 108x108 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-          convert public/icon-maskable-512.png -filter Lanczos -resize 54x54 -gravity center -background none -extent 81x81 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-          convert public/icon-maskable-512.png -filter Lanczos -resize 36x36 -gravity center -background none -extent 54x54 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-          convert public/icon-maskable-512.png -filter Lanczos -resize 27x27 -gravity center -background none -extent 40x40 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+          # Verify icons were created
+          echo "📋 Verifying generated icons..."
+          ls -la android/app/src/main/res/mipmap-xxxhdpi/
           
           echo "✅ Premium app icons generated with high-quality resampling"
 
       - name: Copy premium branding resources
         run: |
+          # Create ALL required directories first
+          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/drawable-v24
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/values-v31
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          mkdir -p android/app/src/main/res/xml
+          
+          # Remove any default/Capacitor icons that might conflict
+          rm -f android/app/src/main/res/mipmap-*/ic_launcher.png 2>/dev/null || true
+          rm -f android/app/src/main/res/mipmap-*/ic_launcher_round.png 2>/dev/null || true
+          rm -f android/app/src/main/res/mipmap-*/ic_launcher_foreground.png 2>/dev/null || true
+          rm -f android/app/src/main/res/drawable/ic_launcher_foreground.xml 2>/dev/null || true
+          rm -f android/app/src/main/res/drawable/ic_launcher_background.xml 2>/dev/null || true
+          rm -f android/app/src/main/res/drawable/splash.png 2>/dev/null || true
+          
+          echo "✅ Cleaned default icons"
+          
           # Copy custom styles, colors, and splash screen
           cp android-resources/res/values/colors.xml android/app/src/main/res/values/colors.xml
           cp android-resources/res/values/styles.xml android/app/src/main/res/values/styles.xml
@@ -91,18 +105,23 @@ jobs:
           cp android-resources/res/drawable/ic_launcher_background.xml android/app/src/main/res/drawable/ic_launcher_background.xml
           cp android-resources/res/drawable/ic_launcher_foreground.xml android/app/src/main/res/drawable/ic_launcher_foreground.xml
           
-          # Create values-v31 directory for Android 12+ splash screen API
-          mkdir -p android/app/src/main/res/values-v31
+          # Also copy to drawable-v24 for compatibility
+          cp android-resources/res/drawable/ic_launcher_foreground.xml android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml
+          
+          # Copy Android 12+ splash screen styles
           cp android-resources/res/values-v31/styles.xml android/app/src/main/res/values-v31/styles.xml
           
           # Copy adaptive icon XML configurations
-          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
           cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           cp android-resources/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
           
           # Copy network security config
-          mkdir -p android/app/src/main/res/xml
           cp android-resources/res/xml/network_security_config.xml android/app/src/main/res/xml/network_security_config.xml
+          
+          # Verify critical files exist
+          echo "📋 Verifying branding files..."
+          ls -la android/app/src/main/res/drawable/
+          ls -la android/app/src/main/res/mipmap-anydpi-v26/
           
           echo "✅ Premium branding resources applied"
 
