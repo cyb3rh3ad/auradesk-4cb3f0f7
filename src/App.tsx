@@ -17,6 +17,8 @@ import { OwnerInitializer } from "@/components/OwnerInitializer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingCheck } from "@/components/OnboardingCheck";
 import { PushNotificationInit } from "@/components/PushNotificationInit";
+import { UpdateDialog } from "@/components/UpdateDialog";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronApp } from "@/hooks/useIsElectron";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -142,6 +144,25 @@ const shouldShowSplash = (): boolean => {
   return (isNative || isStandalonePWA) && !isElectron;
 };
 
+const AppUpdateChecker = () => {
+  const { updateAvailable, updateInfo, dismissUpdate, openDownload } = useAppUpdate();
+  
+  if (!updateAvailable || !updateInfo) return null;
+  
+  return (
+    <UpdateDialog
+      open={updateAvailable}
+      onOpenChange={(open) => !open && dismissUpdate()}
+      currentVersion={updateInfo.currentVersion}
+      latestVersion={updateInfo.latestVersion}
+      releaseNotes={updateInfo.releaseNotes}
+      publishedAt={updateInfo.publishedAt}
+      onDownload={openDownload}
+      onDismiss={dismissUpdate}
+    />
+  );
+};
+
 const App = () => {
   const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
 
@@ -154,6 +175,7 @@ const App = () => {
           )}
           <Toaster />
           <Sonner />
+          <AppUpdateChecker />
           <HashRouter>
             <AuthProvider>
               <ThemeInit />
