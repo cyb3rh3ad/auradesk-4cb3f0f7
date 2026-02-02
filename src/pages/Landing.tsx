@@ -42,6 +42,7 @@ const Landing = () => {
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const [showMobileOptions, setShowMobileOptions] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
 
   const features = [
     {
@@ -343,10 +344,7 @@ const Landing = () => {
                       </motion.button>
 
                       {/* Android Button */}
-                      <motion.a
-                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/download/v1.0.98-android/AuraDesk.apk"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <motion.button
                         className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
                         animate={{ 
                           opacity: showMobileOptions ? 1 : 0,
@@ -354,9 +352,10 @@ const Landing = () => {
                         }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
+                        onClick={() => setShowAndroidInstructions(true)}
                       >
                         Android
-                      </motion.a>
+                      </motion.button>
                     </div>
                   </motion.div>
                 </div>
@@ -653,6 +652,62 @@ const Landing = () => {
                 </div>
                 <p className="text-sm">
                   Tap <span className="font-medium text-foreground">Add</span> to install the app
+                </p>
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                The app will appear on your home screen and work just like a native app, with offline support and push notifications.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Android Installation Instructions Dialog */}
+      <Dialog open={showAndroidInstructions} onOpenChange={setShowAndroidInstructions}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5" />
+              Install AuraDesk on Android
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-muted-foreground text-sm">
+              AuraDesk can be installed as a web app on your Android device for a native app experience.
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  1
+                </div>
+                <p className="text-sm">
+                  Open <span className="font-medium text-foreground">auradesk.lovable.app</span> in Chrome
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  2
+                </div>
+                <p className="text-sm">
+                  Tap the <span className="font-medium text-foreground">menu</span> button (three dots in top-right)
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  3
+                </div>
+                <p className="text-sm">
+                  Tap <span className="font-medium text-foreground">"Install app"</span> or <span className="font-medium text-foreground">"Add to Home screen"</span>
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium shrink-0">
+                  4
+                </div>
+                <p className="text-sm">
+                  Tap <span className="font-medium text-foreground">Install</span> to confirm
                 </p>
               </div>
             </div>
