@@ -610,14 +610,14 @@ const Landing = () => {
 
       {/* iOS Installation Instructions Dialog */}
       <Dialog open={showIOSInstructions} onOpenChange={setShowIOSInstructions}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="ios-install-description">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="w-5 h-5" />
               Install AuraDesk on iOS
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div id="ios-install-description" className="space-y-4 pt-4">
             <p className="text-muted-foreground text-sm">
               AuraDesk can be installed as a web app on your iPhone or iPad for a native app experience.
             </p>
@@ -666,14 +666,14 @@ const Landing = () => {
 
       {/* Android Installation Instructions Dialog */}
       <Dialog open={showAndroidInstructions} onOpenChange={setShowAndroidInstructions}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="android-install-description">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="w-5 h-5" />
               Install AuraDesk on Android
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div id="android-install-description" className="space-y-4 pt-4">
             <p className="text-muted-foreground text-sm">
               AuraDesk can be installed as a web app on your Android device for a native app experience.
             </p>
