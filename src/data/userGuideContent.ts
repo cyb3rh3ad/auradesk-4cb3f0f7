@@ -411,7 +411,7 @@ info.auradesk@gmail.com
 `;
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
+  { code: 'en', name: 'EN', nativeName: 'English', flag: '🇬🇧' },
   { code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
   { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' },
   { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
