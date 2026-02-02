@@ -30,6 +30,9 @@ export const HelpNotification = () => {
   useEffect(() => {
     if (!user || !isLoaded) return;
 
+    // Only show help requests created in the last 5 minutes to avoid phantom notifications
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
     // Fetch pending help requests (without join, fetch profiles separately)
     const fetchRequests = async () => {
       const { data, error } = await supabase
@@ -37,6 +40,7 @@ export const HelpNotification = () => {
         .select('id, requester_id, title, description, status, created_at')
         .eq('status', 'pending')
         .neq('requester_id', user.id)
+        .gte('created_at', fiveMinutesAgo) // Only recent requests
         .order('created_at', { ascending: false });
 
       if (error) {

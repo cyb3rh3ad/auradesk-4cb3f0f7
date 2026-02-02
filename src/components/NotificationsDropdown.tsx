@@ -20,15 +20,7 @@ export const NotificationsDropdown = () => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Welcome to AuraDesk',
-      message: 'Get started by exploring the dashboard',
-      time: '5 min ago',
-      read: false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
