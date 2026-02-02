@@ -29,6 +29,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
+import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
 import {
   Dialog,
   DialogContent,
@@ -596,6 +597,7 @@ const Landing = () => {
                 info.auradesk@gmail.com
               </a>
               <div className="flex items-center gap-4">
+                <UserGuideDownload variant="link" />
                 <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Terms
                 </Link>
