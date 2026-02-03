@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, Loader2, Wifi, WifiOff, Radio, Server
+  Sparkles, Loader2, Radio, Server, MoreHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
@@ -17,6 +17,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { motion, AnimatePresence } from "framer-motion";
+
+type PiPMode = 'mini' | 'small' | 'medium' | 'full';
 
 export interface WebRTCRoomProps {
   roomName: string;
@@ -26,6 +29,7 @@ export interface WebRTCRoomProps {
   initialVideo?: boolean;
   initialAudio?: boolean;
   isHost?: boolean;
+  pipMode?: PiPMode;
 }
 
 export function WebRTCRoom({ 
@@ -36,6 +40,7 @@ export function WebRTCRoom({
   initialVideo = true,
   initialAudio = true,
   isHost = false,
+  pipMode = 'full',
 }: WebRTCRoomProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -59,9 +64,42 @@ export function WebRTCRoom({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [showControls, setShowControls] = useState(true);
   const recognitionRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-hide controls in mini/small mode
+  useEffect(() => {
+    if (pipMode === 'mini' || pipMode === 'small') {
+      setShowControls(true);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    } else {
+      setShowControls(true);
+    }
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [pipMode]);
+
+  // Show controls on interaction
+  const handleInteraction = () => {
+    if (pipMode === 'mini' || pipMode === 'small') {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  };
 
   // Set up real-time channel for call control events
   useEffect(() => {
@@ -146,7 +184,6 @@ export function WebRTCRoom({
 
   const handleToggleScreenShare = async () => {
     if (isScreenSharing) {
-      // Stop screen sharing - replace with camera
       if (localStream) {
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
@@ -166,7 +203,6 @@ export function WebRTCRoom({
         }
       }
     } else {
-      // Start screen sharing
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
@@ -181,7 +217,6 @@ export function WebRTCRoom({
           localStream.addTrack(screenStream.getVideoTracks()[0]);
           setIsScreenSharing(true);
           
-          // Handle when user stops sharing via browser UI
           screenStream.getVideoTracks()[0].onended = () => {
             setIsScreenSharing(false);
             handleToggleScreenShare();
@@ -217,9 +252,9 @@ export function WebRTCRoom({
       recognition.onresult = (event: any) => {
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
+          const t = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
+            finalTranscript += t + ' ';
           }
         }
         if (finalTranscript) {
@@ -301,13 +336,16 @@ export function WebRTCRoom({
   if (isConnecting || !isConnected) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-background text-foreground p-4 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p>Connecting to call...</p>
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+        </div>
+        <p className="text-muted-foreground">Connecting to call...</p>
       </div>
     );
   }
 
-  // Build participant list: local + remote
+  // Build participant list
   const allParticipants = [
     { id: user?.id || 'local', name: participantName, stream: localStream, isLocal: true },
     ...Array.from(participants.values()).map(p => ({
@@ -318,153 +356,242 @@ export function WebRTCRoom({
     })),
   ];
 
-  const numParticipants = allParticipants.length;
-  let gridCols = "grid-cols-1";
-  if (numParticipants === 2) {
-    gridCols = "md:grid-cols-2 grid-cols-1";
-  } else if (numParticipants <= 4) {
-    gridCols = "md:grid-cols-2 grid-cols-1";
-  } else {
-    gridCols = "md:grid-cols-3 grid-cols-2";
-  }
+  // Determine visible participants based on PiP mode
+  const getVisibleParticipants = () => {
+    switch (pipMode) {
+      case 'mini':
+        // Show only active speaker or first remote participant
+        const remote = allParticipants.find(p => !p.isLocal);
+        return remote ? [remote] : [allParticipants[0]];
+      case 'small':
+        // Show remote + small self preview
+        return allParticipants.slice(0, 2);
+      case 'medium':
+        return allParticipants.slice(0, 3);
+      default:
+        return allParticipants;
+    }
+  };
+
+  const visibleParticipants = getVisibleParticipants();
+  const numParticipants = visibleParticipants.length;
+
+  // Grid layout based on participants and mode
+  const getGridClass = () => {
+    if (pipMode === 'mini') return "grid-cols-1";
+    if (pipMode === 'small') return numParticipants > 1 ? "grid-cols-2" : "grid-cols-1";
+    if (numParticipants === 1) return "grid-cols-1";
+    if (numParticipants === 2) return "md:grid-cols-2 grid-cols-1";
+    if (numParticipants <= 4) return "md:grid-cols-2 grid-cols-2";
+    return "md:grid-cols-3 grid-cols-2";
+  };
+
+  // Button size based on mode
+  const buttonSize = pipMode === 'mini' || pipMode === 'small' ? 'sm' : 'default';
+  const iconSize = pipMode === 'mini' || pipMode === 'small' ? 'w-4 h-4' : 'w-5 h-5';
 
   return (
-    <div className={cn("flex flex-col h-full bg-background", className)}>
-      {/* Connection Quality Indicator */}
-      {connectionStats && (
-        <ConnectionQualityIndicator stats={connectionStats} />
+    <div 
+      className={cn("flex flex-col h-full bg-background relative overflow-hidden", className)}
+      onClick={handleInteraction}
+      onTouchStart={handleInteraction}
+    >
+      {/* Connection Quality Indicator - hide in mini mode */}
+      {connectionStats && pipMode !== 'mini' && (
+        <ConnectionQualityIndicator stats={connectionStats} compact={pipMode === 'small'} />
       )}
       
       {/* Participants grid */}
-      <div className={cn("p-4 grid gap-4 flex-1", gridCols)}>
-        {allParticipants.map((participant) => {
-          const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
-          const displayName = participant.isLocal ? "You" : participant.name;
+      <div className={cn(
+        "flex-1 grid gap-1 p-1",
+        getGridClass(),
+        pipMode === 'mini' && "p-0 gap-0"
+      )}>
+        <AnimatePresence mode="popLayout">
+          {visibleParticipants.map((participant, index) => {
+            const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
+            const displayName = participant.isLocal ? "You" : participant.name;
+            
+            // In small mode, make local video a PiP overlay
+            const isOverlay = pipMode === 'small' && participant.isLocal && numParticipants > 1;
 
-          return (
-            <div
-              key={participant.id}
-              className={cn(
-                "relative rounded-xl overflow-hidden bg-muted aspect-video group transition-all duration-200 border-2 border-border",
-                participant.isLocal && "order-first"
-              )}
-            >
-              {/* Video display */}
-              {participant.stream && hasVideo && (
-                <VideoElement 
-                  stream={participant.stream} 
-                  muted={participant.isLocal}
-                  isLocal={participant.isLocal}
-                />
-              )}
-
-              {/* Avatar when camera off */}
-              {(!participant.stream || !hasVideo) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <Avatar className="h-16 w-16 md:h-20 md:w-20">
-                    <AvatarFallback className="text-xl md:text-2xl">
-                      {displayName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              )}
-
-              {/* Name label */}
-              <div className="absolute top-2 left-2 px-2 py-1 bg-background/70 rounded text-foreground text-sm flex items-center gap-2">
-                {displayName}
-                {isHost && participant.isLocal && (
-                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Host</span>
+            return (
+              <motion.div
+                key={participant.id}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className={cn(
+                  "relative rounded-lg overflow-hidden bg-muted/50 group transition-all duration-200",
+                  isOverlay && "absolute bottom-14 right-2 w-24 h-32 z-20 rounded-xl shadow-lg border border-border/50",
+                  !isOverlay && "aspect-video border border-border/30",
+                  participant.isLocal && !isOverlay && "order-last"
                 )}
-              </div>
+              >
+                {/* Video display */}
+                {participant.stream && hasVideo && (
+                  <VideoElement 
+                    stream={participant.stream} 
+                    muted={participant.isLocal}
+                    isLocal={participant.isLocal}
+                  />
+                )}
 
-              {/* Status icons */}
-              <div className="absolute top-2 right-2 flex gap-1">
-                {participant.isLocal && isMuted && (
-                  <MicOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+                {/* Avatar when camera off */}
+                {(!participant.stream || !hasVideo) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/80">
+                    <Avatar className={cn(
+                      "ring-2 ring-border/50",
+                      pipMode === 'mini' ? "h-12 w-12" : "h-16 w-16 md:h-20 md:w-20"
+                    )}>
+                      <AvatarFallback className={cn(
+                        "bg-gradient-to-br from-primary/80 to-accent/80 text-primary-foreground font-semibold",
+                        pipMode === 'mini' ? "text-lg" : "text-xl md:text-2xl"
+                      )}>
+                        {displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                 )}
-                {participant.isLocal && isCameraOff && (
-                  <VideoOff className="h-6 w-6 text-red-500 bg-background/70 p-1 rounded-full" />
+
+                {/* Name label - hide in mini mode overlay */}
+                {!(isOverlay || pipMode === 'mini') && (
+                  <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/70 backdrop-blur-sm rounded-md text-foreground text-xs flex items-center gap-1.5">
+                    {displayName}
+                    {isHost && participant.isLocal && (
+                      <span className="text-[10px] bg-primary/20 text-primary px-1 py-0.5 rounded">Host</span>
+                    )}
+                  </div>
                 )}
-              </div>
-            </div>
-          );
-        })}
+
+                {/* Status icons */}
+                {participant.isLocal && (isMuted || isCameraOff) && !isOverlay && (
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    {isMuted && (
+                      <div className="p-1 bg-red-500/80 rounded-full">
+                        <MicOff className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    {isCameraOff && (
+                      <div className="p-1 bg-red-500/80 rounded-full">
+                        <VideoOff className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
-      {/* Transcript display */}
-      {isRecording && transcript && (
-        <div className="mx-4 mb-2 p-3 bg-muted/50 rounded-lg max-h-24 overflow-y-auto">
-          <p className="text-sm text-muted-foreground">{transcript.slice(-200)}</p>
+      {/* Transcript display - hide in mini/small mode */}
+      {isRecording && transcript && pipMode === 'full' && (
+        <div className="mx-2 mb-1 p-2 bg-muted/50 backdrop-blur-sm rounded-lg max-h-16 overflow-y-auto">
+          <p className="text-xs text-muted-foreground">{transcript.slice(-200)}</p>
         </div>
       )}
 
-      {/* Controls */}
-      <div className="flex justify-center gap-2 p-4 bg-muted border-t border-border flex-wrap">
-        <Button 
-          onClick={handleToggleMute} 
-          variant={isMuted ? "destructive" : "secondary"}
-          size="icon"
-        >
-          {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-        </Button>
-
-        <Button 
-          onClick={handleToggleCamera} 
-          variant={isCameraOff ? "destructive" : "secondary"}
-          size="icon"
-        >
-          {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-        </Button>
-
-        <Button 
-          onClick={handleToggleScreenShare} 
-          variant={isScreenSharing ? "default" : "secondary"}
-          size="icon"
-        >
-          {isScreenSharing ? <MonitorOff className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
-        </Button>
-
-        <Button 
-          onClick={toggleAITranscription} 
-          variant={isRecording ? "default" : "secondary"}
-          size="icon"
-          title="AI Transcription"
-        >
-          <Sparkles className={cn("h-5 w-5", isRecording && "text-yellow-400")} />
-        </Button>
-
-        {isRecording && (
-          <Button 
-            onClick={handleSummarize} 
-            variant="outline"
-            size="sm"
-            disabled={isSummarizing}
-            className="gap-2"
-          >
-            {isSummarizing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Summarize"
+      {/* Controls - Glassmorphism bar */}
+      <AnimatePresence>
+        {showControls && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className={cn(
+              "flex justify-center items-center gap-1.5 p-2",
+              "bg-muted/80 backdrop-blur-md border-t border-border/30",
+              pipMode === 'mini' && "p-1 gap-1"
             )}
-          </Button>
-        )}
+          >
+            <Button 
+              onClick={handleToggleMute} 
+              variant={isMuted ? "destructive" : "secondary"}
+              size="icon"
+              className={cn(
+                "rounded-full transition-all",
+                pipMode === 'mini' ? "h-8 w-8" : "h-10 w-10"
+              )}
+            >
+              {isMuted ? <MicOff className={iconSize} /> : <Mic className={iconSize} />}
+            </Button>
 
-        {isHost ? (
-          <Button onClick={handleEndCallForAll} variant="destructive" size="icon" title="End call for all">
-            <PhoneOff className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button onClick={handleDisconnect} variant="destructive" size="icon">
-            <PhoneOff className="h-5 w-5" />
-          </Button>
+            <Button 
+              onClick={handleToggleCamera} 
+              variant={isCameraOff ? "destructive" : "secondary"}
+              size="icon"
+              className={cn(
+                "rounded-full transition-all",
+                pipMode === 'mini' ? "h-8 w-8" : "h-10 w-10"
+              )}
+            >
+              {isCameraOff ? <VideoOff className={iconSize} /> : <Video className={iconSize} />}
+            </Button>
+
+            {/* Additional controls - hide in mini mode */}
+            {pipMode !== 'mini' && (
+              <>
+                <Button 
+                  onClick={handleToggleScreenShare} 
+                  variant={isScreenSharing ? "default" : "secondary"}
+                  size="icon"
+                  className="rounded-full h-10 w-10"
+                >
+                  {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                </Button>
+
+                {pipMode === 'full' && (
+                  <Button 
+                    onClick={toggleAITranscription} 
+                    variant={isRecording ? "default" : "secondary"}
+                    size="icon"
+                    className="rounded-full h-10 w-10"
+                    title="AI Transcription"
+                  >
+                    <Sparkles className={cn("w-5 h-5", isRecording && "text-yellow-400")} />
+                  </Button>
+                )}
+
+                {isRecording && pipMode === 'full' && (
+                  <Button 
+                    onClick={handleSummarize} 
+                    variant="outline"
+                    size="sm"
+                    disabled={isSummarizing}
+                    className="gap-1 rounded-full"
+                  >
+                    {isSummarizing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Summarize"}
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* End call button */}
+            <Button 
+              onClick={isHost ? handleEndCallForAll : handleDisconnect} 
+              variant="destructive" 
+              size="icon"
+              className={cn(
+                "rounded-full transition-all",
+                pipMode === 'mini' ? "h-8 w-8" : "h-10 w-10"
+              )}
+              title={isHost ? "End call for all" : "Leave call"}
+            >
+              <PhoneOff className={iconSize} />
+            </Button>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
 
 // Connection quality indicator component
-function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
+function ConnectionQualityIndicator({ stats, compact = false }: { stats: ConnectionStats; compact?: boolean }) {
   const qualityColors = {
     excellent: 'text-green-500',
     good: 'text-green-400',
@@ -477,6 +604,29 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
     good: 'bg-green-400/20',
     fair: 'bg-yellow-500/20',
     poor: 'bg-red-500/20',
+  };
+
+  if (compact) {
+    return (
+      <div className={cn(
+        "absolute top-1 right-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full",
+        qualityBgColors[stats.connectionQuality],
+        "backdrop-blur-sm"
+      )}>
+        {stats.isRelay ? (
+          <Server className={cn("h-3 w-3", qualityColors[stats.connectionQuality])} />
+        ) : (
+          <Radio className={cn("h-3 w-3", qualityColors[stats.connectionQuality])} />
+        )}
+      </div>
+    );
+  }
+
+  const formatBandwidth = (kbps: number) => {
+    if (kbps >= 1000) {
+      return `${(kbps / 1000).toFixed(1)} Mbps`;
+    }
+    return `${kbps} kbps`;
   };
 
   const adaptiveModeLabels = {
@@ -493,44 +643,36 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
     'audio-only': 'text-orange-500',
   };
 
-  const formatBandwidth = (kbps: number) => {
-    if (kbps >= 1000) {
-      return `${(kbps / 1000).toFixed(1)} Mbps`;
-    }
-    return `${kbps} kbps`;
-  };
-
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={cn(
-            "absolute top-2 right-2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full",
+            "absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2 py-1 rounded-full",
             qualityBgColors[stats.connectionQuality],
-            "backdrop-blur-sm border border-border/50"
+            "backdrop-blur-sm border border-border/30"
           )}>
             {stats.isRelay ? (
-              <Server className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+              <Server className={cn("h-3.5 w-3.5", qualityColors[stats.connectionQuality])} />
             ) : (
-              <Radio className={cn("h-4 w-4", qualityColors[stats.connectionQuality])} />
+              <Radio className={cn("h-3.5 w-3.5", qualityColors[stats.connectionQuality])} />
             )}
-            <span className={cn("text-xs font-medium", qualityColors[stats.connectionQuality])}>
+            <span className={cn("text-[10px] font-medium", qualityColors[stats.connectionQuality])}>
               {stats.isRelay ? 'Relay' : 'P2P'}
             </span>
-            <span className="text-xs text-muted-foreground">•</span>
-            <span className={cn("text-xs font-medium", adaptiveModeColors[stats.adaptiveMode])}>
+            <span className={cn("text-[10px] font-medium", adaptiveModeColors[stats.adaptiveMode])}>
               {adaptiveModeLabels[stats.adaptiveMode]}
             </span>
-            <div className="flex gap-0.5">
+            <div className="flex gap-0.5 ml-0.5">
               {[1, 2, 3, 4].map((bar) => (
                 <div
                   key={bar}
                   className={cn(
-                    "w-1 rounded-full transition-all",
-                    bar === 1 && "h-1.5",
-                    bar === 2 && "h-2",
-                    bar === 3 && "h-2.5",
-                    bar === 4 && "h-3",
+                    "w-0.5 rounded-full transition-all",
+                    bar === 1 && "h-1",
+                    bar === 2 && "h-1.5",
+                    bar === 3 && "h-2",
+                    bar === 4 && "h-2.5",
                     (stats.connectionQuality === 'excellent' && bar <= 4) ||
                     (stats.connectionQuality === 'good' && bar <= 3) ||
                     (stats.connectionQuality === 'fair' && bar <= 2) ||
@@ -546,49 +688,14 @@ function ConnectionQualityIndicator({ stats }: { stats: ConnectionStats }) {
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="space-y-1 text-xs">
             <div className="font-medium">
-              {stats.isRelay ? '🔄 Using TURN Relay' : '⚡ Direct P2P Connection'}
+              {stats.isRelay ? '🔄 TURN Relay' : '⚡ Direct P2P'}
             </div>
-            <div className="text-muted-foreground">
-              {stats.isRelay 
-                ? 'Traffic routed through relay server (works through strict firewalls)'
-                : 'Direct peer-to-peer connection (fastest, lowest latency)'
-              }
+            <div className="text-muted-foreground text-[10px]">
+              {stats.isRelay ? 'Routed through relay server' : 'Direct peer-to-peer connection'}
             </div>
-            
-            {/* Bandwidth section */}
             <div className="pt-1 border-t border-border/50 space-y-0.5">
-              <div className="font-medium text-foreground">📊 Bandwidth</div>
-              <div>Download: <span className="font-medium">{formatBandwidth(stats.inboundBitrate)}</span></div>
-              <div>Upload: <span className="font-medium">{formatBandwidth(stats.outboundBitrate)}</span></div>
-              <div>Total: <span className={cn("font-medium", stats.isBelowMinimum && "text-yellow-500")}>
-                {formatBandwidth(stats.totalBandwidth)}
-                {stats.isBelowMinimum && " ⚠️"}
-              </span></div>
-            </div>
-
-            {/* Adaptive mode */}
-            <div className="pt-1 border-t border-border/50">
-              <div>
-                Quality Mode: <span className={cn("font-medium", adaptiveModeColors[stats.adaptiveMode])}>
-                  {stats.adaptiveMode === 'high' && '🎬 High Definition'}
-                  {stats.adaptiveMode === 'medium' && '📺 Standard Definition'}
-                  {stats.adaptiveMode === 'low' && '📱 Low Quality'}
-                  {stats.adaptiveMode === 'audio-only' && '🎤 Audio Only'}
-                </span>
-              </div>
-              {stats.adaptiveMode !== 'high' && (
-                <div className="text-muted-foreground mt-0.5">
-                  Auto-adjusted for your connection
-                </div>
-              )}
-            </div>
-
-            {/* Connection stats */}
-            <div className="pt-1 border-t border-border/50 space-y-0.5">
-              <div className="font-medium text-foreground">📡 Connection</div>
-              <div>Latency: <span className="font-medium">{stats.roundTripTime}ms</span></div>
-              <div>Jitter: <span className="font-medium">{stats.jitter}ms</span></div>
-              <div>Packets lost: <span className="font-medium">{stats.packetsLost}</span></div>
+              <div>↓ {formatBandwidth(stats.inboundBitrate)} ↑ {formatBandwidth(stats.outboundBitrate)}</div>
+              <div>Latency: {stats.roundTripTime}ms</div>
             </div>
           </div>
         </TooltipContent>
@@ -605,21 +712,17 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
   useEffect(() => {
     if (!stream) return;
 
-    // Attach video stream
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
 
-    // For remote participants, create a separate audio element for reliable audio playback
-    // This bypasses issues with video element audio autoplay policies
     if (!isLocal && !muted) {
       const hasAudio = stream.getAudioTracks().length > 0;
       if (hasAudio) {
-        // Create audio element if it doesn't exist
         if (!audioRef.current) {
           const audio = document.createElement('audio');
           audio.autoplay = true;
-          (audio as any).playsInline = true; // For Safari compatibility
+          (audio as any).playsInline = true;
           audio.style.display = 'none';
           document.body.appendChild(audio);
           audioRef.current = audio;
@@ -627,10 +730,8 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
         
         audioRef.current.srcObject = stream;
         
-        // Try to play with user gesture fallback
         audioRef.current.play().catch((err) => {
-          console.warn('[VideoElement] Audio autoplay blocked, will retry on user interaction:', err);
-          // Audio will start on next user interaction with the page
+          console.warn('[VideoElement] Audio autoplay blocked:', err);
           const resumeAudio = () => {
             audioRef.current?.play().catch(() => {});
             document.removeEventListener('click', resumeAudio);
@@ -642,7 +743,6 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
       }
     }
 
-    // Cleanup audio element on unmount
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -658,7 +758,7 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
       ref={videoRef}
       autoPlay
       playsInline
-      muted={isLocal || muted} // Always mute local video to prevent echo, mute video element for remote (audio handled separately)
+      muted={isLocal || muted}
       className={cn("w-full h-full object-cover", isLocal && "transform scale-x-[-1]")}
     />
   );

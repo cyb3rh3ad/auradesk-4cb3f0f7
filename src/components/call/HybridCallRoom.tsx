@@ -1,5 +1,7 @@
 import { WebRTCRoom } from "@/components/webrtc/WebRTCRoom";
 
+type PiPMode = 'mini' | 'small' | 'medium' | 'full';
+
 export interface HybridCallRoomProps {
   roomName: string;
   participantName: string;
@@ -8,6 +10,7 @@ export interface HybridCallRoomProps {
   initialVideo?: boolean;
   initialAudio?: boolean;
   isHost?: boolean;
+  pipMode?: PiPMode;
 }
 
 /**
@@ -23,6 +26,7 @@ export function HybridCallRoom({
   initialVideo = true,
   initialAudio = true,
   isHost = false,
+  pipMode = 'full',
 }: HybridCallRoomProps) {
   return (
     <WebRTCRoom
@@ -33,6 +37,7 @@ export function HybridCallRoom({
       initialVideo={initialVideo}
       initialAudio={initialAudio}
       isHost={isHost}
+      pipMode={pipMode}
     />
   );
 }
