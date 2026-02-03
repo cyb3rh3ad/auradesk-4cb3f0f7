@@ -12,11 +12,11 @@ interface PushPayload {
   title: string;
   body: string;
   data?: Record<string, string>;
+  type?: 'notification' | 'call';
 }
 
 // Convert PEM private key to CryptoKey for signing
 async function importPrivateKey(pemKey: string): Promise<CryptoKey> {
-  // Remove PEM headers and decode base64
   const pemContents = pemKey
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
@@ -43,12 +43,9 @@ async function createSignedJwt(
   privateKey: CryptoKey
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const exp = now + 3600; // 1 hour expiry
+  const exp = now + 3600;
 
-  const header = {
-    alg: "RS256",
-    typ: "JWT",
-  };
+  const header = { alg: "RS256", typ: "JWT" };
 
   const payload = {
     iss: clientEmail,
@@ -88,9 +85,7 @@ async function createSignedJwt(
 async function getAccessToken(signedJwt: string): Promise<string> {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: signedJwt,
@@ -113,35 +108,74 @@ async function sendFcmNotification(
   deviceToken: string,
   title: string,
   body: string,
-  data?: Record<string, string>
+  data?: Record<string, string>,
+  isCall: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
-  const message: Record<string, unknown> = {
-    message: {
-      token: deviceToken,
-      notification: {
-        title,
-        body,
-      },
-      data: data || {},
-      android: {
-        priority: "high",
-        notification: {
-          sound: "default",
-          click_action: "FLUTTER_NOTIFICATION_CLICK",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-            badge: 1,
+  // For call notifications, use data-only message for background handling
+  // The app will show a custom notification with action buttons
+  const message: Record<string, unknown> = isCall
+    ? {
+        message: {
+          token: deviceToken,
+          data: {
+            ...data,
+            title,
+            body,
+            type: "call",
+            channelId: "calls",
+            sound: "ringtone",
+            vibrate: "true",
+            priority: "max",
+          },
+          android: {
+            priority: "high",
+            ttl: "30s",
+            direct_boot_ok: true,
+          },
+          apns: {
+            headers: {
+              "apns-priority": "10",
+              "apns-push-type": "voip",
+            },
+            payload: {
+              aps: {
+                sound: "ringtone.wav",
+                badge: 1,
+                "content-available": 1,
+                "mutable-content": 1,
+                category: "CALL_INVITATION",
+              },
+            },
           },
         },
-      },
-    },
-  };
+      }
+    : {
+        message: {
+          token: deviceToken,
+          notification: {
+            title,
+            body,
+          },
+          data: data || {},
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              channelId: "default",
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+                badge: 1,
+              },
+            },
+          },
+        },
+      };
 
   const response = await fetch(fcmUrl, {
     method: "POST",
@@ -158,12 +192,11 @@ async function sendFcmNotification(
     return { success: false, error: errorText };
   }
 
-  await response.text(); // Consume response body
+  await response.text();
   return { success: true };
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -175,7 +208,6 @@ serve(async (req) => {
     const fcmClientEmail = Deno.env.get("FCM_CLIENT_EMAIL");
     const fcmPrivateKey = Deno.env.get("FCM_PRIVATE_KEY");
 
-    // Check if FCM is configured
     if (!fcmProjectId || !fcmClientEmail || !fcmPrivateKey) {
       console.error("FCM not configured - missing secrets");
       return new Response(
@@ -185,11 +217,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const payload: PushPayload = await req.json();
-    const { userId, userIds, title, body, data } = payload;
+    const { userId, userIds, title, body, data, type } = payload;
 
-    // Get target user IDs
     const targetUserIds = userIds || (userId ? [userId] : []);
 
     if (targetUserIds.length === 0) {
@@ -199,7 +229,6 @@ serve(async (req) => {
       );
     }
 
-    // Fetch push tokens for target users
     const { data: tokens, error: tokensError } = await supabase
       .from("push_tokens")
       .select("token, platform")
@@ -220,17 +249,17 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Sending push notification to ${tokens.length} devices`);
+    console.log(`Sending ${type || 'notification'} to ${tokens.length} devices`);
 
-    // Generate OAuth2 access token
     const privateKey = await importPrivateKey(fcmPrivateKey);
     const signedJwt = await createSignedJwt(fcmClientEmail, privateKey);
     const accessToken = await getAccessToken(signedJwt);
 
-    // Send notifications to all devices
     let successCount = 0;
     let failureCount = 0;
     const errors: string[] = [];
+
+    const isCall = type === 'call';
 
     for (const { token } of tokens) {
       const result = await sendFcmNotification(
@@ -239,7 +268,8 @@ serve(async (req) => {
         token,
         title,
         body,
-        data
+        data,
+        isCall
       );
 
       if (result.success) {

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Team } from '@/hooks/useTeams';
 import { HybridCallRoom } from '@/components/call/HybridCallRoom';
+import { ResizableCallWindow } from '@/components/call/ResizableCallWindow';
 
 interface TeamCallDialogProps {
   team: Team;
@@ -34,27 +33,31 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose, isHost = false }:
     fetchProfile();
   }, [user]);
 
-  if (!user) return null;
+  if (!user || !open) return null;
 
   // Generate unique room name based on team
   const roomName = `team-call-${team.id}`;
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="p-0 border-none overflow-hidden max-w-5xl w-full h-[85vh] bg-background">
-        <VisuallyHidden.Root>
-          <DialogTitle>Team Call - {team.name}</DialogTitle>
-        </VisuallyHidden.Root>
-        <HybridCallRoom
-          roomName={roomName}
-          participantName={userName}
-          onDisconnect={onClose}
-          className="h-full"
-          initialVideo={isVideo}
-          initialAudio={true}
-          isHost={isHost}
-        />
-      </DialogContent>
-    </Dialog>
+    <ResizableCallWindow
+      onClose={onClose}
+      title={`${team.name} - Team Call`}
+      defaultWidth={800}
+      defaultHeight={600}
+      minWidth={360}
+      minHeight={280}
+      maxWidth={1400}
+      maxHeight={1000}
+    >
+      <HybridCallRoom
+        roomName={roomName}
+        participantName={userName}
+        onDisconnect={onClose}
+        className="h-full"
+        initialVideo={isVideo}
+        initialAudio={true}
+        isHost={isHost}
+      />
+    </ResizableCallWindow>
   );
 };

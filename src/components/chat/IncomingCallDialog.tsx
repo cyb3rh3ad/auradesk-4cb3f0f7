@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { callRingtone, vibratePhone, stopVibration } from '@/utils/callRingtone';
+import { Capacitor } from '@capacitor/core';
 
 interface IncomingCallDialogProps {
   open: boolean;
@@ -14,54 +17,6 @@ interface IncomingCallDialogProps {
   onDecline: () => void;
 }
 
-// Generate a simple ringtone as base64 WAV
-const generateRingtoneDataUrl = (): string => {
-  const sampleRate = 8000;
-  const duration = 0.4;
-  const frequency = 440;
-  const samples = Math.floor(sampleRate * duration);
-  
-  // Create WAV header + data
-  const buffer = new ArrayBuffer(44 + samples * 2);
-  const view = new DataView(buffer);
-  
-  // WAV header
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-  
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + samples * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, samples * 2, true);
-  
-  // Generate sine wave
-  for (let i = 0; i < samples; i++) {
-    const t = i / sampleRate;
-    const envelope = Math.min(1, (duration - t) * 5) * Math.min(1, t * 20);
-    const sample = Math.sin(2 * Math.PI * frequency * t) * envelope * 0.3;
-    view.setInt16(44 + i * 2, sample * 32767, true);
-  }
-  
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return 'data:audio/wav;base64,' + btoa(binary);
-};
-
 export const IncomingCallDialog = ({ 
   open, 
   callerName, 
@@ -70,138 +25,224 @@ export const IncomingCallDialog = ({
   onAccept, 
   onDecline 
 }: IncomingCallDialogProps) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [pulseScale, setPulseScale] = useState(1);
+  const isMobile = Capacitor.isNativePlatform() || window.innerWidth < 768;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Play ringtone when dialog opens
+  // Start ringtone and vibration when dialog opens
+  useEffect(() => {
+    if (!open) {
+      callRingtone.stop();
+      stopVibration();
+      return;
+    }
+
+    try {
+      callRingtone.playIncomingRing({ volume: 0.4, loop: true });
+      setAudioBlocked(false);
+    } catch (e) {
+      console.log('Ringtone blocked by browser:', e);
+      setAudioBlocked(true);
+    }
+
+    // Vibrate on mobile
+    if (isMobile) {
+      // Continuous vibration pattern
+      const vibrateInterval = setInterval(() => {
+        vibratePhone([200, 100, 200, 100, 200]);
+      }, 2000);
+
+      vibratePhone([200, 100, 200, 100, 200]);
+
+      return () => {
+        clearInterval(vibrateInterval);
+        callRingtone.stop();
+        stopVibration();
+      };
+    }
+
+    return () => {
+      callRingtone.stop();
+      stopVibration();
+    };
+  }, [open, isMobile]);
+
+  // Pulse animation for avatar ring
   useEffect(() => {
     if (!open) return;
 
-    let intervalId: NodeJS.Timeout | null = null;
-    const ringtoneUrl = generateRingtoneDataUrl();
-    
-    const playRing = async () => {
-      try {
-        const audio = new Audio(ringtoneUrl);
-        audio.volume = 0.5;
-        await audio.play();
-        setAudioBlocked(false);
-      } catch (e) {
-        console.log('Ringtone blocked by browser:', e);
-        setAudioBlocked(true);
-      }
-    };
+    const pulseInterval = setInterval(() => {
+      setPulseScale(s => s === 1 ? 1.1 : 1);
+    }, 800);
 
-    // Play immediately and every 1.5 seconds
-    playRing();
-    intervalId = setInterval(playRing, 1500);
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    return () => clearInterval(pulseInterval);
   }, [open]);
 
-  const handleUnblockAudio = async () => {
-    // User clicked, so we can now play audio
+  const handleUnblockAudio = useCallback(() => {
     try {
-      const ringtoneUrl = generateRingtoneDataUrl();
-      const audio = new Audio(ringtoneUrl);
-      audio.volume = 0.5;
-      await audio.play();
+      callRingtone.playIncomingRing({ volume: 0.4, loop: true });
       setAudioBlocked(false);
     } catch (e) {
       console.log('Still blocked:', e);
     }
-  };
+  }, []);
+
+  const handleAccept = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    callRingtone.stop();
+    stopVibration();
+    onAccept();
+  }, [onAccept]);
+
+  const handleDecline = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    callRingtone.stop();
+    stopVibration();
+    onDecline();
+  }, [onDecline]);
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onDecline()}>
-      <DialogContent 
-        className="max-w-[90vw] sm:max-w-sm p-0 gap-0 border-border/50 bg-card overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] mx-4 safe-area-inset"
-        style={{ transform: 'translate(-50%, -50%)' }}
-      >
-        <VisuallyHidden.Root>
-          <DialogTitle>Incoming call from {callerName}</DialogTitle>
-          <DialogDescription>Accept or decline the {isVideo ? 'video' : 'voice'} call</DialogDescription>
-        </VisuallyHidden.Root>
-        <div className="p-8 flex flex-col items-center text-center space-y-6">
-          {/* Audio blocked indicator */}
-          {audioBlocked && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="absolute top-2 right-2 text-muted-foreground z-10"
-              onClick={handleUnblockAudio}
-            >
-              <Volume2 className="w-4 h-4 mr-1" />
-              Enable sound
-            </Button>
-          )}
+    <AnimatePresence>
+      {open && (
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onDecline()}>
+          <DialogContent 
+            className="max-w-[95vw] sm:max-w-sm p-0 gap-0 border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] rounded-3xl shadow-2xl shadow-primary/20"
+            style={{ transform: 'translate(-50%, -50%)' }}
+          >
+            <VisuallyHidden.Root>
+              <DialogTitle>Incoming call from {callerName}</DialogTitle>
+              <DialogDescription>Accept or decline the {isVideo ? 'video' : 'voice'} call</DialogDescription>
+            </VisuallyHidden.Root>
 
-          {/* Caller Avatar with pulsing ring animation */}
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-            <div className="absolute inset-[-8px] rounded-full border-2 border-primary/30 animate-pulse" />
-            <Avatar className="w-24 h-24 relative ring-4 ring-primary/20">
-              <AvatarImage src={callerAvatar || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-2xl">
-                {getInitials(callerName)}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          {/* Caller Info */}
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-foreground">{callerName}</h3>
-            <p className="text-muted-foreground flex items-center justify-center gap-2">
-              {isVideo ? (
-                <>
-                  <Video className="w-4 h-4" />
-                  <span>Incoming video call...</span>
-                </>
-              ) : (
-                <>
-                  <Phone className="w-4 h-4" />
-                  <span>Incoming voice call...</span>
-                </>
-              )}
-            </p>
-          </div>
-
-          {/* Action Buttons - Mobile optimized with larger touch targets */}
-          <div className="flex items-center gap-8 pt-2 relative z-50">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-18 h-18 min-w-[72px] min-h-[72px] rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all hover:scale-105 active:scale-95 touch-manipulation"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDecline();
-              }}
-            >
-              <PhoneOff className="w-8 h-8" />
-            </Button>
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
             
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-18 h-18 min-w-[72px] min-h-[72px] rounded-full bg-green-500 hover:bg-green-400 text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-green-500/30 touch-manipulation"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onAccept();
-              }}
-            >
-              {isVideo ? <Video className="w-8 h-8" /> : <Phone className="w-8 h-8" />}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+            <div className="relative p-8 flex flex-col items-center text-center space-y-6">
+              {/* Audio blocked indicator */}
+              {audioBlocked && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="absolute top-3 right-3 text-muted-foreground/70 hover:text-foreground z-10"
+                  onClick={handleUnblockAudio}
+                >
+                  <Volume2 className="w-4 h-4 mr-1.5" />
+                  <span className="text-xs">Enable sound</span>
+                </Button>
+              )}
+
+              {/* Caller Avatar with animated rings */}
+              <div className="relative">
+                {/* Outer pulsing ring */}
+                <motion.div 
+                  className="absolute inset-[-20px] rounded-full border-2 border-primary/20"
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.2, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+                
+                {/* Middle pulsing ring */}
+                <motion.div 
+                  className="absolute inset-[-12px] rounded-full border-2 border-primary/30"
+                  animate={{ scale: [1, 1.1, 1], opacity: [0.7, 0.3, 0.7] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                />
+                
+                {/* Inner glow */}
+                <motion.div 
+                  className="absolute inset-[-4px] rounded-full bg-primary/20"
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                />
+                
+                {/* Avatar */}
+                <motion.div
+                  animate={{ scale: pulseScale }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Avatar className="w-28 h-28 relative ring-4 ring-primary/30 shadow-xl shadow-primary/20">
+                    <AvatarImage src={callerAvatar || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-3xl font-semibold">
+                      {getInitials(callerName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </motion.div>
+              </div>
+
+              {/* Caller Info */}
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-foreground">{callerName}</h3>
+                <motion.p 
+                  className="text-muted-foreground flex items-center justify-center gap-2"
+                  animate={{ opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  {isVideo ? (
+                    <>
+                      <Video className="w-4 h-4" />
+                      <span>Incoming video call...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="w-4 h-4" />
+                      <span>Incoming voice call...</span>
+                    </>
+                  )}
+                </motion.p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-12 pt-4 relative z-50">
+                {/* Decline button */}
+                <motion.div
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-16 h-16 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-colors touch-manipulation shadow-lg shadow-red-500/20"
+                    onClick={handleDecline}
+                  >
+                    <PhoneOff className="w-7 h-7" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">Decline</p>
+                </motion.div>
+                
+                {/* Accept button */}
+                <motion.div
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{ 
+                    boxShadow: [
+                      '0 0 20px rgba(34, 197, 94, 0.3)',
+                      '0 0 40px rgba(34, 197, 94, 0.4)',
+                      '0 0 20px rgba(34, 197, 94, 0.3)'
+                    ]
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="rounded-full"
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 text-white transition-colors touch-manipulation"
+                    onClick={handleAccept}
+                  >
+                    {isVideo ? <Video className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">Accept</p>
+                </motion.div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </AnimatePresence>
   );
 };

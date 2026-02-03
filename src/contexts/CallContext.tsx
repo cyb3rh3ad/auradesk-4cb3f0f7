@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { IncomingCallDialog } from '@/components/chat/IncomingCallDialog';
 import { CallDialog } from '@/components/chat/CallDialog';
+import { getSupabaseFunctionsUrl } from '@/lib/supabase-config';
 
 interface CallInvitation {
   callerId: string;
@@ -195,6 +196,57 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user?.id]); // Only depend on user.id - NOT activeCall
 
+  // Send push notification to conversation members
+  const sendCallPushNotification = useCallback(async (
+    conversationId: string,
+    callerId: string,
+    callerName: string,
+    conversationName: string,
+    isVideo: boolean
+  ) => {
+    try {
+      // Get other members of the conversation
+      const { data: members } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', callerId);
+
+      if (!members || members.length === 0) return;
+
+      const userIds = members.map(m => m.user_id);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      await fetch(`${getSupabaseFunctionsUrl()}/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userIds,
+          title: `Incoming ${isVideo ? 'Video' : 'Voice'} Call`,
+          body: `${callerName} is calling you`,
+          type: 'call',
+          data: {
+            type: 'call',
+            conversationId,
+            conversationName,
+            callerId,
+            callerName,
+            isVideo: String(isVideo),
+          },
+        }),
+      });
+
+      console.log('Sent call push notification to', userIds.length, 'users');
+    } catch (error) {
+      console.error('Error sending call push notification:', error);
+    }
+  }, []);
+
   // Start a call (we immediately join the room as caller)
   const startCall = useCallback(
     async (conversationId: string, conversationName: string, isVideo: boolean) => {
@@ -207,6 +259,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
       const profile = await getUserProfile(user.id);
       const callerName = profile?.full_name || profile?.email || 'Unknown';
+
+      // Send push notification to other members (for background/killed app)
+      sendCallPushNotification(conversationId, user.id, callerName, conversationName, isVideo);
 
       const channelName = `call-invite:${conversationId}`;
       let channel = channelsRef.current.get(channelName);
@@ -283,7 +338,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }, 3000);
     },
-    [user],
+    [user, sendCallPushNotification],
   );
 
   // End current call (for everyone in this conversation)
