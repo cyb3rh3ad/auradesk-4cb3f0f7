@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SplashScreenProps {
@@ -6,8 +6,71 @@ interface SplashScreenProps {
   minimumDuration?: number;
 }
 
+// Theme color configurations for splash screen
+const themeColors: Record<string, { bg: string; primary: string; secondary: string; text: string }> = {
+  'dark': {
+    bg: 'linear-gradient(135deg, #0c0a14 0%, #1a1625 50%, #0f0d1a 100%)',
+    primary: 'rgba(139, 92, 246, 0.4)',
+    secondary: 'rgba(59, 130, 246, 0.25)',
+    text: 'rgba(255, 255, 255, 0.4)',
+  },
+  'theme-discord-dark': {
+    bg: 'linear-gradient(135deg, #202225 0%, #2f3136 50%, #36393f 100%)',
+    primary: 'rgba(88, 101, 242, 0.4)',
+    secondary: 'rgba(87, 242, 135, 0.25)',
+    text: 'rgba(255, 255, 255, 0.5)',
+  },
+  'theme-midnight': {
+    bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+    primary: 'rgba(99, 102, 241, 0.4)',
+    secondary: 'rgba(139, 92, 246, 0.25)',
+    text: 'rgba(226, 232, 240, 0.5)',
+  },
+  'theme-forest': {
+    bg: 'linear-gradient(135deg, #052e16 0%, #14532d 50%, #052e16 100%)',
+    primary: 'rgba(34, 197, 94, 0.4)',
+    secondary: 'rgba(16, 185, 129, 0.25)',
+    text: 'rgba(187, 247, 208, 0.5)',
+  },
+  'theme-sunset': {
+    bg: 'linear-gradient(135deg, #1c1917 0%, #292524 50%, #1c1917 100%)',
+    primary: 'rgba(251, 146, 60, 0.4)',
+    secondary: 'rgba(244, 63, 94, 0.25)',
+    text: 'rgba(254, 215, 170, 0.5)',
+  },
+  'theme-purple': {
+    bg: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
+    primary: 'rgba(167, 139, 250, 0.4)',
+    secondary: 'rgba(192, 132, 252, 0.25)',
+    text: 'rgba(221, 214, 254, 0.5)',
+  },
+  'light': {
+    bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)',
+    primary: 'rgba(139, 92, 246, 0.5)',
+    secondary: 'rgba(59, 130, 246, 0.3)',
+    text: 'rgba(71, 85, 105, 0.7)',
+  },
+};
+
+// Get saved theme from localStorage
+const getSavedTheme = (): string => {
+  if (typeof window === 'undefined') return 'dark';
+  try {
+    const saved = localStorage.getItem('auradesk-theme');
+    return saved || 'dark';
+  } catch {
+    return 'dark';
+  }
+};
+
 export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScreenProps) => {
   const [phase, setPhase] = useState<'rings' | 'logo' | 'text' | 'fade'>('rings');
+  
+  // Get theme colors based on saved preference
+  const colors = useMemo(() => {
+    const savedTheme = getSavedTheme();
+    return themeColors[savedTheme] || themeColors['dark'];
+  }, []);
   
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
@@ -33,14 +96,12 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4, ease: 'easeInOut' }}
-          style={{
-            background: 'linear-gradient(135deg, #0c0a14 0%, #1a1625 50%, #0f0d1a 100%)'
-          }}
+          style={{ background: colors.bg }}
         >
-          {/* Animated gradient orbs */}
+          {/* Animated gradient orbs - theme aware */}
           <motion.div
             className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl"
-            style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)' }}
+            style={{ background: `radial-gradient(circle, ${colors.primary} 0%, transparent 70%)` }}
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -51,7 +112,7 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
           />
           <motion.div
             className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full blur-3xl"
-            style={{ background: 'radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%)' }}
+            style={{ background: `radial-gradient(circle, ${colors.secondary} 0%, transparent 70%)` }}
             animate={{
               scale: [1.2, 1, 1.2],
               opacity: [0.25, 0.4, 0.25],
@@ -199,7 +260,7 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
             {/* Tagline */}
             <motion.p
               className="mt-2 text-sm tracking-widest uppercase"
-              style={{ color: 'rgba(255, 255, 255, 0.4)' }}
+              style={{ color: colors.text }}
               initial={{ opacity: 0 }}
               animate={phase === 'text' ? { opacity: 1 } : { opacity: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}

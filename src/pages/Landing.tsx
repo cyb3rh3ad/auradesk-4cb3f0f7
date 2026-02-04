@@ -178,9 +178,20 @@ const Landing = () => {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
-            AuraDesk
-          </span>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/src/assets/auradesk-logo.png" 
+              alt="AuraDesk" 
+              className="h-9 w-9 rounded-xl shadow-lg shadow-primary/20"
+              onError={(e) => {
+                // Fallback to text if logo doesn't load
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+              AuraDesk
+            </span>
+          </div>
           <div className="flex items-center gap-2 md:gap-4">
             <a
               href="mailto:info.auradesk@gmail.com"
@@ -219,6 +230,26 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="text-center space-y-6 md:space-y-8"
           >
+            {/* Logo showcase */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="flex justify-center mb-4"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/40 to-blue-500/40 blur-2xl scale-150 rounded-full" />
+                <img 
+                  src="/src/assets/auradesk-logo.png" 
+                  alt="AuraDesk Logo" 
+                  className="relative h-20 w-20 md:h-24 md:w-24 rounded-2xl shadow-2xl shadow-primary/30 ring-2 ring-white/10"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            </motion.div>
+
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
               <Sparkles className="w-4 h-4" />
               Now with Discord-style voice channels

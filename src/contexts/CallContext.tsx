@@ -407,17 +407,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         onDecline={handleDeclineCall}
       />
 
-      {/* Active Call Dialog - joins LiveKit room */}
-      {activeCall && (
-        <CallDialog
-          open={!!activeCall}
-          onClose={endCurrentCall}
-          conversationName={activeCall.conversationName}
-          conversationId={activeCall.conversationId}
-          initialVideo={activeCall.isVideo}
-          isCaller={activeCall.isCaller}
-        />
-      )}
+      {/* Active Call is now rendered by GlobalCallOverlay at App root level */}
     </CallContext.Provider>
   );
 };

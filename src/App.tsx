@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SplashScreen } from "@/components/SplashScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
+import { GlobalCallOverlay } from "@/components/call/GlobalCallOverlay";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNavBar } from "@/components/MobileNavBar";
@@ -38,13 +39,31 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
-// Component to handle root route - redirect Electron users to auth
+// Check if running as a native app or standalone PWA (skip landing page)
+const isStandaloneApp = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // Native Capacitor app
+  const capacitor = (window as any).Capacitor;
+  const isNative = capacitor?.isNativePlatform?.() ?? false;
+  
+  // Standalone PWA (installed to home screen)
+  const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches ||
+                          (window.navigator as any).standalone === true;
+  
+  // Electron app
+  const isElectron = !!(window as any).electronAPI?.isElectron || window.location.protocol === 'file:';
+  
+  return isNative || isStandalonePWA || isElectron;
+};
+
+// Component to handle root route - redirect standalone app users to auth
 const RootRoute = () => {
   const { user, loading } = useAuth();
-  const isElectron = isElectronApp();
+  const isStandalone = isStandaloneApp();
   
-  // If Electron app, skip landing page entirely
-  if (isElectron) {
+  // If standalone app (Electron, PWA, or native mobile), skip landing page entirely
+  if (isStandalone) {
     if (loading) return null;
     return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
   }
@@ -70,9 +89,26 @@ const ThemeInit = () => {
       
       themes.forEach(t => root.classList.remove(t));
       if (targetTheme) root.classList.add(targetTheme);
+      
+      // Save to localStorage for splash screen theme adaptation
+      try {
+        localStorage.setItem('auradesk-theme', themeName);
+      } catch (e) {
+        console.error('Failed to save theme:', e);
+      }
     };
     const load = async () => {
       if (!user) {
+        // Try to load from localStorage first for faster splash screen
+        try {
+          const saved = localStorage.getItem('auradesk-theme');
+          if (saved) {
+            apply(saved);
+            return;
+          }
+        } catch (e) {
+          // Ignore
+        }
         apply('light');
         return;
       }
@@ -193,6 +229,8 @@ const App = () => {
                       <OnboardingCheck />
                       <PushNotificationInit />
                       <CallProvider>
+                        {/* Global PiP call overlay - persists across all navigation */}
+                        <GlobalCallOverlay />
                         <AppLayout>
                           <Routes>
                             <Route path="/dashboard" element={<Dashboard />} />
