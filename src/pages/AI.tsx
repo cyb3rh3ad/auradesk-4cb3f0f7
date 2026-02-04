@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AI = () => {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false); // Closed by default on mobile
+  const [selectedModelId, setSelectedModelId] = useState<string>('gemini-flash-lite');
   const { isLoading, sendMessage } = useAIChat();
   const {
     sessions,
@@ -36,6 +37,13 @@ const AI = () => {
   const { plan } = useSubscription();
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Sync local model state with preferences on load
+  useEffect(() => {
+    if (preferences?.selected_model) {
+      setSelectedModelId(preferences.selected_model);
+    }
+  }, [preferences?.selected_model]);
 
   // Close sidebar when selecting a session on mobile
   const handleSelectSession = (id: string) => {
@@ -87,7 +95,8 @@ const AI = () => {
         { role: 'user' as const, content: userInput }
       ];
 
-      await sendMessage(messagesForAI, upsertAssistant, () => {});
+      // Pass the currently selected model directly to ensure instant switching
+      await sendMessage(messagesForAI, upsertAssistant, () => {}, selectedModelId);
       await saveAssistantMessage(assistantContent);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -102,6 +111,9 @@ const AI = () => {
   };
 
   const handleModelChange = (modelId: string) => {
+    // Update local state immediately for instant switching
+    setSelectedModelId(modelId);
+    // Persist to preferences
     updatePreferences({ selected_model: modelId });
     if (currentSessionId) {
       updateSessionModel(currentSessionId, modelId);
@@ -187,7 +199,7 @@ const AI = () => {
             </div>
             <div className="flex items-center gap-1 md:gap-2">
               <AIModelSelector
-                selectedModel={preferences?.selected_model || 'gemini-flash-lite'}
+                selectedModel={selectedModelId}
                 executionMode={preferences?.execution_mode || 'cloud'}
                 subscriptionPlan={subscriptionPlan}
                 onModelChange={handleModelChange}

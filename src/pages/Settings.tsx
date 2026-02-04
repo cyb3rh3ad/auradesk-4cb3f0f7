@@ -279,6 +279,13 @@ const Settings = () => {
     if (themeName !== 'light') {
       document.documentElement.classList.add(themeName);
     }
+    
+    // Save to localStorage for splash screen theme adaptation
+    try {
+      localStorage.setItem('auradesk-theme', themeName);
+    } catch (e) {
+      console.error('Failed to save theme to localStorage:', e);
+    }
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
