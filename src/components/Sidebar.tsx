@@ -24,13 +24,13 @@ const AuraLogo = ({
 }) => (
   <div 
     className={cn(
-      "relative flex items-center justify-center rounded-full overflow-hidden",
+      "relative flex items-center justify-center rounded-full",
       size === "md" ? "w-12 h-12" : "w-10 h-10"
     )}
     style={{
-      background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 60%, hsl(var(--muted)) 100%)',
-      boxShadow: '0 0 12px hsl(var(--primary) / 0.2), inset 0 0 8px hsl(var(--primary) / 0.05)',
-      border: '1px solid hsl(var(--primary) / 0.25)',
+      background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 70%, hsl(var(--secondary)) 100%)',
+      boxShadow: '0 0 20px hsl(var(--primary) / 0.15)',
+      border: '1px solid hsl(var(--border))',
     }}
   >
     <img 
@@ -38,10 +38,11 @@ const AuraLogo = ({
       alt="AuraDesk" 
       className={cn(
         "object-contain",
-        size === "md" ? "w-8 h-8" : "w-6 h-6"
+        size === "md" ? "w-6 h-6" : "w-5 h-5"
       )}
       style={{
-        filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.3))',
+        filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))',
+        mixBlendMode: 'screen',
       }}
     />
   </div>
