@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
+      // Prevent duplicate React instances causing stuttering
+      dedupe: ["react", "react-dom", "react/jsx-runtime", "framer-motion"],
     },
     envPrefix: ["VITE_"],
     build: {
