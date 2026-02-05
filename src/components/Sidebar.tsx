@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
-import auradeskLogo from "@/assets/auradesk-logo.png";
+import auradeskLogo from "@/assets/auradesk-logo-new.png";
 import {
   HomeIcon,
   ChatIcon,
@@ -21,9 +21,21 @@ const AuraLogo = ({
   size = "md"
 }: {
   size?: "sm" | "md";
-}) => <div className={cn("relative flex items-center justify-center rounded-xl overflow-hidden", "bg-gradient-to-br from-background via-background/95 to-muted/50", "shadow-lg ring-1 ring-primary/20", "after:absolute after:-inset-1 after:bg-gradient-to-br after:from-primary/20 after:to-accent/20 after:blur-xl after:opacity-40 after:-z-10", size === "md" ? "w-12 h-12" : "w-10 h-10")}>
-    <img src={auradeskLogo} alt="AuraDesk" className={cn("relative z-10 object-cover rounded-lg", size === "md" ? "w-full h-full" : "w-full h-full")} />
-  </div>;
+}) => (
+  <div className={cn(
+    "relative flex items-center justify-center",
+    size === "md" ? "w-12 h-12" : "w-10 h-10"
+  )}>
+    <img 
+      src={auradeskLogo} 
+      alt="AuraDesk" 
+      className="w-full h-full object-contain"
+      style={{
+        filter: 'drop-shadow(0 0 12px rgba(139, 92, 246, 0.4))',
+      }}
+    />
+  </div>
+);
 
 // Separate component for nav items to properly use hooks
 interface NavItemProps {

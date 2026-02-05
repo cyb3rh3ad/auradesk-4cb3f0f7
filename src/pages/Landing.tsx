@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/auradesk-logo.png";
+import auraLogo from "@/assets/auradesk-logo-new.png";
 import {
   Dialog,
   DialogContent,
@@ -48,45 +48,28 @@ const HeroLogo = () => {
       className="flex justify-center mb-6"
     >
       <div className="relative group">
-        {/* Outer glow - animated */}
+        {/* Outer glow - animated pulse */}
         <motion.div 
-          className="absolute -inset-6 md:-inset-8 rounded-full opacity-60"
+          className="absolute -inset-8 md:-inset-12 rounded-full"
           style={{
-            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 70%)'
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 40%, transparent 70%)'
           }}
           animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.4, 0.6, 0.4],
+            scale: [1, 1.15, 1],
+            opacity: [0.5, 0.8, 0.5],
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
         
-        {/* Logo container with premium glass effect */}
-        <div className="relative">
-          {/* Rotating ring effect */}
-          <motion.div
-            className="absolute -inset-1.5 rounded-2xl"
-            style={{
-              background: 'conic-gradient(from 0deg, transparent, rgba(139, 92, 246, 0.4), transparent, rgba(59, 130, 246, 0.4), transparent)',
-            }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-          />
-          
-          {/* Inner container - using black bg to hide white corners */}
-          <div className="relative bg-black rounded-2xl p-1 backdrop-blur-sm ring-1 ring-white/10 overflow-hidden">
-            <div className="bg-black rounded-xl overflow-hidden">
-              <img 
-                src={auraLogo}
-                alt="AuraDesk Logo" 
-                className="relative w-24 h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 object-contain mix-blend-lighten"
-                style={{
-                  filter: 'drop-shadow(0 4px 24px rgba(139, 92, 246, 0.4))',
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        {/* The new logo - no container needed, it has its own glow ring */}
+        <img 
+          src={auraLogo}
+          alt="AuraDesk Logo" 
+          className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 object-contain"
+          style={{
+            filter: 'drop-shadow(0 0 30px rgba(139, 92, 246, 0.5)) drop-shadow(0 0 60px rgba(59, 130, 246, 0.3))',
+          }}
+        />
       </div>
     </motion.div>
   );
@@ -237,7 +220,10 @@ const Landing = () => {
             <img 
               src={auraLogo} 
               alt="AuraDesk" 
-              className="h-10 w-10 rounded-xl shadow-lg shadow-primary/20 ring-1 ring-white/10"
+              className="h-10 w-10 object-contain"
+              style={{
+                filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))',
+              }}
             />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
