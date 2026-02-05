@@ -106,7 +106,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         />
       ))}
       
-      {/* The A monogram - sleek, modern, cosmic */}
+      {/* The A monogram - wider, sleek, with transparency */}
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 w-full h-full"
@@ -115,9 +115,9 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         <defs>
           {/* Cosmic gradient for the A */}
           <linearGradient id={`${uniqueId}-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="40%" stopColor="hsl(280 70% 65%)" />
-            <stop offset="100%" stopColor="hsl(180 80% 55%)" />
+            <stop offset="0%" stopColor="hsl(var(--primary) / 0.85)" />
+            <stop offset="40%" stopColor="hsl(280 70% 65% / 0.8)" />
+            <stop offset="100%" stopColor="hsl(180 80% 55% / 0.85)" />
           </linearGradient>
           
           {/* Inner glow effect */}
@@ -130,12 +130,13 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           </filter>
         </defs>
         
-        {/* The A shape - elegant, centered, with triangular cutout */}
+        {/* The A shape - WIDER strokes, slight transparency */}
         <path
-          d="M50 18 L24 82 L36 82 L42 66 L58 66 L64 82 L76 82 L50 18 Z M50 38 L55 54 L45 54 L50 38 Z"
+          d="M50 16 L18 84 L34 84 L40 66 L60 66 L66 84 L82 84 L50 16 Z M50 40 L55 54 L45 54 L50 40 Z"
           fill={`url(#${uniqueId}-gradient)`}
           fillRule="evenodd"
           filter={`url(#${uniqueId}-glow)`}
+          opacity="0.9"
         />
       </svg>
       
