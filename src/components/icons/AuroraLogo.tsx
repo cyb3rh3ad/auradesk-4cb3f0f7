@@ -25,13 +25,49 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
   return (
     <div 
       className={`relative ${className}`}
-      style={{ width: size, height: size }}
+      style={{ 
+        width: size, 
+        height: size,
+        // 3D perspective
+        perspective: '800px',
+        perspectiveOrigin: 'center center',
+      }}
     >
-      {/* Deep space background */}
+      {/* 3D sphere highlight - top light source */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(ellipse 80% 50% at 50% 15%, hsl(0 0% 100% / 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 40% at 30% 20%, hsl(0 0% 100% / 0.05) 0%, transparent 40%)
+          `,
+          zIndex: 50,
+        }}
+      />
+      
+      {/* 3D depth shadow underneath */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: '90%',
+          height: '20%',
+          left: '5%',
+          bottom: '-8%',
+          background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
+          filter: 'blur(15px)',
+          transform: 'rotateX(60deg)',
+        }}
+      />
+      
+      {/* Deep space background with 3D inner shadow */}
       <div
         className="absolute inset-0 rounded-full"
         style={{
-          background: 'radial-gradient(circle, hsl(240 30% 8% / 0.8) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, hsl(240 30% 6% / 0.9) 0%, hsl(240 20% 3% / 0.7) 50%, transparent 70%)',
+          boxShadow: `
+            inset 0 ${size * 0.1}px ${size * 0.2}px hsl(0 0% 0% / 0.4),
+            inset 0 -${size * 0.05}px ${size * 0.1}px hsl(var(--primary) / 0.1)
+          `,
         }}
       />
       
@@ -239,45 +275,65 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         />
       </svg>
       
-      {/* Outer bubble ring - breathing effect */}
+      {/* 3D Glass rim - top highlight */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          background: `
+            linear-gradient(180deg, 
+              hsl(0 0% 100% / 0.12) 0%, 
+              transparent 30%, 
+              transparent 70%, 
+              hsl(var(--primary) / 0.08) 100%
+            )
+          `,
+          zIndex: 40,
+        }}
+      />
+      
+      {/* Outer bubble ring - breathing effect with 3D border */}
       <motion.div
         className="absolute inset-0 rounded-full"
         style={{
-          border: '1px solid hsl(var(--primary) / 0.25)',
+          border: '2px solid transparent',
+          borderTopColor: 'hsl(0 0% 100% / 0.15)',
+          borderBottomColor: 'hsl(var(--primary) / 0.2)',
           boxShadow: `
-            0 0 ${size * 0.12}px hsl(var(--primary) / 0.08),
-            inset 0 0 ${size * 0.1}px hsl(var(--primary) / 0.03)
+            0 0 ${size * 0.15}px hsl(var(--primary) / 0.1),
+            inset 0 0 ${size * 0.12}px hsl(var(--primary) / 0.05),
+            0 ${size * 0.02}px ${size * 0.04}px hsl(0 0% 0% / 0.3)
           `,
         }}
         animate={animated ? {
-          scale: [1, 1.015, 1],
-          opacity: [0.4, 0.7, 0.4],
+          scale: [1, 1.01, 1],
+          opacity: [0.6, 0.9, 0.6],
         } : undefined}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Secondary bubble ring */}
+      {/* Secondary bubble ring - inner glass effect */}
       <motion.div
-        className="absolute inset-1 rounded-full"
+        className="absolute inset-2 rounded-full"
         style={{
-          border: '1px solid hsl(280 60% 50% / 0.12)',
+          border: '1px solid transparent',
+          borderTopColor: 'hsl(280 60% 70% / 0.1)',
+          borderBottomColor: 'hsl(180 70% 50% / 0.08)',
         }}
         animate={animated ? {
-          scale: [1.01, 0.99, 1.01],
-          opacity: [0.25, 0.5, 0.25],
+          scale: [1.005, 0.995, 1.005],
+          opacity: [0.3, 0.6, 0.3],
         } : undefined}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
       />
       
-      {/* Third bubble ring - cyan tint */}
+      {/* Inner glow ring */}
       <motion.div
-        className="absolute inset-2 rounded-full"
+        className="absolute inset-4 rounded-full"
         style={{
-          border: '1px solid hsl(180 70% 50% / 0.08)',
+          boxShadow: `inset 0 0 ${size * 0.08}px hsl(var(--primary) / 0.1)`,
         }}
         animate={animated ? {
-          scale: [0.99, 1.02, 0.99],
-          opacity: [0.2, 0.4, 0.2],
+          opacity: [0.3, 0.5, 0.3],
         } : undefined}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
