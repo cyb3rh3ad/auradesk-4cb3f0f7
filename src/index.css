@@ -323,6 +323,67 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+  
+  /* Performance-optimized nebula animations for landing page */
+  @keyframes nebula-1 {
+    0%, 100% { 
+      transform: scale(1) translateX(0); 
+      opacity: 0.3;
+    }
+    50% { 
+      transform: scale(1.1) translateX(20px); 
+      opacity: 0.35;
+    }
+  }
+  
+  @keyframes nebula-2 {
+    0%, 100% { 
+      transform: scale(1) translateX(0); 
+      opacity: 0.3;
+    }
+    50% { 
+      transform: scale(1.15) translateX(-15px); 
+      opacity: 0.35;
+    }
+  }
+  
+  @keyframes nebula-rotate {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+  
+  .animate-nebula-1 {
+    animation: nebula-1 15s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  
+  .animate-nebula-2 {
+    animation: nebula-2 12s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  
+  .animate-nebula-rotate {
+    animation: nebula-rotate 60s linear infinite;
+    will-change: transform;
+  }
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-nebula-1,
+    .animate-nebula-2,
+    .animate-nebula-rotate {
+      animation: none;
+    }
+  }
+  
+  /* Disable complex animations on mobile for performance */
+  @media (max-width: 768px) {
+    .animate-nebula-1,
+    .animate-nebula-2,
+    .animate-nebula-rotate {
+      animation-duration: 30s; /* Slower = less GPU work */
+    }
+  }
 }
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
