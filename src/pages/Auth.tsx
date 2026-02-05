@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/logo-option-2.png';
+import auraLogo from '@/assets/auradesk-a-clean.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -19,96 +19,49 @@ import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { BiometricPromptDialog } from '@/components/auth/BiometricPromptDialog';
 import { BiometricLoginButton } from '@/components/auth/BiometricLoginButton';
 
-// Interactive Logo Component with creative effects
+// Interactive Logo Component with chameleon circle
 const InteractiveLogo = () => {
   const [isPressed, setIsPressed] = useState(false);
-  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
-  const [sparkCount, setSparkCount] = useState(0);
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const newRipple = { id: Date.now(), x, y };
-    setRipples(prev => [...prev, newRipple]);
-    setSparkCount(prev => prev + 1);
-    
-    // Remove ripple after animation
-    setTimeout(() => {
-      setRipples(prev => prev.filter(r => r.id !== newRipple.id));
-    }, 600);
-  };
 
   return (
     <motion.button
       type="button"
-      className="relative w-24 h-24 rounded-full overflow-visible cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+      className="relative w-24 h-24 rounded-full overflow-visible cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center"
+      style={{
+        background: 'linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1), hsl(var(--muted) / 0.2))',
+        boxShadow: isPressed 
+          ? '0 0 30px hsl(var(--primary) / 0.4), inset 0 0 20px hsl(var(--primary) / 0.1)'
+          : '0 0 20px hsl(var(--primary) / 0.2), inset 0 0 15px hsl(var(--primary) / 0.05)',
+        border: '1px solid hsl(var(--primary) / 0.25)',
+      }}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
-      onClick={handleClick}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {/* Logo with glow and blend mode */}
+      {/* The logo */}
       <img 
         src={auraLogo} 
         alt="AuraDesk" 
-        className="relative z-10 w-full h-full object-contain"
+        className="relative z-10 w-12 h-12 object-contain"
         style={{
-          filter: isPressed 
-            ? 'drop-shadow(0 0 25px rgba(0, 255, 255, 0.9)) drop-shadow(0 0 45px rgba(139, 92, 246, 0.7))'
-            : 'drop-shadow(0 0 18px rgba(0, 255, 255, 0.6)) drop-shadow(0 0 35px rgba(139, 92, 246, 0.4))',
+          filter: `drop-shadow(0 0 ${isPressed ? '12px' : '8px'} hsl(var(--primary) / 0.5))`,
           mixBlendMode: 'screen',
         }}
       />
       
-      {/* Hover glow overlay */}
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent pointer-events-none"
-        initial={{ opacity: 0 }}
-        whileHover={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      />
-      
-      {/* Click ripples */}
-      {ripples.map(ripple => (
-        <motion.span
-          key={ripple.id}
-          className="absolute rounded-full bg-white/40 pointer-events-none"
-          style={{ left: ripple.x, top: ripple.y }}
-          initial={{ width: 0, height: 0, x: 0, y: 0, opacity: 1 }}
-          animate={{ width: 160, height: 160, x: -80, y: -80, opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        />
-      ))}
-      
-      {/* Sparkle particles on click */}
-      {sparkCount > 0 && Array.from({ length: 6 }).map((_, i) => (
-        <motion.span
-          key={`${sparkCount}-${i}`}
-          className="absolute w-1.5 h-1.5 rounded-full bg-yellow-300 pointer-events-none"
-          style={{ left: '50%', top: '50%' }}
-          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-          animate={{ 
-            x: Math.cos((i / 6) * Math.PI * 2) * 50, 
-            y: Math.sin((i / 6) * Math.PI * 2) * 50, 
-            opacity: 0,
-            scale: 0
-          }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        />
-      ))}
-      
-      {/* Shine effect */}
+      {/* Subtle animated glow ring */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none"
-        animate={{ 
-          opacity: [0.3, 0.6, 0.3],
-          backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          border: '1px solid hsl(var(--primary) / 0.3)',
         }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        animate={{
+          opacity: [0.3, 0.6, 0.3],
+          scale: [1, 1.02, 1],
+        }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       />
     </motion.button>
   );
