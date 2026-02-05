@@ -7,145 +7,213 @@ interface AuroraLogoProps {
 }
 
 /**
- * Magical space-like AuraBubble logo with cosmic effects
+ * Magical space-like AuraBubble logo with neon outlined "A"
  */
 export const AuroraLogo = ({ size = 160, className = '', animated = true }: AuroraLogoProps) => {
   const uniqueId = `aurora-logo-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Generate particle positions
+  const particles = Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    angle: (i * 30) + Math.random() * 15,
+    radius: 0.32 + Math.random() * 0.12,
+    size: 0.015 + Math.random() * 0.01,
+    duration: 6 + Math.random() * 4,
+    delay: i * 0.2,
+  }));
   
   return (
     <div 
       className={`relative ${className}`}
       style={{ width: size, height: size }}
     >
+      {/* Deep space background */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, hsl(240 30% 8% / 0.8) 0%, transparent 70%)',
+        }}
+      />
+      
       {/* Outer rotating nebula ring */}
       <motion.div
         className="absolute inset-0 rounded-full"
         style={{
           background: `conic-gradient(from 0deg, 
             transparent 0deg, 
-            hsl(var(--primary) / 0.3) 60deg, 
-            hsl(180 80% 50% / 0.4) 120deg, 
-            hsl(280 70% 60% / 0.3) 180deg, 
-            transparent 240deg,
-            hsl(var(--primary) / 0.2) 300deg,
+            hsl(var(--primary) / 0.25) 45deg, 
+            hsl(280 70% 50% / 0.35) 90deg,
+            hsl(180 80% 50% / 0.3) 135deg, 
+            transparent 180deg,
+            hsl(260 70% 55% / 0.25) 225deg,
+            hsl(var(--primary) / 0.2) 270deg,
+            transparent 315deg,
+            transparent 360deg
+          )`,
+          filter: 'blur(10px)',
+        }}
+        animate={animated ? {
+          rotate: [0, 360],
+        } : undefined}
+        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+      />
+      
+      {/* Inner counter-rotating aurora */}
+      <motion.div
+        className="absolute inset-3 rounded-full"
+        style={{
+          background: `conic-gradient(from 180deg, 
+            transparent 0deg, 
+            hsl(170 80% 45% / 0.3) 60deg, 
+            hsl(200 70% 50% / 0.25) 120deg,
+            transparent 180deg,
+            hsl(280 70% 55% / 0.3) 240deg,
+            hsl(320 60% 50% / 0.2) 300deg,
             transparent 360deg
           )`,
           filter: 'blur(8px)',
         }}
         animate={animated ? {
-          rotate: [0, 360],
+          rotate: [360, 0],
         } : undefined}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
       />
       
-      {/* Inner counter-rotating aurora */}
+      {/* Third layer - slower, different colors */}
       <motion.div
-        className="absolute inset-2 rounded-full"
+        className="absolute inset-6 rounded-full"
         style={{
-          background: `conic-gradient(from 180deg, 
+          background: `conic-gradient(from 90deg, 
             transparent 0deg, 
-            hsl(170 80% 45% / 0.4) 90deg, 
+            hsl(220 80% 60% / 0.2) 90deg, 
             transparent 180deg,
-            hsl(260 70% 55% / 0.3) 270deg,
+            hsl(160 70% 50% / 0.2) 270deg,
             transparent 360deg
           )`,
           filter: 'blur(6px)',
         }}
         animate={animated ? {
-          rotate: [360, 0],
+          rotate: [0, -360],
         } : undefined}
-        transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
       />
       
       {/* Pulsing core glow */}
       <motion.div
         className="absolute inset-4 rounded-full"
         style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.1) 0%, hsl(280 50% 30% / 0.05) 50%, transparent 70%)',
         }}
         animate={animated ? {
-          opacity: [0.5, 0.8, 0.5],
-          scale: [0.9, 1.1, 0.9],
+          opacity: [0.4, 0.7, 0.4],
+          scale: [0.95, 1.05, 0.95],
         } : undefined}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Floating particles/stars */}
-      {animated && [0, 1, 2, 3, 4, 5].map((i) => (
+      {/* Floating particles/stars - more of them! */}
+      {animated && particles.map((p) => (
         <motion.div
-          key={i}
+          key={p.id}
           className="absolute rounded-full"
           style={{
-            width: size * 0.02,
-            height: size * 0.02,
-            background: 'hsl(var(--primary))',
-            boxShadow: '0 0 4px hsl(var(--primary))',
+            width: size * p.size,
+            height: size * p.size,
+            background: p.id % 3 === 0 
+              ? 'hsl(var(--primary))' 
+              : p.id % 3 === 1 
+                ? 'hsl(180 80% 60%)' 
+                : 'hsl(280 70% 70%)',
+            boxShadow: `0 0 ${size * 0.02}px currentColor`,
             left: '50%',
             top: '50%',
           }}
           animate={{
             x: [
-              Math.cos((i * 60) * Math.PI / 180) * size * 0.35,
-              Math.cos((i * 60 + 180) * Math.PI / 180) * size * 0.4,
-              Math.cos((i * 60 + 360) * Math.PI / 180) * size * 0.35,
+              Math.cos(p.angle * Math.PI / 180) * size * p.radius,
+              Math.cos((p.angle + 120) * Math.PI / 180) * size * (p.radius + 0.05),
+              Math.cos((p.angle + 240) * Math.PI / 180) * size * p.radius,
+              Math.cos((p.angle + 360) * Math.PI / 180) * size * p.radius,
             ],
             y: [
-              Math.sin((i * 60) * Math.PI / 180) * size * 0.35,
-              Math.sin((i * 60 + 180) * Math.PI / 180) * size * 0.4,
-              Math.sin((i * 60 + 360) * Math.PI / 180) * size * 0.35,
+              Math.sin(p.angle * Math.PI / 180) * size * p.radius,
+              Math.sin((p.angle + 120) * Math.PI / 180) * size * (p.radius + 0.05),
+              Math.sin((p.angle + 240) * Math.PI / 180) * size * p.radius,
+              Math.sin((p.angle + 360) * Math.PI / 180) * size * p.radius,
             ],
-            opacity: [0.4, 1, 0.4],
-            scale: [0.8, 1.2, 0.8],
+            opacity: [0.3, 0.9, 0.5, 0.3],
+            scale: [0.8, 1.3, 1, 0.8],
           }}
           transition={{
-            duration: 8 + i * 0.5,
+            duration: p.duration,
             repeat: Infinity,
             ease: 'easeInOut',
-            delay: i * 0.3,
+            delay: p.delay,
           }}
         />
       ))}
       
-      {/* The A monogram - wider, rounded edges, more transparent */}
+      {/* Tiny twinkling stars */}
+      {animated && Array.from({ length: 8 }, (_, i) => (
+        <motion.div
+          key={`star-${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: size * 0.008,
+            height: size * 0.008,
+            background: 'white',
+            boxShadow: '0 0 2px white',
+            left: `${20 + Math.random() * 60}%`,
+            top: `${20 + Math.random() * 60}%`,
+          }}
+          animate={{
+            opacity: [0, 1, 0],
+            scale: [0.5, 1.5, 0.5],
+          }}
+          transition={{
+            duration: 2 + Math.random() * 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.4,
+          }}
+        />
+      ))}
+      
+      {/* The A monogram - OUTLINED NEON STYLE like reference */}
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 w-full h-full"
-        style={{ filter: `drop-shadow(0 0 ${size * 0.06}px hsl(var(--primary) / 0.6))` }}
       >
         <defs>
-          {/* Cosmic gradient for the A */}
-          <linearGradient id={`${uniqueId}-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary) / 0.75)" />
-            <stop offset="40%" stopColor="hsl(280 70% 65% / 0.7)" />
-            <stop offset="100%" stopColor="hsl(180 80% 55% / 0.75)" />
+          {/* Neon glow gradient for stroke */}
+          <linearGradient id={`${uniqueId}-stroke`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="hsl(var(--primary))" />
+            <stop offset="50%" stopColor="hsl(280 70% 60%)" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" />
           </linearGradient>
           
-          {/* Rounded corners filter */}
-          <filter id={`${uniqueId}-round`} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
-            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="round" />
-            <feComposite in="SourceGraphic" in2="round" operator="atop" />
-          </filter>
-          
-          {/* Combined glow + round effect */}
-          <filter id={`${uniqueId}-glow`}>
-            <feGaussianBlur stdDeviation="1.2" result="blur" />
+          {/* Strong neon glow filter */}
+          <filter id={`${uniqueId}-neon`} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur2" />
             <feMerge>
-              <feMergeNode in="blur" />
+              <feMergeNode in="blur2" />
+              <feMergeNode in="blur1" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
         
-        {/* The A shape - rounded, soft edges, 0.75 opacity */}
+        {/* The A - STROKED, not filled - matching reference style */}
         <path
-          d="M50 18 Q48 16 50 16 Q52 16 50 18 L18 82 Q16 86 20 84 L34 84 Q36 84 37 82 L42 68 Q43 66 45 66 L55 66 Q57 66 58 68 L63 82 Q64 84 66 84 L80 84 Q84 86 82 82 L50 18 Z M50 42 Q48 40 50 40 Q52 40 50 42 L54 52 Q55 54 53 54 L47 54 Q45 54 46 52 L50 42 Z"
-          fill={`url(#${uniqueId}-gradient)`}
-          fillRule="evenodd"
-          filter={`url(#${uniqueId}-glow)`}
-          opacity="0.75"
-          strokeLinejoin="round"
+          d="M50 20 L25 80 M50 20 L75 80 M32 62 L68 62"
+          fill="none"
+          stroke={`url(#${uniqueId}-stroke)`}
+          strokeWidth="4"
           strokeLinecap="round"
+          strokeLinejoin="round"
+          filter={`url(#${uniqueId}-neon)`}
+          opacity="0.85"
         />
       </svg>
       
@@ -153,30 +221,43 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
       <motion.div
         className="absolute inset-0 rounded-full"
         style={{
-          border: '1px solid hsl(var(--primary) / 0.3)',
+          border: '1px solid hsl(var(--primary) / 0.25)',
           boxShadow: `
-            0 0 ${size * 0.1}px hsl(var(--primary) / 0.1),
-            inset 0 0 ${size * 0.08}px hsl(var(--primary) / 0.05)
+            0 0 ${size * 0.12}px hsl(var(--primary) / 0.08),
+            inset 0 0 ${size * 0.1}px hsl(var(--primary) / 0.03)
           `,
         }}
         animate={animated ? {
-          scale: [1, 1.02, 1],
-          opacity: [0.5, 0.8, 0.5],
+          scale: [1, 1.015, 1],
+          opacity: [0.4, 0.7, 0.4],
         } : undefined}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Secondary bubble ring - offset timing */}
+      {/* Secondary bubble ring */}
       <motion.div
         className="absolute inset-1 rounded-full"
         style={{
-          border: '1px solid hsl(180 70% 50% / 0.15)',
+          border: '1px solid hsl(280 60% 50% / 0.12)',
         }}
         animate={animated ? {
-          scale: [1.02, 1, 1.02],
-          opacity: [0.3, 0.6, 0.3],
+          scale: [1.01, 0.99, 1.01],
+          opacity: [0.25, 0.5, 0.25],
         } : undefined}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+      />
+      
+      {/* Third bubble ring - cyan tint */}
+      <motion.div
+        className="absolute inset-2 rounded-full"
+        style={{
+          border: '1px solid hsl(180 70% 50% / 0.08)',
+        }}
+        animate={animated ? {
+          scale: [0.99, 1.02, 0.99],
+          opacity: [0.2, 0.4, 0.2],
+        } : undefined}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
     </div>
   );
@@ -198,14 +279,14 @@ export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
       <motion.div
         className="absolute inset-0 rounded-full blur-3xl"
         style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.2) 0%, hsl(280 60% 30% / 0.1) 50%, transparent 70%)',
-          transform: 'scale(2.5)',
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, hsl(280 50% 20% / 0.1) 40%, hsl(220 40% 10% / 0.05) 70%, transparent 100%)',
+          transform: 'scale(2.8)',
         }}
         animate={{
-          opacity: [0.3, 0.6, 0.3],
-          scale: [2.2, 2.8, 2.2],
+          opacity: [0.25, 0.5, 0.25],
+          scale: [2.5, 3, 2.5],
         }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
       
       {/* Nebula cloud effect */}
@@ -213,16 +294,17 @@ export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
         className="absolute inset-0 rounded-full blur-2xl"
         style={{
           background: `
-            radial-gradient(ellipse 80% 60% at 30% 70%, hsl(180 70% 50% / 0.15) 0%, transparent 50%),
-            radial-gradient(ellipse 60% 80% at 70% 30%, hsl(280 60% 50% / 0.12) 0%, transparent 50%)
+            radial-gradient(ellipse 70% 50% at 25% 75%, hsl(180 70% 50% / 0.1) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 70% at 75% 25%, hsl(280 60% 50% / 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 60% at 50% 50%, hsl(var(--primary) / 0.06) 0%, transparent 60%)
           `,
-          transform: 'scale(1.8)',
+          transform: 'scale(2)',
         }}
         animate={{
-          rotate: [0, 10, 0, -10, 0],
-          opacity: [0.4, 0.7, 0.4],
+          rotate: [0, 15, 0, -15, 0],
+          opacity: [0.3, 0.6, 0.3],
         }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
       />
       
       {/* The logo */}
