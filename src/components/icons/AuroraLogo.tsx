@@ -106,7 +106,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         />
       ))}
       
-      {/* The A monogram - wider, sleek, with transparency */}
+      {/* The A monogram - wider, rounded edges, more transparent */}
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 w-full h-full"
@@ -115,14 +115,21 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         <defs>
           {/* Cosmic gradient for the A */}
           <linearGradient id={`${uniqueId}-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary) / 0.85)" />
-            <stop offset="40%" stopColor="hsl(280 70% 65% / 0.8)" />
-            <stop offset="100%" stopColor="hsl(180 80% 55% / 0.85)" />
+            <stop offset="0%" stopColor="hsl(var(--primary) / 0.75)" />
+            <stop offset="40%" stopColor="hsl(280 70% 65% / 0.7)" />
+            <stop offset="100%" stopColor="hsl(180 80% 55% / 0.75)" />
           </linearGradient>
           
-          {/* Inner glow effect */}
+          {/* Rounded corners filter */}
+          <filter id={`${uniqueId}-round`} x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="round" />
+            <feComposite in="SourceGraphic" in2="round" operator="atop" />
+          </filter>
+          
+          {/* Combined glow + round effect */}
           <filter id={`${uniqueId}-glow`}>
-            <feGaussianBlur stdDeviation="1" result="blur" />
+            <feGaussianBlur stdDeviation="1.2" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -130,13 +137,15 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           </filter>
         </defs>
         
-        {/* The A shape - WIDER strokes, slight transparency */}
+        {/* The A shape - rounded, soft edges, 0.75 opacity */}
         <path
-          d="M50 16 L18 84 L34 84 L40 66 L60 66 L66 84 L82 84 L50 16 Z M50 40 L55 54 L45 54 L50 40 Z"
+          d="M50 18 Q48 16 50 16 Q52 16 50 18 L18 82 Q16 86 20 84 L34 84 Q36 84 37 82 L42 68 Q43 66 45 66 L55 66 Q57 66 58 68 L63 82 Q64 84 66 84 L80 84 Q84 86 82 82 L50 18 Z M50 42 Q48 40 50 40 Q52 40 50 42 L54 52 Q55 54 53 54 L47 54 Q45 54 46 52 L50 42 Z"
           fill={`url(#${uniqueId}-gradient)`}
           fillRule="evenodd"
           filter={`url(#${uniqueId}-glow)`}
-          opacity="0.9"
+          opacity="0.75"
+          strokeLinejoin="round"
+          strokeLinecap="round"
         />
       </svg>
       
