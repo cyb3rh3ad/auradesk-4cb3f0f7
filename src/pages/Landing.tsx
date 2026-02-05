@@ -73,16 +73,18 @@ const HeroLogo = () => {
             transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
           />
           
-          {/* Inner container */}
-          <div className="relative bg-slate-900/80 rounded-2xl p-1 backdrop-blur-sm ring-1 ring-white/10">
-            <img 
-              src={auraLogo}
-              alt="AuraDesk Logo" 
-              className="relative w-24 h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-xl object-contain"
-              style={{
-                filter: 'drop-shadow(0 4px 24px rgba(139, 92, 246, 0.4))',
-              }}
-            />
+          {/* Inner container - using black bg to hide white corners */}
+          <div className="relative bg-black rounded-2xl p-1 backdrop-blur-sm ring-1 ring-white/10 overflow-hidden">
+            <div className="bg-black rounded-xl overflow-hidden">
+              <img 
+                src={auraLogo}
+                alt="AuraDesk Logo" 
+                className="relative w-24 h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 object-contain mix-blend-lighten"
+                style={{
+                  filter: 'drop-shadow(0 4px 24px rgba(139, 92, 246, 0.4))',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
