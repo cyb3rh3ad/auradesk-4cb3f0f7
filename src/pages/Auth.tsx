@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/auradesk-logo.png';
+import auraLogo from '@/assets/auradesk-logo-new.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -43,28 +43,24 @@ const InteractiveLogo = () => {
   return (
     <motion.button
       type="button"
-      className="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
+      className="relative w-24 h-24 rounded-full overflow-visible cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background"
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
       onClick={handleClick}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      animate={{
-        boxShadow: isPressed 
-          ? '0 0 30px hsl(262 83% 58% / 0.6), 0 0 60px hsl(262 83% 58% / 0.3), inset 0 0 20px hsl(262 83% 58% / 0.2)'
-          : '0 10px 30px hsl(262 83% 58% / 0.3), 0 0 0px hsl(262 83% 58% / 0)'
-      }}
-      transition={{ duration: 0.2 }}
     >
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-blue-500" />
-      
-      {/* Logo */}
+      {/* Logo with glow */}
       <img 
         src={auraLogo} 
         alt="AuraDesk" 
-        className="relative z-10 w-full h-full object-cover rounded-2xl"
+        className="relative z-10 w-full h-full object-contain"
+        style={{
+          filter: isPressed 
+            ? 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.5))'
+            : 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.5)) drop-shadow(0 0 30px rgba(59, 130, 246, 0.3))',
+        }}
       />
       
       {/* Hover glow overlay */}
