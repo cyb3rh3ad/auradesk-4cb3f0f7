@@ -66,9 +66,9 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           </linearGradient>
         </defs>
         
-        {/* The A shape - thick, bold, centered properly */}
+        {/* The A shape - MUCH thicker strokes, perfectly centered */}
         <path
-          d="M50 15 L22 85 L35 85 L40 70 L60 70 L65 85 L78 85 L50 15 Z M50 38 L56 58 L44 58 L50 38 Z"
+          d="M50 12 L18 88 L34 88 L40 72 L60 72 L66 88 L82 88 L50 12 Z M50 42 L55 60 L45 60 L50 42 Z"
           fill={`url(#${uniqueId}-gradient)`}
           fillRule="evenodd"
         />
@@ -94,7 +94,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
 };
 
 /**
- * Hero version with enhanced ambient effects for landing page
+ * Hero version with enhanced ambient effects for landing page - CENTERED
  */
 export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
   return (
@@ -102,41 +102,38 @@ export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
-      className="relative flex items-center justify-center"
-      style={{ width: size * 1.5, height: size * 1.5 }}
+      className="relative flex items-center justify-center mx-auto"
+      style={{ width: size, height: size }}
     >
-      {/* Large ambient glow */}
+      {/* Large ambient glow - perfectly centered */}
       <motion.div
-        className="absolute rounded-full blur-3xl"
+        className="absolute inset-0 rounded-full blur-3xl"
         style={{
-          width: size * 2,
-          height: size * 2,
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.25) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
+          transform: 'scale(2)',
         }}
         animate={{
           opacity: [0.4, 0.7, 0.4],
-          scale: [0.9, 1.1, 0.9],
+          scale: [1.8, 2.2, 1.8],
         }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Secondary color glow */}
+      {/* Secondary color glow - also centered */}
       <motion.div
-        className="absolute rounded-full blur-2xl"
+        className="absolute inset-0 rounded-full blur-2xl"
         style={{
-          width: size * 1.5,
-          height: size * 1.5,
-          background: 'radial-gradient(circle at 30% 70%, hsl(180 70% 50% / 0.2) 0%, transparent 60%)',
+          background: 'radial-gradient(circle, hsl(180 70% 50% / 0.15) 0%, transparent 60%)',
+          transform: 'scale(1.5)',
         }}
         animate={{
-          opacity: [0.3, 0.6, 0.3],
-          x: [-10, 10, -10],
+          opacity: [0.3, 0.5, 0.3],
         }}
         transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* The logo */}
-      <AuroraLogo size={size} animated={true} />
+      {/* The logo - centered */}
+      <AuroraLogo size={size} animated={true} className="relative" />
     </motion.div>
   );
 };
