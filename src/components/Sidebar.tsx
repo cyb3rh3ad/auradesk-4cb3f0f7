@@ -14,7 +14,7 @@ import {
   CrownIcon,
   ShieldIcon,
   SettingsIcon,
-} from "@/components/icons/FuturisticIcons";
+} from "@/components/icons/CosmicIcons";
 
 // Separate component for nav items to properly use hooks
 interface NavItemProps {

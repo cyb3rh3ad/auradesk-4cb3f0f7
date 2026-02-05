@@ -15,7 +15,7 @@ import {
   ShieldIcon,
   SettingsIcon,
   MoreIcon,
-} from "@/components/icons/FuturisticIcons";
+} from "@/components/icons/CosmicIcons";
 
 interface NavItemProps {
   icon: React.ElementType;
