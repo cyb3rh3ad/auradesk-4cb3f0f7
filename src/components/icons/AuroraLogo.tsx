@@ -179,24 +179,26 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         />
       ))}
       
-      {/* The A monogram - OUTLINED NEON STYLE like reference */}
+      {/* The A monogram - THICC NEON STYLE */}
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 w-full h-full"
       >
         <defs>
           {/* Neon glow gradient for stroke */}
-          <linearGradient id={`${uniqueId}-stroke`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="50%" stopColor="hsl(280 70% 60%)" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" />
+          <linearGradient id={`${uniqueId}-stroke`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="hsl(280 80% 70%)" />
+            <stop offset="50%" stopColor="hsl(var(--primary))" />
+            <stop offset="100%" stopColor="hsl(180 80% 60%)" />
           </linearGradient>
           
-          {/* Strong neon glow filter */}
-          <filter id={`${uniqueId}-neon`} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur2" />
+          {/* Strong multi-layer neon glow */}
+          <filter id={`${uniqueId}-neon`} x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur2" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur3" />
             <feMerge>
+              <feMergeNode in="blur3" />
               <feMergeNode in="blur2" />
               <feMergeNode in="blur1" />
               <feMergeNode in="SourceGraphic" />
@@ -204,16 +206,36 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           </filter>
         </defs>
         
-        {/* The A - STROKED, not filled - matching reference style */}
+        {/* Outer glow layer */}
         <path
-          d="M50 20 L25 80 M50 20 L75 80 M32 62 L68 62"
+          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
+          fill="none"
+          stroke="hsl(var(--primary) / 0.3)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* The A - THICC strokes with neon glow */}
+        <path
+          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
           fill="none"
           stroke={`url(#${uniqueId}-stroke)`}
-          strokeWidth="4"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeLinejoin="round"
           filter={`url(#${uniqueId}-neon)`}
-          opacity="0.85"
+        />
+        
+        {/* Inner bright core */}
+        <path
+          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.4"
         />
       </svg>
       
