@@ -30,7 +30,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/auradesk-logo-final.png";
 import {
   Dialog,
   DialogContent,
@@ -38,74 +37,84 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Animated orbital ring SVG component
-const OrbitingRing = ({ delay = 0, size = 200, duration = 20, reverse = false }: { delay?: number; size?: number; duration?: number; reverse?: boolean }) => (
-  <motion.div
-    className="absolute rounded-full border border-primary/20"
-    style={{
-      width: size,
-      height: size,
-      left: '50%',
-      top: '50%',
-      marginLeft: -size / 2,
-      marginTop: -size / 2,
-    }}
-    animate={{ rotate: reverse ? -360 : 360 }}
-    transition={{ duration, repeat: Infinity, ease: 'linear', delay }}
+// SVG cutout "A" logo - pure vector, no image, background shows through
+const CutoutLogo = ({ size = 160 }: { size?: number }) => (
+  <svg
+    viewBox="0 0 100 100"
+    width={size}
+    height={size}
+    style={{ filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.6))' }}
   >
-    {/* Orbiting particle */}
-    <motion.div
-      className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
-      style={{
-        top: -4,
-        left: '50%',
-        marginLeft: -4,
-        boxShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6)',
-      }}
-    />
-  </motion.div>
+    <defs>
+      {/* Gradient for the glowing stroke */}
+      <linearGradient id="auraGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="hsl(262, 83%, 58%)" />
+        <stop offset="50%" stopColor="hsl(280, 80%, 60%)" />
+        <stop offset="100%" stopColor="hsl(217, 91%, 60%)" />
+      </linearGradient>
+      
+      {/* Inner glow filter */}
+      <filter id="auraGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="1.5" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+    
+    {/* The "A" letterform - elegant geometric cutout design */}
+    <g filter="url(#auraGlow)">
+      <path
+        d="M50 10 L85 90 L73 90 L63 68 L37 68 L27 90 L15 90 L50 10 Z M50 28 L38 60 L62 60 L50 28 Z"
+        fill="none"
+        stroke="url(#auraGradient)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
+  </svg>
 );
 
-// Premium hero logo with chameleon circle that adapts to theme
+// Premium hero logo - pure SVG cutout, background visible through the strokes
 const HeroLogo = () => {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
-      className="flex justify-center mb-6"
+      className="flex justify-center mb-8"
     >
-      {/* Chameleon circle container - seamlessly blends with any theme */}
-      <div 
-        className="relative w-36 h-36 md:w-44 md:h-44 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
-        style={{
-          background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 60%, hsl(var(--secondary)) 100%)',
-          boxShadow: '0 0 60px hsl(var(--primary) / 0.2), inset 0 0 40px hsl(var(--primary) / 0.08)',
-          border: '1px solid hsl(var(--border))',
-        }}
-      >
-        {/* Subtle animated glow ring */}
-        <motion.div
-          className="absolute inset-0 rounded-full pointer-events-none"
+      <div className="relative">
+        {/* Ambient glow behind the logo */}
+        <motion.div 
+          className="absolute inset-0 rounded-full blur-3xl"
           style={{
-            border: '1px solid hsl(var(--primary) / 0.25)',
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
+            transform: 'scale(2)',
           }}
           animate={{
-            opacity: [0.5, 0.8, 0.5],
+            opacity: [0.4, 0.7, 0.4],
+            scale: [1.8, 2.2, 1.8],
           }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         />
         
-        {/* The logo - using screen blend to make black transparent */}
-        <img 
-          src={auraLogo}
-          alt="AuraDesk Logo" 
-          className="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 object-contain relative z-10"
-          style={{
-            filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.5))',
-            mixBlendMode: 'screen',
+        {/* The cutout SVG logo with animated glow */}
+        <motion.div
+          className="relative"
+          animate={{
+            filter: [
+              'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
+              'drop-shadow(0 0 25px hsl(var(--primary) / 0.7))',
+              'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
+            ],
           }}
-        />
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <CutoutLogo size={200} />
+        </motion.div>
       </div>
     </motion.div>
   );
@@ -253,24 +262,8 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{
-                background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 70%, hsl(var(--secondary)) 100%)',
-                boxShadow: '0 0 20px hsl(var(--primary) / 0.15)',
-                border: '1px solid hsl(var(--border))',
-              }}
-            >
-              <img 
-                src={auraLogo} 
-                alt="AuraDesk" 
-                className="h-5 w-5 object-contain"
-                style={{
-                  filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))',
-                  mixBlendMode: 'screen',
-                }}
-              />
-            </div>
+            {/* Nav logo - small cutout version */}
+            <CutoutLogo size={40} />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
             </span>
