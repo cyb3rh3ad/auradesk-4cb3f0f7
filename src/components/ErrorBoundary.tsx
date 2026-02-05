@@ -87,8 +87,8 @@ export class ErrorBoundary extends Component<Props, State> {
             {/* Support Link */}
             <p className="text-sm text-muted-foreground">
               If the problem persists, please contact{' '}
-              <a href="mailto:support@auradesk.com" className="text-primary hover:underline">
-                support@auradesk.com
+              <a href="mailto:info.auradesk@gmail.com" className="text-primary hover:underline">
+                info.auradesk@gmail.com
               </a>
             </p>
           </div>
