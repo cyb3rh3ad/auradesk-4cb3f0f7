@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import googleLogo from '@/assets/google-g-logo.png';
 import { AuroraLogo } from '@/components/icons/AuroraLogo';
+import { CosmicGoogleButton } from '@/components/auth/CosmicGoogleButton';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -488,15 +488,10 @@ const Auth = () => {
                   </div>
                 </div>
                 
-                <Button
-                  variant="outline"
-                  className="w-full h-11 gap-2"
+                <CosmicGoogleButton
                   onClick={handleGoogleSignIn}
-                  disabled={googleLoading}
-                >
-                  <img src={googleLogo} alt="Google" className="w-5 h-5" />
-                  {googleLoading ? "Signing in..." : "Sign in with Google"}
-                </Button>
+                  loading={googleLoading}
+                />
               </>
             )}
           </CardContent>
