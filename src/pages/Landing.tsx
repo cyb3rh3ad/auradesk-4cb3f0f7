@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/logo-option-5.png";
+import auraLogo from "@/assets/auradesk-logo-final.png";
 import {
   Dialog,
   DialogContent,
@@ -38,19 +38,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Image-based logo with screen blend to integrate with background
+// Logo component with proper cutout effect - blends seamlessly with background
 const LogoImage = ({ size = 160 }: { size?: number }) => (
-  <img
-    src={auraLogo}
-    alt="AuraDesk Logo"
-    width={size}
-    height={size}
-    className="object-contain"
-    style={{
-      filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.6))',
-      mixBlendMode: 'screen',
-    }}
-  />
+  <div className="relative" style={{ width: size, height: size }}>
+    {/* Ambient glow that matches the page aesthetic */}
+    <div 
+      className="absolute inset-0 blur-2xl opacity-50"
+      style={{
+        background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
+        transform: 'scale(1.3)',
+      }}
+    />
+    {/* The logo with screen blend to make black background transparent */}
+    <img
+      src={auraLogo}
+      alt="AuraDesk Logo"
+      width={size}
+      height={size}
+      className="relative object-contain"
+      style={{
+        filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
+        mixBlendMode: 'screen',
+      }}
+    />
+  </div>
 );
 
 // Premium hero logo - pure SVG cutout, background visible through the strokes

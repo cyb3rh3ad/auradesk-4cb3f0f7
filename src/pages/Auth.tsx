@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
+import auraLogo from '@/assets/auradesk-logo-final.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -17,41 +18,6 @@ import { Monitor, ArrowLeft } from 'lucide-react';
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { BiometricPromptDialog } from '@/components/auth/BiometricPromptDialog';
 import { BiometricLoginButton } from '@/components/auth/BiometricLoginButton';
-
-// SVG cutout "A" logo - pure vector, background shows through
-const CutoutLogo = ({ size = 80 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 100 100"
-    width={size}
-    height={size}
-    style={{ filter: 'drop-shadow(0 0 12px hsl(var(--primary) / 0.6))' }}
-  >
-    <defs>
-      <linearGradient id="authGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="hsl(262, 83%, 58%)" />
-        <stop offset="50%" stopColor="hsl(280, 80%, 60%)" />
-        <stop offset="100%" stopColor="hsl(217, 91%, 60%)" />
-      </linearGradient>
-      <filter id="authGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-    <g filter="url(#authGlow)">
-      <path
-        d="M50 10 L85 90 L73 90 L63 68 L37 68 L27 90 L15 90 L50 10 Z M50 28 L38 60 L62 60 L50 28 Z"
-        fill="none"
-        stroke="url(#authGradient)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </g>
-  </svg>
-);
 
 // Interactive Logo Component - cutout style with animated glow
 const InteractiveLogo = () => {
@@ -69,7 +35,7 @@ const InteractiveLogo = () => {
     >
       {/* Ambient glow behind */}
       <motion.div 
-        className="absolute inset-0 rounded-full blur-2xl"
+        className="absolute inset-0 blur-2xl"
         style={{
           background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
           transform: 'scale(1.8)',
@@ -80,20 +46,28 @@ const InteractiveLogo = () => {
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* The cutout SVG logo */}
+      {/* The logo with screen blend for cutout effect */}
       <motion.div
+        className="relative"
         animate={{
           filter: isPressed
-            ? 'drop-shadow(0 0 20px hsl(var(--primary) / 0.8))'
+            ? 'drop-shadow(0 0 25px hsl(var(--primary) / 0.8))'
             : [
-                'drop-shadow(0 0 12px hsl(var(--primary) / 0.5))',
-                'drop-shadow(0 0 18px hsl(var(--primary) / 0.7))',
-                'drop-shadow(0 0 12px hsl(var(--primary) / 0.5))',
+                'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
+                'drop-shadow(0 0 20px hsl(var(--primary) / 0.7))',
+                'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
               ],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <CutoutLogo size={96} />
+        <img
+          src={auraLogo}
+          alt="AuraDesk Logo"
+          className="w-24 h-24 object-contain"
+          style={{
+            mixBlendMode: 'screen',
+          }}
+        />
       </motion.div>
     </motion.button>
   );
