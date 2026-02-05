@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/logo-option-2.png";
+import auraLogo from "@/assets/auradesk-a-clean.png";
 import {
   Dialog,
   DialogContent,
@@ -66,51 +66,8 @@ const OrbitingRing = ({ delay = 0, size = 200, duration = 20, reverse = false }:
   </motion.div>
 );
 
-// Floating particle component
-const FloatingParticle = ({ delay = 0, x = 0, y = 0, size = 4 }: { delay?: number; x?: number; y?: number; size?: number }) => (
-  <motion.div
-    className="absolute rounded-full"
-    style={{
-      width: size,
-      height: size,
-      left: `calc(50% + ${x}px)`,
-      top: `calc(50% + ${y}px)`,
-      background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.8), rgba(139, 92, 246, 0.8))',
-      boxShadow: '0 0 8px rgba(0, 255, 255, 0.6), 0 0 16px rgba(139, 92, 246, 0.4)',
-    }}
-    animate={{
-      y: [0, -20, 0],
-      x: [0, Math.random() > 0.5 ? 10 : -10, 0],
-      opacity: [0.4, 1, 0.4],
-      scale: [1, 1.2, 1],
-    }}
-    transition={{
-      duration: 3 + Math.random() * 2,
-      repeat: Infinity,
-      ease: 'easeInOut',
-      delay,
-    }}
-  />
-);
-
-// Premium animated hero logo component with floating particles
+// Premium animated hero logo with chameleon circle background
 const HeroLogo = () => {
-  // Generate random particle positions around the logo
-  const particles = [
-    { x: -80, y: -60, size: 3, delay: 0 },
-    { x: 90, y: -40, size: 4, delay: 0.5 },
-    { x: -70, y: 50, size: 3, delay: 1 },
-    { x: 85, y: 70, size: 5, delay: 1.5 },
-    { x: -100, y: 0, size: 4, delay: 2 },
-    { x: 110, y: 10, size: 3, delay: 2.5 },
-    { x: -40, y: -90, size: 4, delay: 0.3 },
-    { x: 50, y: -85, size: 3, delay: 0.8 },
-    { x: -50, y: 95, size: 4, delay: 1.3 },
-    { x: 60, y: 100, size: 3, delay: 1.8 },
-    { x: 0, y: -110, size: 5, delay: 0.6 },
-    { x: 0, y: 115, size: 4, delay: 1.1 },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -118,50 +75,38 @@ const HeroLogo = () => {
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
       className="flex justify-center mb-6"
     >
-      <div className="relative">
-        {/* Ambient glow background */}
+      {/* Chameleon circle - adapts to theme */}
+      <div 
+        className="relative w-40 h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 rounded-full flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1), hsl(var(--muted) / 0.2))',
+          boxShadow: '0 0 40px hsl(var(--primary) / 0.2), inset 0 0 30px hsl(var(--primary) / 0.05)',
+          border: '1px solid hsl(var(--primary) / 0.2)',
+        }}
+      >
+        {/* Subtle animated glow ring */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ zIndex: 0 }}
-        >
-          <motion.div
-            className="absolute w-64 h-64 md:w-80 md:h-80 rounded-full"
-            style={{
-              background: 'radial-gradient(circle, rgba(0, 255, 255, 0.15) 0%, rgba(139, 92, 246, 0.1) 40%, transparent 70%)',
-            }}
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.5, 0.8, 0.5],
-            }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        </motion.div>
-
-        {/* Floating particles */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
-          {particles.map((particle, i) => (
-            <FloatingParticle key={i} {...particle} />
-          ))}
-        </div>
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '1px solid hsl(var(--primary) / 0.3)',
+          }}
+          animate={{
+            opacity: [0.3, 0.6, 0.3],
+            scale: [1, 1.02, 1],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        />
         
-        {/* Orbiting rings with particles */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
-          <OrbitingRing size={200} duration={18} />
-          <OrbitingRing size={280} duration={28} reverse delay={2} />
-        </div>
-        
-        {/* The logo - using mix-blend-mode: screen to make black background transparent */}
-        <div className="relative" style={{ zIndex: 10 }}>
-          <img 
-            src={auraLogo}
-            alt="AuraDesk Logo" 
-            className="relative w-40 h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 object-contain"
-            style={{
-              filter: 'drop-shadow(0 0 25px rgba(0, 255, 255, 0.5)) drop-shadow(0 0 50px rgba(139, 92, 246, 0.4))',
-              mixBlendMode: 'screen',
-            }}
-          />
-        </div>
+        {/* The logo */}
+        <img 
+          src={auraLogo}
+          alt="AuraDesk Logo" 
+          className="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 object-contain"
+          style={{
+            filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.4))',
+            mixBlendMode: 'screen',
+          }}
+        />
       </div>
     </motion.div>
   );

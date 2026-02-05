@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
-import auradeskLogo from "@/assets/logo-option-2.png";
+import auradeskLogo from "@/assets/auradesk-a-clean.png";
 import {
   HomeIcon,
   ChatIcon,
@@ -16,22 +16,32 @@ import {
   SettingsIcon,
 } from "@/components/icons/FuturisticIcons";
 
-// Enhanced image-based logo with glow effect
+// Chameleon logo with theme-adaptive circle background
 const AuraLogo = ({
   size = "md"
 }: {
   size?: "sm" | "md";
 }) => (
-  <div className={cn(
-    "relative flex items-center justify-center",
-    size === "md" ? "w-12 h-12" : "w-10 h-10"
-  )}>
+  <div 
+    className={cn(
+      "relative flex items-center justify-center rounded-full",
+      size === "md" ? "w-12 h-12" : "w-10 h-10"
+    )}
+    style={{
+      background: 'linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1), hsl(var(--muted) / 0.2))',
+      boxShadow: '0 0 15px hsl(var(--primary) / 0.15), inset 0 0 10px hsl(var(--primary) / 0.05)',
+      border: '1px solid hsl(var(--primary) / 0.2)',
+    }}
+  >
     <img 
       src={auradeskLogo} 
       alt="AuraDesk" 
-      className="w-full h-full object-contain"
+      className={cn(
+        "object-contain",
+        size === "md" ? "w-6 h-6" : "w-5 h-5"
+      )}
       style={{
-        filter: 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.5)) drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))',
+        filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.4))',
         mixBlendMode: 'screen',
       }}
     />
