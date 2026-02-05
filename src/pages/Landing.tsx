@@ -38,18 +38,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Logo component with proper cutout effect - blends seamlessly with background
+// Logo component - screen blend makes black transparent, page shows through
 const LogoImage = ({ size = 160 }: { size?: number }) => (
   <div className="relative" style={{ width: size, height: size }}>
     {/* Ambient glow that matches the page aesthetic */}
     <div 
-      className="absolute inset-0 blur-2xl opacity-50"
+      className="absolute inset-0 blur-2xl opacity-60"
       style={{
-        background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
-        transform: 'scale(1.3)',
+        background: 'radial-gradient(circle, hsl(var(--primary) / 0.5) 0%, transparent 70%)',
+        transform: 'scale(1.4)',
       }}
     />
-    {/* The logo with screen blend to make black background transparent */}
+    {/* The logo - screen blend removes black, page shows through */}
     <img
       src={auraLogo}
       alt="AuraDesk Logo"
@@ -57,14 +57,14 @@ const LogoImage = ({ size = 160 }: { size?: number }) => (
       height={size}
       className="relative object-contain"
       style={{
-        filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
+        filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.4))',
         mixBlendMode: 'screen',
       }}
     />
   </div>
 );
 
-// Premium hero logo - pure SVG cutout, background visible through the strokes
+// Premium hero logo - bigger size, page background visible through transparent areas
 const HeroLogo = () => {
   return (
     <motion.div
@@ -78,29 +78,29 @@ const HeroLogo = () => {
         <motion.div 
           className="absolute inset-0 rounded-full blur-3xl"
           style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
-            transform: 'scale(2)',
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.35) 0%, transparent 70%)',
+            transform: 'scale(2.5)',
           }}
           animate={{
-            opacity: [0.4, 0.7, 0.4],
-            scale: [1.8, 2.2, 1.8],
+            opacity: [0.5, 0.8, 0.5],
+            scale: [2.2, 2.6, 2.2],
           }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         />
         
-        {/* The cutout SVG logo with animated glow */}
+        {/* The logo with animated glow - BIGGER size */}
         <motion.div
           className="relative"
           animate={{
             filter: [
-              'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
-              'drop-shadow(0 0 25px hsl(var(--primary) / 0.7))',
-              'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
+              'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
+              'drop-shadow(0 0 35px hsl(var(--primary) / 0.7))',
+              'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
             ],
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <LogoImage size={200} />
+          <LogoImage size={260} />
         </motion.div>
       </div>
     </motion.div>
