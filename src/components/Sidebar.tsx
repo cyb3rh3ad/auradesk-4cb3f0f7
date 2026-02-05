@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
+import auraLogo from "@/assets/auradesk-logo-final.png";
 import {
   HomeIcon,
   ChatIcon,
@@ -15,54 +16,35 @@ import {
   SettingsIcon,
 } from "@/components/icons/FuturisticIcons";
 
-// SVG cutout "A" logo - pure vector, background shows through
-const CutoutLogo = ({ size = 32 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 100 100"
-    width={size}
-    height={size}
-    style={{ filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.5))' }}
-  >
-    <defs>
-      <linearGradient id="sidebarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="hsl(262, 83%, 58%)" />
-        <stop offset="50%" stopColor="hsl(280, 80%, 60%)" />
-        <stop offset="100%" stopColor="hsl(217, 91%, 60%)" />
-      </linearGradient>
-      <filter id="sidebarGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-    <g filter="url(#sidebarGlow)">
-      <path
-        d="M50 10 L85 90 L73 90 L63 68 L37 68 L27 90 L15 90 L50 10 Z M50 28 L38 60 L62 60 L50 28 Z"
-        fill="none"
-        stroke="url(#sidebarGradient)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+// Logo with proper cutout effect - blends with any background
+const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => {
+  const logoSize = size === "md" ? 44 : 36;
+  
+  return (
+    <div className="relative" style={{ width: logoSize, height: logoSize }}>
+      {/* Ambient glow */}
+      <div 
+        className="absolute inset-0 blur-xl opacity-50"
+        style={{
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
+          transform: 'scale(1.5)',
+        }}
       />
-    </g>
-  </svg>
-);
-
-// Logo wrapper with subtle ambient glow
-const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => (
-  <div className="relative">
-    <div 
-      className="absolute inset-0 rounded-full blur-xl opacity-40"
-      style={{
-        background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
-        transform: 'scale(1.5)',
-      }}
-    />
-    <CutoutLogo size={size === "md" ? 44 : 36} />
-  </div>
-);
+      {/* Logo with screen blend */}
+      <img 
+        src={auraLogo}
+        alt="AuraDesk" 
+        width={logoSize}
+        height={logoSize}
+        className="relative object-contain"
+        style={{
+          filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.5))',
+          mixBlendMode: 'screen',
+        }}
+      />
+    </div>
+  );
+};
 
 // Separate component for nav items to properly use hooks
 interface NavItemProps {
