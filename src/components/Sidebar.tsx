@@ -3,10 +3,18 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
 import auradeskLogo from "@/assets/auradesk-logo.png";
-import { AnimatedHomeIcon, AnimatedChatIcon, AnimatedTeamsIcon, AnimatedVideoIcon, AnimatedFilesIcon, AnimatedAIIcon, AnimatedCrownIcon, AnimatedShieldIcon, AnimatedSettingsIcon } from "@/components/icons/AnimatedIcons";
+import {
+  HomeIcon,
+  ChatIcon,
+  TeamsIcon,
+  VideoIcon,
+  FilesIcon,
+  AIIcon,
+  CrownIcon,
+  ShieldIcon,
+  SettingsIcon,
+} from "@/components/icons/FuturisticIcons";
 
 // Enhanced image-based logo with glow effect
 const AuraLogo = ({
@@ -76,39 +84,39 @@ export const Sidebar = () => {
   } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
   const navItems = [{
-    icon: AnimatedHomeIcon,
+    icon: HomeIcon,
     label: "Dashboard",
     path: "/dashboard"
   }, {
-    icon: AnimatedChatIcon,
+    icon: ChatIcon,
     label: "Chat",
     path: "/chat"
   }, {
-    icon: AnimatedTeamsIcon,
+    icon: TeamsIcon,
     label: "Teams",
     path: "/teams"
   }, {
-    icon: AnimatedVideoIcon,
+    icon: VideoIcon,
     label: "Meetings",
     path: "/meetings"
   }, {
-    icon: AnimatedFilesIcon,
+    icon: FilesIcon,
     label: "Files",
     path: "/files"
   }, {
-    icon: AnimatedAIIcon,
+    icon: AIIcon,
     label: "AI Assistant",
     path: "/ai"
   }, {
-    icon: AnimatedCrownIcon,
+    icon: CrownIcon,
     label: "Subscription",
     path: "/subscription"
   }, ...(isOwner ? [{
-    icon: AnimatedShieldIcon,
+    icon: ShieldIcon,
     label: "Admin",
     path: "/admin"
   }] : []), {
-    icon: AnimatedSettingsIcon,
+    icon: SettingsIcon,
     label: "Settings",
     path: "/settings"
   }];

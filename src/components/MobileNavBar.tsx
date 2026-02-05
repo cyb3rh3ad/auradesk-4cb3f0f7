@@ -2,20 +2,20 @@ import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { triggerHaptic } from "@/utils/haptics";
-import { 
-  Home, 
-  MessageSquare, 
-  Users, 
-  Video, 
-  FolderOpen, 
-  Sparkles, 
-  Settings,
-  Crown,
-  Shield,
-  MoreHorizontal
-} from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  HomeIcon,
+  ChatIcon,
+  TeamsIcon,
+  VideoIcon,
+  FilesIcon,
+  AIIcon,
+  CrownIcon,
+  ShieldIcon,
+  SettingsIcon,
+  MoreIcon,
+} from "@/components/icons/FuturisticIcons";
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -58,10 +58,15 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
             animate={isActive ? { scale: 1.1, y: -2 } : { scale: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
           >
-            <Icon className={cn(
-              "w-5 h-5 transition-colors duration-200",
-              isActive && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
-            )} />
+            <Icon 
+              size="sm"
+              isActive={isActive} 
+              isHovered={false}
+              className={cn(
+                "transition-colors duration-200",
+                isActive && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
+              )} 
+            />
           </motion.div>
           <span className={cn(
             "text-[10px] font-semibold tracking-wide transition-all duration-200",
@@ -87,19 +92,19 @@ export const MobileNavBar = () => {
 
   // Primary nav items (shown in bottom bar)
   const primaryItems = [
-    { icon: Home, label: "Home", path: "/dashboard" },
-    { icon: MessageSquare, label: "Chat", path: "/chat" },
-    { icon: Users, label: "Teams", path: "/teams" },
-    { icon: Video, label: "Meet", path: "/meetings" },
+    { icon: HomeIcon, label: "Home", path: "/dashboard" },
+    { icon: ChatIcon, label: "Chat", path: "/chat" },
+    { icon: TeamsIcon, label: "Teams", path: "/teams" },
+    { icon: VideoIcon, label: "Meet", path: "/meetings" },
   ];
 
   // Secondary items (shown in "More" menu)
   const secondaryItems = [
-    { icon: FolderOpen, label: "Files", path: "/files" },
-    { icon: Sparkles, label: "AI", path: "/ai" },
-    { icon: Crown, label: "Plans", path: "/subscription" },
-    ...(isOwner ? [{ icon: Shield, label: "Admin", path: "/admin" }] : []),
-    { icon: Settings, label: "Settings", path: "/settings" },
+    { icon: FilesIcon, label: "Files", path: "/files" },
+    { icon: AIIcon, label: "AI", path: "/ai" },
+    { icon: CrownIcon, label: "Plans", path: "/subscription" },
+    ...(isOwner ? [{ icon: ShieldIcon, label: "Admin", path: "/admin" }] : []),
+    { icon: SettingsIcon, label: "Settings", path: "/settings" },
   ];
 
   const handleMoreClick = () => {
@@ -131,34 +136,41 @@ export const MobileNavBar = () => {
               <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-muted-foreground/30 rounded-full" />
               
               <div className="grid grid-cols-4 gap-3 mt-2">
-                {secondaryItems.map((item, index) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setShowMore(false);
-                    }}
-                    className={({ isActive }) =>
-                      cn(
-                        "flex flex-col items-center gap-2.5 p-4 rounded-2xl transition-all duration-200 touch-manipulation",
-                        "active:scale-90",
-                        isActive
-                          ? "bg-primary/15 text-primary shadow-lg shadow-primary/10"
-                          : "text-muted-foreground hover:bg-accent/50 active:bg-accent"
-                      )
-                    }
-                  >
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: index * 0.05 }}
+                {secondaryItems.map((item, index) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setShowMore(false);
+                      }}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex flex-col items-center gap-2.5 p-4 rounded-2xl transition-all duration-200 touch-manipulation",
+                          "active:scale-90",
+                          isActive
+                            ? "bg-primary/15 text-primary shadow-lg shadow-primary/10"
+                            : "text-muted-foreground hover:bg-accent/50 active:bg-accent"
+                        )
+                      }
                     >
-                      <item.icon className="w-6 h-6" />
-                    </motion.div>
-                    <span className="text-xs font-semibold">{item.label}</span>
-                  </NavLink>
-                ))}
+                      {({ isActive }) => (
+                        <>
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <Icon size="md" isActive={isActive} isHovered={false} />
+                          </motion.div>
+                          <span className="text-xs font-semibold">{item.label}</span>
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             </motion.div>
           </>
@@ -195,10 +207,15 @@ export const MobileNavBar = () => {
               animate={showMore ? { rotate: 90 } : { rotate: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
-              <MoreHorizontal className={cn(
-                "w-5 h-5 transition-colors duration-200",
-                showMore && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
-              )} />
+              <MoreIcon 
+                size="sm"
+                isActive={showMore}
+                isHovered={false}
+                className={cn(
+                  "transition-colors duration-200",
+                  showMore && "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]"
+                )} 
+              />
             </motion.div>
             <span className={cn(
               "text-[10px] font-semibold tracking-wide transition-all duration-200",
