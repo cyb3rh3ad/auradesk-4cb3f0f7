@@ -19,7 +19,7 @@ import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { BiometricPromptDialog } from '@/components/auth/BiometricPromptDialog';
 import { BiometricLoginButton } from '@/components/auth/BiometricLoginButton';
 
-// Interactive Logo Component - cutout style with animated glow
+// Interactive Logo Component - transparent PNG with animated glow
 const InteractiveLogo = () => {
   const [isPressed, setIsPressed] = useState(false);
 
@@ -37,24 +37,24 @@ const InteractiveLogo = () => {
       <motion.div 
         className="absolute inset-0 blur-2xl"
         style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
-          transform: 'scale(1.8)',
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
+          transform: 'scale(2)',
         }}
         animate={{
-          opacity: isPressed ? 0.8 : [0.4, 0.6, 0.4],
+          opacity: isPressed ? 0.9 : [0.5, 0.7, 0.5],
         }}
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* The logo with screen blend for cutout effect */}
+      {/* The logo - transparent PNG, page shows through */}
       <motion.div
         className="relative"
         animate={{
           filter: isPressed
-            ? 'drop-shadow(0 0 25px hsl(var(--primary) / 0.8))'
+            ? 'drop-shadow(0 0 30px hsl(var(--primary) / 0.8))'
             : [
                 'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
-                'drop-shadow(0 0 20px hsl(var(--primary) / 0.7))',
+                'drop-shadow(0 0 25px hsl(var(--primary) / 0.7))',
                 'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
               ],
         }}
@@ -63,7 +63,7 @@ const InteractiveLogo = () => {
         <img
           src={auraLogo}
           alt="AuraDesk Logo"
-          className="w-24 h-24 object-contain"
+          className="w-28 h-28 object-contain"
           style={{
             mixBlendMode: 'screen',
           }}

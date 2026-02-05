@@ -16,15 +16,15 @@ import {
   SettingsIcon,
 } from "@/components/icons/FuturisticIcons";
 
-// Logo with proper cutout effect - blends with any background
+// Logo - screen blend makes black transparent
 const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => {
-  const logoSize = size === "md" ? 44 : 36;
+  const logoSize = size === "md" ? 48 : 40;
   
   return (
     <div className="relative" style={{ width: logoSize, height: logoSize }}>
       {/* Ambient glow */}
       <div 
-        className="absolute inset-0 blur-xl opacity-50"
+        className="absolute inset-0 blur-xl opacity-60"
         style={{
           background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
           transform: 'scale(1.5)',
@@ -38,7 +38,7 @@ const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => {
         height={logoSize}
         className="relative object-contain"
         style={{
-          filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.5))',
+          filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.4))',
           mixBlendMode: 'screen',
         }}
       />
