@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/auradesk-a-clean.png';
+import auraLogo from '@/assets/auradesk-logo-final.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -26,13 +26,13 @@ const InteractiveLogo = () => {
   return (
     <motion.button
       type="button"
-      className="relative w-24 h-24 rounded-full overflow-visible cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center"
+      className="relative w-24 h-24 rounded-full overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center"
       style={{
-        background: 'linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1), hsl(var(--muted) / 0.2))',
+        background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 50%, hsl(var(--muted)) 100%)',
         boxShadow: isPressed 
-          ? '0 0 30px hsl(var(--primary) / 0.4), inset 0 0 20px hsl(var(--primary) / 0.1)'
-          : '0 0 20px hsl(var(--primary) / 0.2), inset 0 0 15px hsl(var(--primary) / 0.05)',
-        border: '1px solid hsl(var(--primary) / 0.25)',
+          ? '0 0 35px hsl(var(--primary) / 0.4), inset 0 0 20px hsl(var(--primary) / 0.1)'
+          : '0 0 25px hsl(var(--primary) / 0.25), inset 0 0 15px hsl(var(--primary) / 0.05)',
+        border: '1px solid hsl(var(--primary) / 0.3)',
       }}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
@@ -44,10 +44,9 @@ const InteractiveLogo = () => {
       <img 
         src={auraLogo} 
         alt="AuraDesk" 
-        className="relative z-10 w-12 h-12 object-contain"
+        className="relative z-10 w-14 h-14 object-contain"
         style={{
-          filter: `drop-shadow(0 0 ${isPressed ? '12px' : '8px'} hsl(var(--primary) / 0.5))`,
-          mixBlendMode: 'screen',
+          filter: `drop-shadow(0 0 ${isPressed ? '10px' : '6px'} hsl(var(--primary) / 0.4))`,
         }}
       />
       
@@ -55,11 +54,11 @@ const InteractiveLogo = () => {
       <motion.div
         className="absolute inset-0 rounded-full pointer-events-none"
         style={{
-          border: '1px solid hsl(var(--primary) / 0.3)',
+          border: '2px solid hsl(var(--primary) / 0.2)',
         }}
         animate={{
-          opacity: [0.3, 0.6, 0.3],
-          scale: [1, 1.02, 1],
+          opacity: [0.4, 0.7, 0.4],
+          scale: [0.98, 1, 0.98],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       />

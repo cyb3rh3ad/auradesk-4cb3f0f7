@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/auradesk-a-clean.png";
+import auraLogo from "@/assets/auradesk-logo-final.png";
 import {
   Dialog,
   DialogContent,
@@ -66,7 +66,7 @@ const OrbitingRing = ({ delay = 0, size = 200, duration = 20, reverse = false }:
   </motion.div>
 );
 
-// Premium animated hero logo with chameleon circle background
+// Premium hero logo with chameleon circle that adapts to theme
 const HeroLogo = () => {
   return (
     <motion.div
@@ -75,36 +75,47 @@ const HeroLogo = () => {
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
       className="flex justify-center mb-6"
     >
-      {/* Chameleon circle - adapts to theme */}
+      {/* Chameleon circle container - dark bg that works with the logo */}
       <div 
-        className="relative w-40 h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 rounded-full flex items-center justify-center"
+        className="relative w-44 h-44 md:w-52 md:h-52 lg:w-60 lg:h-60 rounded-full flex items-center justify-center overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--accent) / 0.1), hsl(var(--muted) / 0.2))',
-          boxShadow: '0 0 40px hsl(var(--primary) / 0.2), inset 0 0 30px hsl(var(--primary) / 0.05)',
-          border: '1px solid hsl(var(--primary) / 0.2)',
+          background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 50%, hsl(var(--muted)) 100%)',
+          boxShadow: '0 0 50px hsl(var(--primary) / 0.25), 0 0 100px hsl(var(--primary) / 0.1), inset 0 0 30px hsl(var(--primary) / 0.05)',
+          border: '1px solid hsl(var(--primary) / 0.3)',
         }}
       >
         {/* Subtle animated glow ring */}
         <motion.div
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0 rounded-full pointer-events-none"
           style={{
-            border: '1px solid hsl(var(--primary) / 0.3)',
+            border: '2px solid hsl(var(--primary) / 0.2)',
           }}
           animate={{
-            opacity: [0.3, 0.6, 0.3],
-            scale: [1, 1.02, 1],
+            opacity: [0.4, 0.7, 0.4],
+            scale: [0.98, 1, 0.98],
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        
+        {/* Inner glow */}
+        <motion.div
+          className="absolute inset-4 rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)',
+          }}
+          animate={{
+            opacity: [0.5, 0.8, 0.5],
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
         
         {/* The logo */}
         <img 
           src={auraLogo}
           alt="AuraDesk Logo" 
-          className="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 object-contain"
+          className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 object-contain relative z-10"
           style={{
-            filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.4))',
-            mixBlendMode: 'screen',
+            filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.4))',
           }}
         />
       </div>
