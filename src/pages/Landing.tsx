@@ -30,12 +30,65 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
+import auraLogo from "@/assets/auradesk-logo.png";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+// Premium animated hero logo component
+const HeroLogo = () => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+      className="flex justify-center mb-6"
+    >
+      <div className="relative group">
+        {/* Outer glow - animated */}
+        <motion.div 
+          className="absolute -inset-6 md:-inset-8 rounded-full opacity-60"
+          style={{
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 70%)'
+          }}
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.4, 0.6, 0.4],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        
+        {/* Logo container with premium glass effect */}
+        <div className="relative">
+          {/* Rotating ring effect */}
+          <motion.div
+            className="absolute -inset-1.5 rounded-2xl"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent, rgba(139, 92, 246, 0.4), transparent, rgba(59, 130, 246, 0.4), transparent)',
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+          />
+          
+          {/* Inner container */}
+          <div className="relative bg-slate-900/80 rounded-2xl p-1 backdrop-blur-sm ring-1 ring-white/10">
+            <img 
+              src={auraLogo}
+              alt="AuraDesk Logo" 
+              className="relative w-24 h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-xl object-contain"
+              style={{
+                filter: 'drop-shadow(0 4px 24px rgba(139, 92, 246, 0.4))',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -180,13 +233,9 @@ const Landing = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src="/src/assets/auradesk-logo.png" 
+              src={auraLogo} 
               alt="AuraDesk" 
-              className="h-9 w-9 rounded-xl shadow-lg shadow-primary/20"
-              onError={(e) => {
-                // Fallback to text if logo doesn't load
-                e.currentTarget.style.display = 'none';
-              }}
+              className="h-10 w-10 rounded-xl shadow-lg shadow-primary/20 ring-1 ring-white/10"
             />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
@@ -230,25 +279,8 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="text-center space-y-6 md:space-y-8"
           >
-            {/* Logo showcase */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex justify-center mb-4"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/40 to-blue-500/40 blur-2xl scale-150 rounded-full" />
-                <img 
-                  src="/src/assets/auradesk-logo.png" 
-                  alt="AuraDesk Logo" 
-                  className="relative h-20 w-20 md:h-24 md:w-24 rounded-2xl shadow-2xl shadow-primary/30 ring-2 ring-white/10"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            </motion.div>
+            {/* Premium hero logo */}
+            <HeroLogo />
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
               <Sparkles className="w-4 h-4" />
