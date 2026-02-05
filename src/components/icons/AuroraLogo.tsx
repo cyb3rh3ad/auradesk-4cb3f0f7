@@ -7,8 +7,7 @@ interface AuroraLogoProps {
 }
 
 /**
- * A true cutout logo - the "A" is a mask that reveals the page background,
- * with animated aurora waves behind it. No sticker effect, fully integrated.
+ * Magical space-like AuraBubble logo with cosmic effects
  */
 export const AuroraLogo = ({ size = 160, className = '', animated = true }: AuroraLogoProps) => {
   const uniqueId = `aurora-logo-${Math.random().toString(36).substr(2, 9)}`;
@@ -18,83 +17,163 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
       className={`relative ${className}`}
       style={{ width: size, height: size }}
     >
-      {/* Aurora waves layer - sits BEHIND the A, visible through the cutout */}
+      {/* Outer rotating nebula ring */}
       <motion.div
-        className="absolute inset-0 overflow-hidden rounded-full"
+        className="absolute inset-0 rounded-full"
         style={{
-          background: `
-            radial-gradient(ellipse 120% 80% at 30% 80%, hsl(var(--primary) / 0.6) 0%, transparent 50%),
-            radial-gradient(ellipse 100% 60% at 70% 60%, hsl(180 70% 50% / 0.5) 0%, transparent 40%),
-            radial-gradient(ellipse 80% 100% at 50% 30%, hsl(280 60% 60% / 0.4) 0%, transparent 50%)
+          background: `conic-gradient(from 0deg, 
+            transparent 0deg, 
+            hsl(var(--primary) / 0.3) 60deg, 
+            hsl(180 80% 50% / 0.4) 120deg, 
+            hsl(280 70% 60% / 0.3) 180deg, 
+            transparent 240deg,
+            hsl(var(--primary) / 0.2) 300deg,
+            transparent 360deg
+          )`,
+          filter: 'blur(8px)',
+        }}
+        animate={animated ? {
+          rotate: [0, 360],
+        } : undefined}
+        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+      />
+      
+      {/* Inner counter-rotating aurora */}
+      <motion.div
+        className="absolute inset-2 rounded-full"
+        style={{
+          background: `conic-gradient(from 180deg, 
+            transparent 0deg, 
+            hsl(170 80% 45% / 0.4) 90deg, 
+            transparent 180deg,
+            hsl(260 70% 55% / 0.3) 270deg,
+            transparent 360deg
+          )`,
+          filter: 'blur(6px)',
+        }}
+        animate={animated ? {
+          rotate: [360, 0],
+        } : undefined}
+        transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+      />
+      
+      {/* Pulsing core glow */}
+      <motion.div
+        className="absolute inset-4 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
+        }}
+        animate={animated ? {
+          opacity: [0.5, 0.8, 0.5],
+          scale: [0.9, 1.1, 0.9],
+        } : undefined}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      
+      {/* Floating particles/stars */}
+      {animated && [0, 1, 2, 3, 4, 5].map((i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: size * 0.02,
+            height: size * 0.02,
+            background: 'hsl(var(--primary))',
+            boxShadow: '0 0 4px hsl(var(--primary))',
+            left: '50%',
+            top: '50%',
+          }}
+          animate={{
+            x: [
+              Math.cos((i * 60) * Math.PI / 180) * size * 0.35,
+              Math.cos((i * 60 + 180) * Math.PI / 180) * size * 0.4,
+              Math.cos((i * 60 + 360) * Math.PI / 180) * size * 0.35,
+            ],
+            y: [
+              Math.sin((i * 60) * Math.PI / 180) * size * 0.35,
+              Math.sin((i * 60 + 180) * Math.PI / 180) * size * 0.4,
+              Math.sin((i * 60 + 360) * Math.PI / 180) * size * 0.35,
+            ],
+            opacity: [0.4, 1, 0.4],
+            scale: [0.8, 1.2, 0.8],
+          }}
+          transition={{
+            duration: 8 + i * 0.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.3,
+          }}
+        />
+      ))}
+      
+      {/* The A monogram - sleek, modern, cosmic */}
+      <svg
+        viewBox="0 0 100 100"
+        className="absolute inset-0 w-full h-full"
+        style={{ filter: `drop-shadow(0 0 ${size * 0.06}px hsl(var(--primary) / 0.6))` }}
+      >
+        <defs>
+          {/* Cosmic gradient for the A */}
+          <linearGradient id={`${uniqueId}-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="hsl(var(--primary))" />
+            <stop offset="40%" stopColor="hsl(280 70% 65%)" />
+            <stop offset="100%" stopColor="hsl(180 80% 55%)" />
+          </linearGradient>
+          
+          {/* Inner glow effect */}
+          <filter id={`${uniqueId}-glow`}>
+            <feGaussianBlur stdDeviation="1" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        
+        {/* The A shape - elegant, centered, with triangular cutout */}
+        <path
+          d="M50 18 L24 82 L36 82 L42 66 L58 66 L64 82 L76 82 L50 18 Z M50 38 L55 54 L45 54 L50 38 Z"
+          fill={`url(#${uniqueId}-gradient)`}
+          fillRule="evenodd"
+          filter={`url(#${uniqueId}-glow)`}
+        />
+      </svg>
+      
+      {/* Outer bubble ring - breathing effect */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          border: '1px solid hsl(var(--primary) / 0.3)',
+          boxShadow: `
+            0 0 ${size * 0.1}px hsl(var(--primary) / 0.1),
+            inset 0 0 ${size * 0.08}px hsl(var(--primary) / 0.05)
           `,
         }}
         animate={animated ? {
-          opacity: [0.7, 0.9, 0.7],
-          scale: [1, 1.05, 1],
+          scale: [1, 1.02, 1],
+          opacity: [0.5, 0.8, 0.5],
         } : undefined}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Secondary aurora shimmer */}
+      {/* Secondary bubble ring - offset timing */}
       <motion.div
-        className="absolute inset-0 overflow-hidden rounded-full"
+        className="absolute inset-1 rounded-full"
         style={{
-          background: `
-            radial-gradient(ellipse 60% 80% at 20% 70%, hsl(170 80% 45% / 0.5) 0%, transparent 40%),
-            radial-gradient(ellipse 70% 50% at 80% 40%, hsl(260 70% 55% / 0.4) 0%, transparent 35%)
-          `,
+          border: '1px solid hsl(180 70% 50% / 0.15)',
         }}
         animate={animated ? {
-          opacity: [0.5, 0.8, 0.5],
-          rotate: [0, 5, 0],
+          scale: [1.02, 1, 1.02],
+          opacity: [0.3, 0.6, 0.3],
         } : undefined}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-      />
-      
-      {/* The A monogram - rendered as a proper SVG shape, centered */}
-      <svg
-        viewBox="0 0 100 100"
-        className="absolute inset-0 w-full h-full"
-        style={{ filter: `drop-shadow(0 0 ${size * 0.08}px hsl(var(--primary) / 0.5))` }}
-      >
-        <defs>
-          {/* Gradient for the A stroke */}
-          <linearGradient id={`${uniqueId}-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="50%" stopColor="hsl(var(--primary) / 0.9)" />
-            <stop offset="100%" stopColor="hsl(180 70% 60%)" />
-          </linearGradient>
-        </defs>
-        
-        {/* The A shape - MUCH thicker strokes, perfectly centered */}
-        <path
-          d="M50 12 L18 88 L34 88 L40 72 L60 72 L66 88 L82 88 L50 12 Z M50 42 L55 60 L45 60 L50 42 Z"
-          fill={`url(#${uniqueId}-gradient)`}
-          fillRule="evenodd"
-        />
-      </svg>
-      
-      {/* Outer glow ring */}
-      <motion.div
-        className="absolute inset-0 rounded-full"
-        style={{
-          border: '1px solid hsl(var(--primary) / 0.2)',
-          boxShadow: `
-            0 0 ${size * 0.15}px hsl(var(--primary) / 0.15),
-            inset 0 0 ${size * 0.1}px hsl(var(--primary) / 0.1)
-          `,
-        }}
-        animate={animated ? {
-          opacity: [0.5, 0.8, 0.5],
-        } : undefined}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
       />
     </div>
   );
 };
 
 /**
- * Hero version with enhanced ambient effects for landing page - CENTERED
+ * Hero version with enhanced cosmic ambient effects
  */
 export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
   return (
@@ -105,34 +184,38 @@ export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
       className="relative flex items-center justify-center mx-auto"
       style={{ width: size, height: size }}
     >
-      {/* Large ambient glow - perfectly centered */}
+      {/* Deep space ambient glow */}
       <motion.div
         className="absolute inset-0 rounded-full blur-3xl"
         style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)',
-          transform: 'scale(2)',
+          background: 'radial-gradient(circle, hsl(var(--primary) / 0.2) 0%, hsl(280 60% 30% / 0.1) 50%, transparent 70%)',
+          transform: 'scale(2.5)',
         }}
         animate={{
-          opacity: [0.4, 0.7, 0.4],
-          scale: [1.8, 2.2, 1.8],
+          opacity: [0.3, 0.6, 0.3],
+          scale: [2.2, 2.8, 2.2],
         }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Secondary color glow - also centered */}
+      {/* Nebula cloud effect */}
       <motion.div
         className="absolute inset-0 rounded-full blur-2xl"
         style={{
-          background: 'radial-gradient(circle, hsl(180 70% 50% / 0.15) 0%, transparent 60%)',
-          transform: 'scale(1.5)',
+          background: `
+            radial-gradient(ellipse 80% 60% at 30% 70%, hsl(180 70% 50% / 0.15) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 80% at 70% 30%, hsl(280 60% 50% / 0.12) 0%, transparent 50%)
+          `,
+          transform: 'scale(1.8)',
         }}
         animate={{
-          opacity: [0.3, 0.5, 0.3],
+          rotate: [0, 10, 0, -10, 0],
+          opacity: [0.4, 0.7, 0.4],
         }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* The logo - centered */}
+      {/* The logo */}
       <AuroraLogo size={size} animated={true} className="relative" />
     </motion.div>
   );
