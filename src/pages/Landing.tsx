@@ -75,47 +75,35 @@ const HeroLogo = () => {
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
       className="flex justify-center mb-6"
     >
-      {/* Chameleon circle container - dark bg that works with the logo */}
+      {/* Chameleon circle container - seamlessly blends with any theme */}
       <div 
-        className="relative w-44 h-44 md:w-52 md:h-52 lg:w-60 lg:h-60 rounded-full flex items-center justify-center overflow-hidden"
+        className="relative w-36 h-36 md:w-44 md:h-44 lg:w-52 lg:h-52 rounded-full flex items-center justify-center"
         style={{
-          background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 50%, hsl(var(--muted)) 100%)',
-          boxShadow: '0 0 50px hsl(var(--primary) / 0.25), 0 0 100px hsl(var(--primary) / 0.1), inset 0 0 30px hsl(var(--primary) / 0.05)',
-          border: '1px solid hsl(var(--primary) / 0.3)',
+          background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 60%, hsl(var(--secondary)) 100%)',
+          boxShadow: '0 0 60px hsl(var(--primary) / 0.2), inset 0 0 40px hsl(var(--primary) / 0.08)',
+          border: '1px solid hsl(var(--border))',
         }}
       >
         {/* Subtle animated glow ring */}
         <motion.div
           className="absolute inset-0 rounded-full pointer-events-none"
           style={{
-            border: '2px solid hsl(var(--primary) / 0.2)',
-          }}
-          animate={{
-            opacity: [0.4, 0.7, 0.4],
-            scale: [0.98, 1, 0.98],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        
-        {/* Inner glow */}
-        <motion.div
-          className="absolute inset-4 rounded-full pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)',
+            border: '1px solid hsl(var(--primary) / 0.25)',
           }}
           animate={{
             opacity: [0.5, 0.8, 0.5],
           }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
         
-        {/* The logo */}
+        {/* The logo - using screen blend to make black transparent */}
         <img 
           src={auraLogo}
           alt="AuraDesk Logo" 
-          className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 object-contain relative z-10"
+          className="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 object-contain relative z-10"
           style={{
-            filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.4))',
+            filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.5))',
+            mixBlendMode: 'screen',
           }}
         />
       </div>
@@ -265,15 +253,24 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img 
-              src={auraLogo} 
-              alt="AuraDesk" 
-              className="h-10 w-10 object-contain"
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center"
               style={{
-                filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))',
-                mixBlendMode: 'lighten',
+                background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 70%, hsl(var(--secondary)) 100%)',
+                boxShadow: '0 0 20px hsl(var(--primary) / 0.15)',
+                border: '1px solid hsl(var(--border))',
               }}
-            />
+            >
+              <img 
+                src={auraLogo} 
+                alt="AuraDesk" 
+                className="h-5 w-5 object-contain"
+                style={{
+                  filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))',
+                  mixBlendMode: 'screen',
+                }}
+              />
+            </div>
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
             </span>

@@ -26,13 +26,13 @@ const InteractiveLogo = () => {
   return (
     <motion.button
       type="button"
-      className="relative w-24 h-24 rounded-full overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center"
+      className="relative w-24 h-24 rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center"
       style={{
-        background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 50%, hsl(var(--muted)) 100%)',
+        background: 'radial-gradient(circle at center, hsl(var(--background)) 0%, hsl(var(--card)) 70%, hsl(var(--secondary)) 100%)',
         boxShadow: isPressed 
-          ? '0 0 35px hsl(var(--primary) / 0.4), inset 0 0 20px hsl(var(--primary) / 0.1)'
-          : '0 0 25px hsl(var(--primary) / 0.25), inset 0 0 15px hsl(var(--primary) / 0.05)',
-        border: '1px solid hsl(var(--primary) / 0.3)',
+          ? '0 0 40px hsl(var(--primary) / 0.25), inset 0 0 20px hsl(var(--primary) / 0.08)'
+          : '0 0 30px hsl(var(--primary) / 0.15)',
+        border: '1px solid hsl(var(--border))',
       }}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
@@ -40,13 +40,14 @@ const InteractiveLogo = () => {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {/* The logo */}
+      {/* The logo with screen blend to make black transparent */}
       <img 
         src={auraLogo} 
         alt="AuraDesk" 
-        className="relative z-10 w-14 h-14 object-contain"
+        className="relative z-10 w-12 h-12 object-contain"
         style={{
-          filter: `drop-shadow(0 0 ${isPressed ? '10px' : '6px'} hsl(var(--primary) / 0.4))`,
+          filter: `drop-shadow(0 0 ${isPressed ? '8px' : '5px'} hsl(var(--primary) / 0.5))`,
+          mixBlendMode: 'screen',
         }}
       />
       
@@ -54,11 +55,10 @@ const InteractiveLogo = () => {
       <motion.div
         className="absolute inset-0 rounded-full pointer-events-none"
         style={{
-          border: '2px solid hsl(var(--primary) / 0.2)',
+          border: '1px solid hsl(var(--primary) / 0.25)',
         }}
         animate={{
-          opacity: [0.4, 0.7, 0.4],
-          scale: [0.98, 1, 0.98],
+          opacity: [0.5, 0.8, 0.5],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       />
