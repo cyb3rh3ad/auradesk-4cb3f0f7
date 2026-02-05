@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/auradesk-logo-new.png";
+import auraLogo from "@/assets/auradesk-logo-v2.png";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,35 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Premium animated hero logo component
+// Animated orbital ring SVG component
+const OrbitingRing = ({ delay = 0, size = 200, duration = 20, reverse = false }: { delay?: number; size?: number; duration?: number; reverse?: boolean }) => (
+  <motion.div
+    className="absolute rounded-full border border-primary/20"
+    style={{
+      width: size,
+      height: size,
+      left: '50%',
+      top: '50%',
+      marginLeft: -size / 2,
+      marginTop: -size / 2,
+    }}
+    animate={{ rotate: reverse ? -360 : 360 }}
+    transition={{ duration, repeat: Infinity, ease: 'linear', delay }}
+  >
+    {/* Orbiting particle */}
+    <motion.div
+      className="absolute w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
+      style={{
+        top: -4,
+        left: '50%',
+        marginLeft: -4,
+        boxShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6)',
+      }}
+    />
+  </motion.div>
+);
+
+// Premium animated hero logo component with living background
 const HeroLogo = () => {
   return (
     <motion.div
@@ -47,29 +75,55 @@ const HeroLogo = () => {
       transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
       className="flex justify-center mb-6"
     >
-      <div className="relative group">
-        {/* Outer glow - animated pulse */}
-        <motion.div 
-          className="absolute -inset-8 md:-inset-12 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 40%, transparent 70%)'
-          }}
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.5, 0.8, 0.5],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
+      <div className="relative">
+        {/* Animated background - energy field */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {/* Pulsing core glow */}
+          <motion.div
+            className="absolute w-24 h-24 md:w-32 md:h-32 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%)',
+            }}
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.4, 0.7, 0.4],
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          
+          {/* Outer breathing glow */}
+          <motion.div
+            className="absolute w-48 h-48 md:w-64 md:h-64 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 60%)',
+            }}
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+          />
+        </div>
         
-        {/* The new logo - no container needed, it has its own glow ring */}
-        <img 
-          src={auraLogo}
-          alt="AuraDesk Logo" 
-          className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 object-contain"
-          style={{
-            filter: 'drop-shadow(0 0 30px rgba(139, 92, 246, 0.5)) drop-shadow(0 0 60px rgba(59, 130, 246, 0.3))',
-          }}
-        />
+        {/* Orbiting rings with particles */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <OrbitingRing size={180} duration={15} />
+          <OrbitingRing size={240} duration={25} reverse delay={2} />
+          <OrbitingRing size={300} duration={35} delay={4} />
+        </div>
+        
+        {/* The logo - using mix-blend-mode to blend with background */}
+        <div className="relative z-10">
+          <img 
+            src={auraLogo}
+            alt="AuraDesk Logo" 
+            className="relative w-36 h-36 md:w-44 md:h-44 lg:w-52 lg:h-52 object-contain"
+            style={{
+              filter: 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.6)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.4))',
+              mixBlendMode: 'lighten',
+            }}
+          />
+        </div>
       </div>
     </motion.div>
   );
@@ -222,7 +276,8 @@ const Landing = () => {
               alt="AuraDesk" 
               className="h-10 w-10 object-contain"
               style={{
-                filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))',
+                filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))',
+                mixBlendMode: 'lighten',
               }}
             />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">

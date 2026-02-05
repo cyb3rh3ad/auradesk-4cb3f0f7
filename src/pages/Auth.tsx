@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/auradesk-logo-new.png';
+import auraLogo from '@/assets/auradesk-logo-v2.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
