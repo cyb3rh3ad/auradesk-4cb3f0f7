@@ -316,7 +316,7 @@ const Landing = () => {
                     style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                   >
                     <a
-                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest"
+                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"

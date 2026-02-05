@@ -109,7 +109,7 @@ const ThemeInit = () => {
         } catch (e) {
           // Ignore
         }
-        apply('light');
+        apply('dark');
         return;
       }
       const { data } = await supabase
@@ -117,7 +117,7 @@ const ThemeInit = () => {
         .select('theme')
         .eq('id', user.id)
         .single();
-      apply(data?.theme || 'light');
+      apply(data?.theme || 'dark');
     };
     load();
   }, [user?.id]);
@@ -163,8 +163,19 @@ const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(' ');
 
 // Check if we should show splash (native mobile OR standalone PWA)
-const shouldShowSplash = (): boolean => {
+const shouldShowSplash = (skipForOAuth: boolean = false): boolean => {
   if (typeof window === 'undefined') return false;
+  
+  // Skip splash screen if this is an OAuth callback to prevent login loop
+  if (skipForOAuth) {
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const isOAuthCallback = hash.includes('access_token') || 
+                           hash.includes('refresh_token') ||
+                           search.includes('code=') ||
+                           sessionStorage.getItem('oauth_login_pending') === 'true';
+    if (isOAuthCallback) return false;
+  }
   
   // Native Capacitor app
   const capacitor = (window as any).Capacitor;
@@ -200,7 +211,7 @@ const AppUpdateChecker = () => {
 };
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
+  const [showSplash, setShowSplash] = useState(() => shouldShowSplash(true));
 
   return (
     <ErrorBoundary>
