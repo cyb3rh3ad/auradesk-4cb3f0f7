@@ -244,20 +244,20 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         
         {/* Outer glow layer */}
         <path
-          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
+          d="M50 26 L30 74 M50 26 L70 74 M36 58 L64 58"
           fill="none"
           stroke="hsl(var(--primary) / 0.3)"
-          strokeWidth="12"
+          strokeWidth="10"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         
         {/* The A - THICC strokes with neon glow */}
         <path
-          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
+          d="M50 26 L30 74 M50 26 L70 74 M36 58 L64 58"
           fill="none"
           stroke={`url(#${uniqueId}-stroke)`}
-          strokeWidth="6"
+          strokeWidth="5.5"
           strokeLinecap="round"
           strokeLinejoin="round"
           filter={`url(#${uniqueId}-neon)`}
@@ -265,13 +265,13 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         
         {/* Inner bright core */}
         <path
-          d="M50 18 L23 82 M50 18 L77 82 M30 64 L70 64"
+          d="M50 26 L30 74 M50 26 L70 74 M36 58 L64 58"
           fill="none"
           stroke="white"
-          strokeWidth="1.5"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity="0.4"
+          opacity="0.45"
         />
       </svg>
       
