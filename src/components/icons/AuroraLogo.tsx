@@ -51,7 +51,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
       
-      {/* The A monogram - rendered as a proper SVG shape */}
+      {/* The A monogram - rendered as a proper SVG shape, centered */}
       <svg
         viewBox="0 0 100 100"
         className="absolute inset-0 w-full h-full"
@@ -66,9 +66,9 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           </linearGradient>
         </defs>
         
-        {/* The A shape - thick, bold, modern */}
+        {/* The A shape - thick, bold, centered properly */}
         <path
-          d="M50 12 L18 88 L30 88 L36 72 L64 72 L70 88 L82 88 L50 12 Z M50 32 L58 60 L42 60 L50 32 Z"
+          d="M50 15 L22 85 L35 85 L40 70 L60 70 L65 85 L78 85 L50 15 Z M50 38 L56 58 L44 58 L50 38 Z"
           fill={`url(#${uniqueId}-gradient)`}
           fillRule="evenodd"
         />
