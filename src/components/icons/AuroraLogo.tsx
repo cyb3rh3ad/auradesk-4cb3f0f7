@@ -10,25 +10,27 @@ interface AuroraLogoProps {
 
 /**
  * Magical space-like AuraBubble logo with neon outlined "A"
- * Performance-optimized for mobile devices
+ * Desktop: Full animations with rotating nebulas, particles, and pulsing effects
+ * Mobile: Beautiful static version optimized for performance
  */
 export const AuroraLogo = ({ size = 160, className = '', animated = true }: AuroraLogoProps) => {
   const uniqueId = useMemo(() => `aurora-logo-${Math.random().toString(36).substr(2, 9)}`, []);
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
   
-  // On mobile or reduced motion, disable complex animations
-  const shouldAnimate = animated && !isMobile && !prefersReducedMotion;
+  // Desktop: full animations. Mobile: completely static for smooth performance
+  const isDesktop = !isMobile && !prefersReducedMotion && animated;
   
-  // Fewer particles on mobile for performance
-  const particles = useMemo(() => Array.from({ length: shouldAnimate ? 8 : 0 }, (_, i) => ({
+  // Particles only on desktop
+  const particles = useMemo(() => isDesktop ? Array.from({ length: 10 }, (_, i) => ({
     id: i,
-    angle: (i * 45),
-    radius: 0.35,
-    size: 0.018,
-    duration: 8 + i * 0.5,
-    delay: i * 0.3,
-  })), [shouldAnimate]);
+    angle: (i * 36),
+    radius: 0.32 + (i % 3) * 0.04,
+    size: 0.015 + (i % 2) * 0.008,
+    duration: 6 + i * 0.4,
+    delay: i * 0.25,
+    color: i % 3 === 0 ? 'hsl(var(--primary))' : i % 3 === 1 ? 'hsl(180 80% 60%)' : 'hsl(280 70% 70%)',
+  })) : [], [isDesktop]);
   
   return (
     <div 
@@ -36,8 +38,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
       style={{ 
         width: size, 
         height: size,
-        // 3D perspective
-        perspective: '800px',
+        perspective: isDesktop ? '800px' : undefined,
         perspectiveOrigin: 'center center',
       }}
     >
@@ -53,117 +54,213 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         }}
       />
       
-      {/* 3D depth shadow underneath */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: '90%',
-          height: '20%',
-          left: '5%',
-          bottom: '-8%',
-          background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
-          filter: 'blur(15px)',
-          transform: 'rotateX(60deg)',
-        }}
-      />
+      {/* 3D depth shadow underneath - only on desktop */}
+      {isDesktop && (
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '90%',
+            height: '20%',
+            left: '5%',
+            bottom: '-8%',
+            background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
+            filter: 'blur(15px)',
+            transform: 'rotateX(60deg)',
+          }}
+        />
+      )}
       
       {/* Deep space background with 3D inner shadow */}
       <div
         className="absolute inset-0 rounded-full"
         style={{
           background: 'radial-gradient(circle, hsl(240 30% 6% / 0.9) 0%, hsl(240 20% 3% / 0.7) 50%, transparent 70%)',
-          boxShadow: `
+          boxShadow: isDesktop ? `
             inset 0 ${size * 0.1}px ${size * 0.2}px hsl(0 0% 0% / 0.4),
             inset 0 -${size * 0.05}px ${size * 0.1}px hsl(var(--primary) / 0.1)
-          `,
+          ` : `inset 0 ${size * 0.08}px ${size * 0.15}px hsl(0 0% 0% / 0.3)`,
         }}
       />
       
-      {/* Outer rotating nebula ring - CSS animation for performance */}
-      <div
-        className={`absolute inset-0 rounded-full ${shouldAnimate ? 'animate-spin' : ''}`}
-        style={{
-          background: `conic-gradient(from 0deg, 
-            transparent 0deg, 
-            hsl(var(--primary) / 0.25) 45deg, 
-            hsl(280 70% 50% / 0.35) 90deg,
-            hsl(180 80% 50% / 0.3) 135deg, 
-            transparent 180deg,
-            hsl(260 70% 55% / 0.25) 225deg,
-            hsl(var(--primary) / 0.2) 270deg,
-            transparent 315deg,
-            transparent 360deg
-          )`,
-          filter: 'blur(10px)',
-          animationDuration: '25s',
-        }}
-      />
+      {/* ===== DESKTOP: Animated nebula rings ===== */}
+      {isDesktop ? (
+        <>
+          {/* Outer rotating nebula ring */}
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `conic-gradient(from 0deg, 
+                transparent 0deg, 
+                hsl(var(--primary) / 0.25) 45deg, 
+                hsl(280 70% 50% / 0.35) 90deg,
+                hsl(180 80% 50% / 0.3) 135deg, 
+                transparent 180deg,
+                hsl(260 70% 55% / 0.25) 225deg,
+                hsl(var(--primary) / 0.2) 270deg,
+                transparent 315deg,
+                transparent 360deg
+              )`,
+              filter: 'blur(10px)',
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          />
+          
+          {/* Inner counter-rotating aurora */}
+          <motion.div
+            className="absolute inset-3 rounded-full"
+            style={{
+              background: `conic-gradient(from 180deg, 
+                transparent 0deg, 
+                hsl(170 80% 45% / 0.3) 60deg, 
+                hsl(200 70% 50% / 0.25) 120deg,
+                transparent 180deg,
+                hsl(280 70% 55% / 0.3) 240deg,
+                hsl(320 60% 50% / 0.2) 300deg,
+                transparent 360deg
+              )`,
+              filter: 'blur(8px)',
+            }}
+            animate={{ rotate: -360 }}
+            transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+          />
+          
+          {/* Third layer - slowest rotation */}
+          <motion.div
+            className="absolute inset-6 rounded-full"
+            style={{
+              background: `conic-gradient(from 90deg, 
+                transparent 0deg, 
+                hsl(220 80% 60% / 0.2) 90deg, 
+                transparent 180deg,
+                hsl(160 70% 50% / 0.2) 270deg,
+                transparent 360deg
+              )`,
+              filter: 'blur(6px)',
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
+          />
+          
+          {/* Pulsing core glow */}
+          <motion.div
+            className="absolute inset-4 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, hsl(280 50% 30% / 0.08) 50%, transparent 70%)',
+            }}
+            animate={{
+              opacity: [0.4, 0.7, 0.4],
+              scale: [0.97, 1.03, 0.97],
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </>
+      ) : (
+        <>
+          {/* ===== MOBILE: Static nebula layers ===== */}
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `conic-gradient(from 30deg, 
+                transparent 0deg, 
+                hsl(var(--primary) / 0.2) 45deg, 
+                hsl(280 70% 50% / 0.25) 90deg,
+                hsl(180 80% 50% / 0.2) 135deg, 
+                transparent 180deg,
+                hsl(260 70% 55% / 0.2) 225deg,
+                hsl(var(--primary) / 0.15) 270deg,
+                transparent 315deg
+              )`,
+              filter: 'blur(8px)',
+            }}
+          />
+          
+          <div
+            className="absolute inset-4 rounded-full"
+            style={{
+              background: `conic-gradient(from 150deg, 
+                transparent 0deg, 
+                hsl(170 80% 45% / 0.2) 60deg, 
+                hsl(200 70% 50% / 0.15) 120deg,
+                transparent 180deg,
+                hsl(280 70% 55% / 0.2) 240deg,
+                transparent 300deg
+              )`,
+              filter: 'blur(6px)',
+            }}
+          />
+          
+          {/* Static core glow */}
+          <div
+            className="absolute inset-4 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--primary) / 0.12) 0%, hsl(280 50% 30% / 0.06) 50%, transparent 70%)',
+              opacity: 0.6,
+            }}
+          />
+        </>
+      )}
       
-      {/* Inner counter-rotating aurora - CSS animation */}
-      <div
-        className={`absolute inset-3 rounded-full ${shouldAnimate ? 'animate-spin' : ''}`}
-        style={{
-          background: `conic-gradient(from 180deg, 
-            transparent 0deg, 
-            hsl(170 80% 45% / 0.3) 60deg, 
-            hsl(200 70% 50% / 0.25) 120deg,
-            transparent 180deg,
-            hsl(280 70% 55% / 0.3) 240deg,
-            hsl(320 60% 50% / 0.2) 300deg,
-            transparent 360deg
-          )`,
-          filter: 'blur(8px)',
-          animationDuration: '18s',
-          animationDirection: 'reverse',
-        }}
-      />
-      
-      {/* Third layer - static on mobile */}
-      <div
-        className="absolute inset-6 rounded-full"
-        style={{
-          background: `conic-gradient(from 90deg, 
-            transparent 0deg, 
-            hsl(220 80% 60% / 0.2) 90deg, 
-            transparent 180deg,
-            hsl(160 70% 50% / 0.2) 270deg,
-            transparent 360deg
-          )`,
-          filter: 'blur(6px)',
-        }}
-      />
-      
-      {/* Static core glow - no animation for performance */}
-      <div
-        className="absolute inset-4 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, hsl(280 50% 30% / 0.08) 50%, transparent 70%)',
-          opacity: 0.6,
-        }}
-      />
-      
-      {/* Floating particles - only on desktop */}
-      {shouldAnimate && particles.map((p) => (
+      {/* Floating particles - DESKTOP ONLY */}
+      {particles.map((p) => (
         <motion.div
           key={p.id}
           className="absolute rounded-full"
           style={{
             width: size * p.size,
             height: size * p.size,
-            background: p.id % 2 === 0 ? 'hsl(var(--primary))' : 'hsl(180 80% 60%)',
-            boxShadow: `0 0 ${size * 0.02}px currentColor`,
+            background: p.color,
+            boxShadow: `0 0 ${size * 0.025}px ${p.color}`,
             left: '50%',
             top: '50%',
-            transform: `translate(-50%, -50%) rotate(${p.angle}deg) translateX(${size * p.radius}px)`,
           }}
           animate={{
-            opacity: [0.4, 0.8, 0.4],
+            x: [
+              Math.cos(p.angle * Math.PI / 180) * size * p.radius,
+              Math.cos((p.angle + 120) * Math.PI / 180) * size * (p.radius + 0.03),
+              Math.cos((p.angle + 240) * Math.PI / 180) * size * p.radius,
+              Math.cos((p.angle + 360) * Math.PI / 180) * size * p.radius,
+            ],
+            y: [
+              Math.sin(p.angle * Math.PI / 180) * size * p.radius,
+              Math.sin((p.angle + 120) * Math.PI / 180) * size * (p.radius + 0.03),
+              Math.sin((p.angle + 240) * Math.PI / 180) * size * p.radius,
+              Math.sin((p.angle + 360) * Math.PI / 180) * size * p.radius,
+            ],
+            opacity: [0.3, 0.9, 0.5, 0.3],
+            scale: [0.8, 1.2, 1, 0.8],
           }}
           transition={{
             duration: p.duration,
             repeat: Infinity,
             ease: 'easeInOut',
             delay: p.delay,
+          }}
+        />
+      ))}
+      
+      {/* Twinkling stars - DESKTOP ONLY */}
+      {isDesktop && Array.from({ length: 6 }, (_, i) => (
+        <motion.div
+          key={`star-${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: size * 0.01,
+            height: size * 0.01,
+            background: 'white',
+            boxShadow: '0 0 3px white',
+            left: `${25 + (i * 10)}%`,
+            top: `${25 + ((i * 17) % 50)}%`,
+          }}
+          animate={{
+            opacity: [0, 1, 0],
+            scale: [0.5, 1.2, 0.5],
+          }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.5,
           }}
         />
       ))}
@@ -182,13 +279,29 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
             <stop offset="100%" stopColor="hsl(180 80% 60%)" />
           </linearGradient>
           
-          {/* Simplified glow filter for mobile */}
-          <filter id={`${uniqueId}-neon`} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1" />
-            <feMerge>
-              <feMergeNode in="blur1" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+          {/* Multi-layer glow filter - stronger on desktop */}
+          <filter id={`${uniqueId}-neon`} x="-100%" y="-100%" width="300%" height="300%">
+            {isDesktop ? (
+              <>
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur1" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur2" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur3" />
+                <feMerge>
+                  <feMergeNode in="blur3" />
+                  <feMergeNode in="blur2" />
+                  <feMergeNode in="blur1" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </>
+            ) : (
+              <>
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1" />
+                <feMerge>
+                  <feMergeNode in="blur1" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </>
+            )}
           </filter>
         </defs>
         
@@ -197,7 +310,7 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
           d="M50 26 L30 74 M50 26 L70 74 M38 58 L62 58"
           fill="none"
           stroke="hsl(262 83% 58% / 0.3)"
-          strokeWidth="10"
+          strokeWidth={isDesktop ? "10" : "8"}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -241,23 +354,44 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
         }}
       />
       
-      {/* Outer bubble ring - static for performance */}
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          border: '2px solid transparent',
-          borderTopColor: 'hsl(0 0% 100% / 0.15)',
-          borderBottomColor: 'hsl(var(--primary) / 0.2)',
-          boxShadow: `
-            0 0 ${size * 0.15}px hsl(var(--primary) / 0.1),
-            inset 0 0 ${size * 0.12}px hsl(var(--primary) / 0.05),
-            0 ${size * 0.02}px ${size * 0.04}px hsl(0 0% 0% / 0.3)
-          `,
-          zIndex: 30,
-        }}
-      />
+      {/* Outer bubble ring - animated on desktop, static on mobile */}
+      {isDesktop ? (
+        <motion.div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '2px solid transparent',
+            borderTopColor: 'hsl(0 0% 100% / 0.15)',
+            borderBottomColor: 'hsl(var(--primary) / 0.2)',
+            boxShadow: `
+              0 0 ${size * 0.15}px hsl(var(--primary) / 0.1),
+              inset 0 0 ${size * 0.12}px hsl(var(--primary) / 0.05),
+              0 ${size * 0.02}px ${size * 0.04}px hsl(0 0% 0% / 0.3)
+            `,
+            zIndex: 30,
+          }}
+          animate={{
+            scale: [1, 1.008, 1],
+            opacity: [0.6, 0.85, 0.6],
+          }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ) : (
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '2px solid transparent',
+            borderTopColor: 'hsl(0 0% 100% / 0.12)',
+            borderBottomColor: 'hsl(var(--primary) / 0.15)',
+            boxShadow: `
+              0 0 ${size * 0.1}px hsl(var(--primary) / 0.08),
+              inset 0 0 ${size * 0.08}px hsl(var(--primary) / 0.03)
+            `,
+            zIndex: 30,
+          }}
+        />
+      )}
       
-      {/* Secondary bubble ring - static */}
+      {/* Secondary bubble ring */}
       <div
         className="absolute inset-2 rounded-full"
         style={{
@@ -273,22 +407,61 @@ export const AuroraLogo = ({ size = 160, className = '', animated = true }: Auro
 
 /**
  * Hero version with enhanced cosmic ambient effects
+ * Desktop: Animated ambient glow
+ * Mobile: Static glow for performance
  */
 export const AuroraLogoHero = ({ size = 260 }: { size?: number }) => {
+  const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
+  const isDesktop = !isMobile && !prefersReducedMotion;
+  
   return (
     <div
       className="relative flex items-center justify-center mx-auto w-full"
       style={{ maxWidth: size, aspectRatio: '1/1' }}
     >
-      {/* Static ambient glow - no animation for performance */}
-      <div
-        className="absolute inset-0 rounded-full blur-3xl pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.12) 0%, hsl(280 50% 20% / 0.08) 40%, transparent 70%)',
-          transform: 'scale(2.2)',
-          opacity: 0.4,
-        }}
-      />
+      {/* Ambient glow - animated on desktop, static on mobile */}
+      {isDesktop ? (
+        <motion.div
+          className="absolute inset-0 rounded-full blur-3xl pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, hsl(280 50% 20% / 0.1) 40%, transparent 70%)',
+          }}
+          animate={{
+            opacity: [0.3, 0.5, 0.3],
+            scale: [2.2, 2.5, 2.2],
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ) : (
+        <div
+          className="absolute inset-0 rounded-full blur-3xl pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.1) 0%, hsl(280 50% 20% / 0.06) 40%, transparent 70%)',
+            transform: 'scale(2)',
+            opacity: 0.35,
+          }}
+        />
+      )}
+      
+      {/* Nebula cloud effect - DESKTOP ONLY */}
+      {isDesktop && (
+        <motion.div
+          className="absolute inset-0 rounded-full blur-2xl pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(ellipse 70% 50% at 25% 75%, hsl(180 70% 50% / 0.08) 0%, transparent 50%),
+              radial-gradient(ellipse 50% 70% at 75% 25%, hsl(280 60% 50% / 0.06) 0%, transparent 50%)
+            `,
+            transform: 'scale(1.8)',
+          }}
+          animate={{
+            rotate: [0, 10, 0, -10, 0],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
       
       {/* The logo - centered properly */}
       <AuroraLogo size={size} animated={true} className="relative z-10" />
