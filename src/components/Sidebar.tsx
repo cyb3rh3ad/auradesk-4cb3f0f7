@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
-import auraLogo from "@/assets/auradesk-logo-final.png";
+import { AuroraLogo } from "@/components/icons/AuroraLogo";
 import {
   HomeIcon,
   ChatIcon,
@@ -15,36 +15,6 @@ import {
   ShieldIcon,
   SettingsIcon,
 } from "@/components/icons/FuturisticIcons";
-
-// Logo - screen blend makes black transparent
-const AuraLogo = ({ size = "md" }: { size?: "sm" | "md" }) => {
-  const logoSize = size === "md" ? 48 : 40;
-  
-  return (
-    <div className="relative" style={{ width: logoSize, height: logoSize }}>
-      {/* Ambient glow */}
-      <div 
-        className="absolute inset-0 blur-xl opacity-60"
-        style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
-          transform: 'scale(1.5)',
-        }}
-      />
-      {/* Logo with screen blend */}
-      <img 
-        src={auraLogo}
-        alt="AuraDesk" 
-        width={logoSize}
-        height={logoSize}
-        className="relative object-contain"
-        style={{
-          filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.4))',
-          mixBlendMode: 'screen',
-        }}
-      />
-    </div>
-  );
-};
 
 // Separate component for nav items to properly use hooks
 interface NavItemProps {
@@ -150,7 +120,7 @@ export const Sidebar = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
       
       <div className="relative group hover:scale-105 transition-transform duration-300">
-        <AuraLogo size="md" />
+        <AuroraLogo size={48} animated={false} />
       </div>
       
       <nav className="relative flex-1 flex flex-col items-center space-y-2 w-full px-3">

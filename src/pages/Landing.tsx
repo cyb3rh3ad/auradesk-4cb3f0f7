@@ -30,82 +30,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
-import auraLogo from "@/assets/auradesk-logo-final.png";
+import { AuroraLogo, AuroraLogoHero } from "@/components/icons/AuroraLogo";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-// Logo component - screen blend makes black transparent, page shows through
-const LogoImage = ({ size = 160 }: { size?: number }) => (
-  <div className="relative" style={{ width: size, height: size }}>
-    {/* Ambient glow that matches the page aesthetic */}
-    <div 
-      className="absolute inset-0 blur-2xl opacity-60"
-      style={{
-        background: 'radial-gradient(circle, hsl(var(--primary) / 0.5) 0%, transparent 70%)',
-        transform: 'scale(1.4)',
-      }}
-    />
-    {/* The logo - screen blend removes black, page shows through */}
-    <img
-      src={auraLogo}
-      alt="AuraDesk Logo"
-      width={size}
-      height={size}
-      className="relative object-contain"
-      style={{
-        filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.4))',
-        mixBlendMode: 'screen',
-      }}
-    />
-  </div>
-);
-
-// Premium hero logo - bigger size, page background visible through transparent areas
-const HeroLogo = () => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
-      className="flex justify-center mb-8"
-    >
-      <div className="relative">
-        {/* Ambient glow behind the logo */}
-        <motion.div 
-          className="absolute inset-0 rounded-full blur-3xl"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.35) 0%, transparent 70%)',
-            transform: 'scale(2.5)',
-          }}
-          animate={{
-            opacity: [0.5, 0.8, 0.5],
-            scale: [2.2, 2.6, 2.2],
-          }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        
-        {/* The logo with animated glow - BIGGER size */}
-        <motion.div
-          className="relative"
-          animate={{
-            filter: [
-              'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
-              'drop-shadow(0 0 35px hsl(var(--primary) / 0.7))',
-              'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))',
-            ],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <LogoImage size={260} />
-        </motion.div>
-      </div>
-    </motion.div>
-  );
-};
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -250,7 +181,7 @@ const Landing = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Nav logo */}
-            <LogoImage size={40} />
+            <AuroraLogo size={40} animated={false} />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
             </span>
@@ -293,8 +224,8 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="text-center space-y-6 md:space-y-8"
           >
-            {/* Premium hero logo */}
-            <HeroLogo />
+            {/* Premium hero logo - SVG-based, truly integrated */}
+            <AuroraLogoHero size={260} />
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
               <Sparkles className="w-4 h-4" />
