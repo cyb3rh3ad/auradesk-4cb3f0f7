@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/auradesk-logo-final.png';
+import { AuroraLogo } from '@/components/icons/AuroraLogo';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -19,57 +19,16 @@ import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { BiometricPromptDialog } from '@/components/auth/BiometricPromptDialog';
 import { BiometricLoginButton } from '@/components/auth/BiometricLoginButton';
 
-// Interactive Logo Component - transparent PNG with animated glow
+// Interactive Logo Component using SVG-based AuroraLogo
 const InteractiveLogo = () => {
-  const [isPressed, setIsPressed] = useState(false);
-
   return (
-    <motion.button
-      type="button"
-      className="relative flex items-center justify-center cursor-pointer focus:outline-none"
-      onMouseDown={() => setIsPressed(true)}
-      onMouseUp={() => setIsPressed(false)}
-      onMouseLeave={() => setIsPressed(false)}
+    <motion.div
+      className="relative flex items-center justify-center"
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {/* Ambient glow behind */}
-      <motion.div 
-        className="absolute inset-0 blur-2xl"
-        style={{
-          background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
-          transform: 'scale(2)',
-        }}
-        animate={{
-          opacity: isPressed ? 0.9 : [0.5, 0.7, 0.5],
-        }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      
-      {/* The logo - transparent PNG, page shows through */}
-      <motion.div
-        className="relative"
-        animate={{
-          filter: isPressed
-            ? 'drop-shadow(0 0 30px hsl(var(--primary) / 0.8))'
-            : [
-                'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
-                'drop-shadow(0 0 25px hsl(var(--primary) / 0.7))',
-                'drop-shadow(0 0 15px hsl(var(--primary) / 0.5))',
-              ],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <img
-          src={auraLogo}
-          alt="AuraDesk Logo"
-          className="w-28 h-28 object-contain"
-          style={{
-            mixBlendMode: 'screen',
-          }}
-        />
-      </motion.div>
-    </motion.button>
+      <AuroraLogo size={112} animated={true} />
+    </motion.div>
   );
 };
 
