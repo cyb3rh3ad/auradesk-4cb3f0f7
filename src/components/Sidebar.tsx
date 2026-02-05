@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useState } from "react";
-import auradeskLogo from "@/assets/auradesk-logo-v2.png";
+import auradeskLogo from "@/assets/logo-option-2.png";
 import {
   HomeIcon,
   ChatIcon,
@@ -31,8 +31,8 @@ const AuraLogo = ({
       alt="AuraDesk" 
       className="w-full h-full object-contain"
       style={{
-        filter: 'drop-shadow(0 0 12px rgba(139, 92, 246, 0.5))',
-        mixBlendMode: 'lighten',
+        filter: 'drop-shadow(0 0 12px rgba(0, 255, 255, 0.5)) drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))',
+        mixBlendMode: 'screen',
       }}
     />
   </div>

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import googleLogo from '@/assets/google-g-logo.png';
-import auraLogo from '@/assets/auradesk-logo-v2.png';
+import auraLogo from '@/assets/logo-option-2.png';
 import { MfaVerification } from '@/components/auth/MfaVerification';
 import { PasswordStrengthValidator, validatePassword } from '@/components/auth/PasswordStrengthValidator';
 import { isElectronApp } from '@/hooks/useIsElectron';
@@ -51,15 +51,16 @@ const InteractiveLogo = () => {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {/* Logo with glow */}
+      {/* Logo with glow and blend mode */}
       <img 
         src={auraLogo} 
         alt="AuraDesk" 
         className="relative z-10 w-full h-full object-contain"
         style={{
           filter: isPressed 
-            ? 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.5))'
-            : 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.5)) drop-shadow(0 0 30px rgba(59, 130, 246, 0.3))',
+            ? 'drop-shadow(0 0 25px rgba(0, 255, 255, 0.9)) drop-shadow(0 0 45px rgba(139, 92, 246, 0.7))'
+            : 'drop-shadow(0 0 18px rgba(0, 255, 255, 0.6)) drop-shadow(0 0 35px rgba(139, 92, 246, 0.4))',
+          mixBlendMode: 'screen',
         }}
       />
       
