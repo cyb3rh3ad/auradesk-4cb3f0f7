@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -65,6 +65,7 @@ const getSavedTheme = (): string => {
 
 export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScreenProps) => {
   const [phase, setPhase] = useState<'rings' | 'logo' | 'text' | 'fade'>('rings');
+  const prefersReducedMotion = useReducedMotion();
   
   // Get theme colors based on saved preference
   const colors = useMemo(() => {
@@ -75,75 +76,72 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
     
-    // Phase 1: Rings appear and pulse (0ms)
-    // Phase 2: Logo reveals (600ms)
-    timers.push(setTimeout(() => setPhase('logo'), 600));
-    // Phase 3: Text fades in (1200ms)
-    timers.push(setTimeout(() => setPhase('text'), 1200));
-    // Phase 4: Everything fades out (2200ms)
-    timers.push(setTimeout(() => setPhase('fade'), minimumDuration - 300));
-    // Complete (2500ms)
-    timers.push(setTimeout(onComplete, minimumDuration));
+    // Faster, simpler timing for reduced motion or better performance
+    const timing = prefersReducedMotion 
+      ? { logo: 200, text: 400, fade: 800, complete: 1000 }
+      : { logo: 500, text: 900, fade: minimumDuration - 400, complete: minimumDuration };
+    
+    timers.push(setTimeout(() => setPhase('logo'), timing.logo));
+    timers.push(setTimeout(() => setPhase('text'), timing.text));
+    timers.push(setTimeout(() => setPhase('fade'), timing.fade));
+    timers.push(setTimeout(onComplete, timing.complete));
     
     return () => timers.forEach(clearTimeout);
-  }, [onComplete, minimumDuration]);
+  }, [onComplete, minimumDuration, prefersReducedMotion]);
+
+  // Simplified animation variants for better mobile performance
+  const ringAnimation = prefersReducedMotion ? {} : {
+    rotate: 360,
+  };
+  
+  const ringTransition = (duration: number, delay: number = 0) => ({
+    opacity: { duration: 0.3 },
+    scale: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] as const },
+    rotate: { duration, repeat: Infinity, ease: [0, 0, 1, 1] as const }
+  } as const);
 
   return (
     <AnimatePresence>
       {phase !== 'fade' ? (
         <motion.div
-          className="fixed inset-0 z-[99999] flex items-center justify-center overflow-hidden"
+          className="fixed inset-0 z-[99999] flex items-center justify-center overflow-hidden will-change-transform"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4, ease: 'easeInOut' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
           style={{ background: colors.bg }}
         >
-          {/* Animated gradient orbs - theme aware */}
+          {/* Animated gradient orbs - simplified for performance */}
           <motion.div
-            className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl"
+            className="absolute top-1/4 left-1/4 w-64 h-64 md:w-96 md:h-96 rounded-full blur-3xl will-change-opacity"
             style={{ background: `radial-gradient(circle, ${colors.primary} 0%, transparent 70%)` }}
-            animate={{
-              scale: [1, 1.2, 1],
+            animate={prefersReducedMotion ? { opacity: 0.4 } : {
               opacity: [0.3, 0.5, 0.3],
-              x: [0, 20, 0],
-              y: [0, -20, 0]
             }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
-            className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full blur-3xl"
+            className="absolute bottom-1/4 right-1/4 w-56 h-56 md:w-80 md:h-80 rounded-full blur-3xl will-change-opacity"
             style={{ background: `radial-gradient(circle, ${colors.secondary} 0%, transparent 70%)` }}
-            animate={{
-              scale: [1.2, 1, 1.2],
+            animate={prefersReducedMotion ? { opacity: 0.3 } : {
               opacity: [0.25, 0.4, 0.25],
-              x: [0, -20, 0],
-              y: [0, 20, 0]
             }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
           />
 
           {/* Center content container */}
-          <div className="relative flex flex-col items-center justify-center">
-            {/* Aura rings */}
-            <div className="relative w-40 h-40 flex items-center justify-center">
+          <div className="relative flex flex-col items-center justify-center will-change-transform">
+            {/* Aura rings - optimized with will-change and simpler animations */}
+            <div className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center">
               {/* Outer ring */}
               <motion.div
-                className="absolute inset-0 rounded-full"
+                className="absolute inset-0 rounded-full will-change-transform"
                 style={{
                   background: 'conic-gradient(from 0deg, transparent, rgba(139, 92, 246, 0.4), transparent, rgba(59, 130, 246, 0.4), transparent)',
                   padding: '2px'
                 }}
-                initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1, 
-                  rotate: 360 
-                }}
-                transition={{ 
-                  opacity: { duration: 0.5 },
-                  scale: { duration: 0.6, ease: 'backOut' },
-                  rotate: { duration: 8, repeat: Infinity, ease: 'linear' }
-                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1, ...ringAnimation }}
+                transition={ringTransition(8)}
               >
                 <div 
                   className="w-full h-full rounded-full"
@@ -153,22 +151,14 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
 
               {/* Middle ring */}
               <motion.div
-                className="absolute inset-3 rounded-full"
+                className="absolute inset-2 md:inset-3 rounded-full will-change-transform"
                 style={{
                   background: 'conic-gradient(from 180deg, transparent, rgba(168, 85, 247, 0.5), transparent, rgba(99, 102, 241, 0.5), transparent)',
                   padding: '2px'
                 }}
-                initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1, 
-                  rotate: -360 
-                }}
-                transition={{ 
-                  opacity: { duration: 0.5, delay: 0.1 },
-                  scale: { duration: 0.6, ease: 'backOut', delay: 0.1 },
-                  rotate: { duration: 6, repeat: Infinity, ease: 'linear' }
-                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1, rotate: prefersReducedMotion ? 0 : -360 }}
+                transition={ringTransition(6, 0.05)}
               >
                 <div 
                   className="w-full h-full rounded-full"
@@ -178,22 +168,14 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
 
               {/* Inner ring */}
               <motion.div
-                className="absolute inset-6 rounded-full"
+                className="absolute inset-5 md:inset-6 rounded-full will-change-transform"
                 style={{
                   background: 'conic-gradient(from 90deg, transparent, rgba(139, 92, 246, 0.6), transparent)',
                   padding: '2px'
                 }}
-                initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1, 
-                  rotate: 360 
-                }}
-                transition={{ 
-                  opacity: { duration: 0.5, delay: 0.2 },
-                  scale: { duration: 0.6, ease: 'backOut', delay: 0.2 },
-                  rotate: { duration: 4, repeat: Infinity, ease: 'linear' }
-                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1, ...ringAnimation }}
+                transition={ringTransition(4, 0.1)}
               >
                 <div 
                   className="w-full h-full rounded-full"
@@ -203,15 +185,14 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
 
               {/* Center glow */}
               <motion.div
-                className="absolute inset-9 rounded-full"
+                className="absolute inset-7 md:inset-9 rounded-full will-change-opacity"
                 style={{
                   background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)'
                 }}
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.4, 0.7, 0.4]
+                animate={prefersReducedMotion ? { opacity: 0.5 } : {
+                  opacity: [0.4, 0.6, 0.4]
                 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
               />
 
               {/* Logo "A" */}
@@ -219,13 +200,10 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
                 className="absolute inset-0 flex items-center justify-center"
                 initial={{ opacity: 0, scale: 0 }}
                 animate={phase !== 'rings' ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-                transition={{ 
-                  duration: 0.5, 
-                  ease: 'backOut'
-                }}
+                transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
               >
                 <span 
-                  className="text-5xl font-bold"
+                  className="text-4xl md:text-5xl font-bold"
                   style={{
                     background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%)',
                     WebkitBackgroundClip: 'text',
@@ -240,13 +218,13 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
 
             {/* Brand name */}
             <motion.div
-              className="mt-8 overflow-hidden"
+              className="mt-6 md:mt-8 overflow-hidden"
               initial={{ opacity: 0, y: 20 }}
               animate={phase === 'text' ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
             >
               <h1 
-                className="text-3xl font-semibold tracking-wide"
+                className="text-2xl md:text-3xl font-semibold tracking-wide"
                 style={{
                   background: 'linear-gradient(135deg, #f0f0f0 0%, #a0a0a0 100%)',
                   WebkitBackgroundClip: 'text',
@@ -259,35 +237,34 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
 
             {/* Tagline */}
             <motion.p
-              className="mt-2 text-sm tracking-widest uppercase"
+              className="mt-1.5 md:mt-2 text-xs md:text-sm tracking-widest uppercase"
               style={{ color: colors.text }}
               initial={{ opacity: 0 }}
               animate={phase === 'text' ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
             >
               Your Unified Workspace
             </motion.p>
 
             {/* Loading dots */}
             <motion.div
-              className="mt-8 flex gap-2"
+              className="mt-6 md:mt-8 flex gap-1.5 md:gap-2"
               initial={{ opacity: 0 }}
               animate={phase === 'text' ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
+              transition={{ duration: 0.2, delay: 0.15 }}
             >
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="w-2 h-2 rounded-full"
+                  className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full"
                   style={{ background: 'rgba(139, 92, 246, 0.6)' }}
-                  animate={{
-                    scale: [1, 1.4, 1],
+                  animate={prefersReducedMotion ? { opacity: 0.7 } : {
                     opacity: [0.4, 1, 0.4]
                   }}
                   transition={{
-                    duration: 1,
+                    duration: 0.8,
                     repeat: Infinity,
-                    delay: i * 0.15,
+                    delay: i * 0.12,
                     ease: 'easeInOut'
                   }}
                 />
@@ -303,7 +280,7 @@ export const SplashScreen = ({ onComplete, minimumDuration = 2500 }: SplashScree
             }}
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.5 }}
+            transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
           />
         </motion.div>
       ) : null}
