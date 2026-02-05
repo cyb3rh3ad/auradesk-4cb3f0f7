@@ -25,9 +25,9 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
 import { AuroraLogo, AuroraLogoHero } from "@/components/icons/AuroraLogo";
@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -45,6 +46,21 @@ const Landing = () => {
   const [showMobileOptions, setShowMobileOptions] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
+  
+  // Performance: Detect mobile and reduced motion preferences
+  const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
+  const shouldReduceMotion = isMobile || prefersReducedMotion;
+  
+  // Memoized animation variants for performance
+  const fadeInVariant = useMemo(() => ({
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: shouldReduceMotion ? 0.2 : 0.6 } }
+  }), [shouldReduceMotion]);
+  
+  const cardHoverVariant = useMemo(() => 
+    shouldReduceMotion ? {} : { scale: 1.03, y: -8 }
+  , [shouldReduceMotion]);
 
   const features = [
     {
@@ -216,54 +232,51 @@ const Landing = () => {
         </div>
       </nav>
 
-      {/* Hero Section - enhanced cosmic feel */}
+      {/* Hero Section - performance optimized */}
       <section className="pt-28 md:pt-36 pb-16 md:pb-24 px-6 relative overflow-hidden">
         {/* Deep space background */}
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,70%,8%)] via-background to-[hsl(220,60%,8%)]" />
         
-        {/* Nebula clouds */}
-        <motion.div 
-          className="absolute top-20 left-10 w-[500px] h-[500px] rounded-full blur-3xl opacity-30"
-          style={{
-            background: 'radial-gradient(circle, hsl(280 70% 50% / 0.4) 0%, transparent 70%)',
-          }}
-          animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div 
-          className="absolute bottom-20 right-10 w-[400px] h-[400px] rounded-full blur-3xl opacity-30"
-          style={{
-            background: 'radial-gradient(circle, hsl(180 80% 50% / 0.35) 0%, transparent 70%)',
-          }}
-          animate={{ scale: [1, 1.15, 1], x: [0, -15, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl opacity-20"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 60%)',
-          }}
-          animate={{ rotate: [0, 360] }}
-          transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-        />
+        {/* Nebula clouds - CSS animations instead of framer-motion for performance */}
+        {!shouldReduceMotion && (
+          <>
+            <div 
+              className="absolute top-20 left-10 w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full blur-3xl opacity-30 animate-nebula-1"
+              style={{
+                background: 'radial-gradient(circle, hsl(280 70% 50% / 0.4) 0%, transparent 70%)',
+              }}
+            />
+            <div 
+              className="absolute bottom-20 right-10 w-[250px] md:w-[400px] h-[250px] md:h-[400px] rounded-full blur-3xl opacity-30 animate-nebula-2"
+              style={{
+                background: 'radial-gradient(circle, hsl(180 80% 50% / 0.35) 0%, transparent 70%)',
+              }}
+            />
+            <div 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[600px] h-[400px] md:h-[600px] rounded-full blur-3xl opacity-20 animate-nebula-rotate"
+              style={{
+                background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 60%)',
+              }}
+            />
+          </>
+        )}
 
         <div className="container mx-auto max-w-6xl relative">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            initial="hidden"
+            animate="visible"
+            variants={fadeInVariant}
             className="text-center space-y-6 md:space-y-8"
           >
             {/* Premium hero logo - SVG-based, truly integrated - BIGGER */}
-            <AuroraLogoHero size={320} />
+            <AuroraLogoHero size={isMobile ? 200 : 320} />
 
-            <motion.div 
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-cosmic text-sm font-medium"
-              whileHover={{ scale: 1.05 }}
+            <div 
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-cosmic text-sm font-medium hover:scale-105 transition-transform duration-200"
             >
               <Sparkles className="w-4 h-4 text-cosmic" />
               <span className="text-cosmic">Now with Discord-style voice channels</span>
-            </motion.div>
+            </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
               Work Smarter with{" "}
@@ -446,18 +459,14 @@ const Landing = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {highlights.map((item, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -4 }}
-                className="relative flex items-center gap-3 p-4 rounded-2xl glass-cosmic overflow-hidden group"
+                className="relative flex items-center gap-3 p-4 rounded-2xl glass-cosmic overflow-hidden group hover:scale-105 hover:-translate-y-1 transition-transform duration-200 animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-                {/* Glow effect on hover */}
-                <motion.div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                {/* Glow effect on hover - CSS only */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                   style={{
                     background: 'radial-gradient(circle at 30% 50%, hsl(var(--primary) / 0.15) 0%, transparent 50%)',
                   }}
@@ -469,7 +478,7 @@ const Landing = () => {
                   <p className="font-semibold text-sm text-cosmic">{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
@@ -488,10 +497,10 @@ const Landing = () => {
 
       {/* Features Section - cosmic styling */}
       <section className="py-16 md:py-24 px-6 relative overflow-hidden">
-        {/* Background nebula effect */}
+        {/* Background nebula effect - static for performance */}
         <div className="absolute inset-0 bg-gradient-to-b from-[hsl(260,30%,6%)] via-background to-background" />
-        <motion.div 
-          className="absolute top-0 left-1/4 w-[600px] h-[400px] rounded-full blur-3xl opacity-20"
+        <div 
+          className="absolute top-0 left-1/4 w-[400px] md:w-[600px] h-[300px] md:h-[400px] rounded-full blur-3xl opacity-20"
           style={{
             background: 'radial-gradient(ellipse, hsl(280 70% 40% / 0.4) 0%, transparent 70%)',
           }}
@@ -514,18 +523,15 @@ const Landing = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.03, y: -8 }}
+                className="animate-fade-in hover:scale-[1.02] hover:-translate-y-2 transition-transform duration-200"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Card className="relative glass-cosmic border-0 h-full group overflow-hidden">
-                  {/* Cosmic glow on hover */}
-                  <motion.div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  {/* Cosmic glow on hover - CSS only */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                     style={{
                       background: 'radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.2) 0%, transparent 60%)',
                     }}
@@ -540,7 +546,7 @@ const Landing = () => {
                     <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -561,21 +567,17 @@ const Landing = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {useCases.map((useCase, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02, x: index % 2 === 0 ? 4 : -4 }}
-                className="flex gap-4 p-6 rounded-2xl glass-cosmic group"
+                className="flex gap-4 p-6 rounded-2xl glass-cosmic group animate-fade-in hover:scale-[1.02] transition-transform duration-200"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="text-4xl group-hover:scale-110 transition-transform duration-300">{useCase.image}</div>
                 <div>
                   <h3 className="font-bold text-lg mb-2 text-cosmic">{useCase.title}</h3>
                   <p className="text-muted-foreground">{useCase.description}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -583,10 +585,10 @@ const Landing = () => {
 
       {/* Testimonials - cosmic styling */}
       <section className="py-16 md:py-24 px-6 relative overflow-hidden">
-        {/* Background */}
+        {/* Background - static for performance */}
         <div className="absolute inset-0 bg-gradient-to-b from-background via-[hsl(260,30%,6%)] to-background" />
-        <motion.div 
-          className="absolute bottom-0 right-1/4 w-[500px] h-[300px] rounded-full blur-3xl opacity-15"
+        <div 
+          className="absolute bottom-0 right-1/4 w-[350px] md:w-[500px] h-[200px] md:h-[300px] rounded-full blur-3xl opacity-15"
           style={{
             background: 'radial-gradient(ellipse, hsl(180 80% 50% / 0.4) 0%, transparent 70%)',
           }}
@@ -605,19 +607,16 @@ const Landing = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.03, y: -4 }}
+                className="animate-fade-in hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-200"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Card className="glass-cosmic border-0 h-full flex flex-col overflow-hidden group">
                   <CardContent className="relative pt-6 flex flex-col flex-1">
-                    {/* Glow effect */}
-                    <motion.div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    {/* Glow effect - CSS only */}
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                       style={{
                         background: 'radial-gradient(ellipse at 50% 100%, hsl(var(--primary) / 0.15) 0%, transparent 60%)',
                       }}
@@ -639,7 +638,7 @@ const Landing = () => {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
