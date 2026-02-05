@@ -176,20 +176,20 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
+      {/* Navigation - cosmic glassmorphism */}
+      <nav className="fixed top-0 left-0 right-0 z-50 glass-cosmic">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Nav logo */}
             <AuroraLogo size={40} animated={false} />
-            <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+            <span className="text-2xl md:text-3xl font-bold text-cosmic">
               AuraDesk
             </span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <a
               href="mailto:info.auradesk@gmail.com"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+              className="flex items-center gap-2 text-muted-foreground hover:text-cosmic transition-colors text-sm"
             >
               <Mail className="w-4 h-4" />
               <span className="hidden md:inline">info.auradesk@gmail.com</span>
@@ -197,12 +197,17 @@ const Landing = () => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => navigate("/auth")} className="gap-1.5">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigate("/auth")} 
+                    className="gap-1.5 border-primary/30 hover:border-primary/60 hover:bg-primary/10 transition-all"
+                  >
                     Sign In
                     <Info className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[280px] text-center">
+                <TooltipContent side="bottom" className="max-w-[280px] text-center glass-cosmic border-primary/20">
                   <p className="text-xs">Google Sign-In will redirect you to a secure authentication page. This is normal and keeps your data safe.</p>
                 </TooltipContent>
               </Tooltip>
@@ -211,11 +216,36 @@ const Landing = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section - enhanced cosmic feel */}
       <section className="pt-28 md:pt-36 pb-16 md:pb-24 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10" />
-        <div className="absolute top-40 left-10 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl opacity-50" />
-        <div className="absolute bottom-20 right-10 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl opacity-50" />
+        {/* Deep space background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,70%,8%)] via-background to-[hsl(220,60%,8%)]" />
+        
+        {/* Nebula clouds */}
+        <motion.div 
+          className="absolute top-20 left-10 w-[500px] h-[500px] rounded-full blur-3xl opacity-30"
+          style={{
+            background: 'radial-gradient(circle, hsl(280 70% 50% / 0.4) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div 
+          className="absolute bottom-20 right-10 w-[400px] h-[400px] rounded-full blur-3xl opacity-30"
+          style={{
+            background: 'radial-gradient(circle, hsl(180 80% 50% / 0.35) 0%, transparent 70%)',
+          }}
+          animate={{ scale: [1, 1.15, 1], x: [0, -15, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl opacity-20"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 60%)',
+          }}
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+        />
 
         <div className="container mx-auto max-w-6xl relative">
           <motion.div
@@ -227,14 +257,17 @@ const Landing = () => {
             {/* Premium hero logo - SVG-based, truly integrated - BIGGER */}
             <AuroraLogoHero size={320} />
 
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              <Sparkles className="w-4 h-4" />
-              Now with Discord-style voice channels
-            </div>
+            <motion.div 
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-cosmic text-sm font-medium"
+              whileHover={{ scale: 1.05 }}
+            >
+              <Sparkles className="w-4 h-4 text-cosmic" />
+              <span className="text-cosmic">Now with Discord-style voice channels</span>
+            </motion.div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
               Work Smarter with{" "}
-              <span className="bg-gradient-to-r from-violet-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
+              <span className="text-cosmic-glow">
                 AuraDesk
               </span>
             </h1>
@@ -385,8 +418,8 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <section className="py-8 px-6 bg-muted/30 border-y border-border/50">
+      {/* Stats Bar - cosmic styling */}
+      <section className="py-10 px-6 glass-cosmic border-y-0">
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {stats.map((stat, index) => (
@@ -398,7 +431,7 @@ const Landing = () => {
                 transition={{ delay: index * 0.1 }}
                 className="text-center"
               >
-                <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+                <p className="text-2xl md:text-3xl font-bold text-cosmic-glow">
                   {stat.value}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
@@ -408,7 +441,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Highlights */}
+      {/* Highlights - cosmic cards */}
       <section className="py-12 md:py-16 px-6">
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
@@ -419,13 +452,21 @@ const Landing = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="flex items-center gap-3 p-4 rounded-xl bg-card/50 border border-border/50"
+                whileHover={{ scale: 1.05, y: -4 }}
+                className="relative flex items-center gap-3 p-4 rounded-2xl glass-cosmic overflow-hidden group"
               >
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <item.icon className="w-5 h-5 text-primary" />
+                {/* Glow effect on hover */}
+                <motion.div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{
+                    background: 'radial-gradient(circle at 30% 50%, hsl(var(--primary) / 0.15) 0%, transparent 50%)',
+                  }}
+                />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(180,80%,50%)] via-[hsl(var(--primary))] to-[hsl(280,70%,55%)] flex items-center justify-center">
+                  <item.icon className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <p className="font-semibold text-sm">{item.label}</p>
+                <div className="relative">
+                  <p className="font-semibold text-sm text-cosmic">{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
               </motion.div>
@@ -445,9 +486,18 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 md:py-24 px-6 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
+      {/* Features Section - cosmic styling */}
+      <section className="py-16 md:py-24 px-6 relative overflow-hidden">
+        {/* Background nebula effect */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(260,30%,6%)] via-background to-background" />
+        <motion.div 
+          className="absolute top-0 left-1/4 w-[600px] h-[400px] rounded-full blur-3xl opacity-20"
+          style={{
+            background: 'radial-gradient(ellipse, hsl(280 70% 40% / 0.4) 0%, transparent 70%)',
+          }}
+        />
+        
+        <div className="container mx-auto max-w-6xl relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -455,7 +505,7 @@ const Landing = () => {
             className="text-center mb-12 md:mb-16"
           >
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              Everything you need, <span className="text-primary">in one place</span>
+              Everything you need, <span className="text-cosmic-glow">in one place</span>
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Stop juggling between Slack, Discord, Zoom, and Google Meet. AuraDesk brings it all together.
@@ -470,15 +520,23 @@ const Landing = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.03, y: -8 }}
               >
-                <Card className="bg-card/50 backdrop-blur-sm border-border/50 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 h-full group">
-                  <CardContent className="pt-6 pb-6">
+                <Card className="relative glass-cosmic border-0 h-full group overflow-hidden">
+                  {/* Cosmic glow on hover */}
+                  <motion.div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background: 'radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.2) 0%, transparent 60%)',
+                    }}
+                  />
+                  <CardContent className="relative pt-6 pb-6">
                     <div
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}
+                      className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(180,80%,50%)] via-[hsl(var(--primary))] to-[hsl(280,70%,55%)] flex items-center justify-center mb-5 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary/30 transition-all duration-300"
                     >
                       <feature.icon className="w-7 h-7 text-white" />
                     </div>
-                    <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
+                    <h3 className="text-xl font-bold mb-2 text-cosmic">{feature.title}</h3>
                     <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
@@ -488,7 +546,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Use Cases */}
+      {/* Use Cases - cosmic styling */}
       <section className="py-16 md:py-24 px-6">
         <div className="container mx-auto max-w-6xl">
           <motion.div
@@ -497,7 +555,7 @@ const Landing = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for everyone</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for <span className="text-cosmic">everyone</span></h2>
             <p className="text-muted-foreground text-lg">From startups to gaming communities</p>
           </motion.div>
 
@@ -509,11 +567,12 @@ const Landing = () => {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="flex gap-4 p-6 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/30 transition-colors"
+                whileHover={{ scale: 1.02, x: index % 2 === 0 ? 4 : -4 }}
+                className="flex gap-4 p-6 rounded-2xl glass-cosmic group"
               >
-                <div className="text-4xl">{useCase.image}</div>
+                <div className="text-4xl group-hover:scale-110 transition-transform duration-300">{useCase.image}</div>
                 <div>
-                  <h3 className="font-bold text-lg mb-2">{useCase.title}</h3>
+                  <h3 className="font-bold text-lg mb-2 text-cosmic">{useCase.title}</h3>
                   <p className="text-muted-foreground">{useCase.description}</p>
                 </div>
               </motion.div>
@@ -522,16 +581,25 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-16 md:py-24 px-6 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
+      {/* Testimonials - cosmic styling */}
+      <section className="py-16 md:py-24 px-6 relative overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-[hsl(260,30%,6%)] to-background" />
+        <motion.div 
+          className="absolute bottom-0 right-1/4 w-[500px] h-[300px] rounded-full blur-3xl opacity-15"
+          style={{
+            background: 'radial-gradient(ellipse, hsl(180 80% 50% / 0.4) 0%, transparent 70%)',
+          }}
+        />
+        
+        <div className="container mx-auto max-w-6xl relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet the Team Behind AuraDesk</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet the Team Behind <span className="text-cosmic-glow">AuraDesk</span></h2>
             <p className="text-muted-foreground text-lg">Built with passion by people who care</p>
           </motion.div>
 
@@ -543,21 +611,29 @@ const Landing = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.03, y: -4 }}
               >
-                <Card className="bg-card/50 border-border/50 h-full flex flex-col">
-                  <CardContent className="pt-6 flex flex-col flex-1">
-                    <div className="flex items-center gap-1 mb-4">
+                <Card className="glass-cosmic border-0 h-full flex flex-col overflow-hidden group">
+                  <CardContent className="relative pt-6 flex flex-col flex-1">
+                    {/* Glow effect */}
+                    <motion.div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                      style={{
+                        background: 'radial-gradient(ellipse at 50% 100%, hsl(var(--primary) / 0.15) 0%, transparent 60%)',
+                      }}
+                    />
+                    <div className="relative flex items-center gap-1 mb-4">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                        <Star key={i} className="w-4 h-4 fill-[hsl(45,90%,55%)] text-[hsl(45,90%,55%)]" />
                       ))}
                     </div>
-                    <p className="text-muted-foreground mb-6 leading-relaxed flex-1">"{testimonial.content}"</p>
-                    <div className="flex items-center gap-3 mt-auto">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                    <p className="relative text-muted-foreground mb-6 leading-relaxed flex-1">"{testimonial.content}"</p>
+                    <div className="relative flex items-center gap-3 mt-auto">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(180,80%,50%)] via-[hsl(var(--primary))] to-[hsl(280,70%,55%)] flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-primary/30">
                         {testimonial.avatar}
                       </div>
                       <div>
-                        <p className="font-semibold text-sm">{testimonial.name}</p>
+                        <p className="font-semibold text-sm text-cosmic">{testimonial.name}</p>
                         <p className="text-xs text-muted-foreground">{testimonial.role}</p>
                       </div>
                     </div>
@@ -586,12 +662,12 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-8 md:py-12 px-6 border-t border-border/50 bg-muted/30">
+      {/* Footer - cosmic styling */}
+      <footer className="py-8 md:py-12 px-6 glass-cosmic border-t-0">
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex flex-col md:flex-row items-center gap-4">
-              <span className="text-xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-cosmic">
                 AuraDesk
               </span>
               <span className="text-muted-foreground text-sm">© 2026 All rights reserved.</span>
@@ -599,17 +675,17 @@ const Landing = () => {
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
               <a
                 href="mailto:info.auradesk@gmail.com"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                className="text-sm text-muted-foreground hover:text-cosmic transition-colors flex items-center gap-2"
               >
                 <Mail className="w-4 h-4" />
                 info.auradesk@gmail.com
               </a>
               <div className="flex items-center gap-4">
                 <UserGuideDownload variant="link" />
-                <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/terms" className="text-sm text-muted-foreground hover:text-cosmic transition-colors">
                   Terms
                 </Link>
-                <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/privacy" className="text-sm text-muted-foreground hover:text-cosmic transition-colors">
                   Privacy
                 </Link>
               </div>
