@@ -163,18 +163,21 @@ const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(' ');
 
 // Check if we should show splash (native mobile OR standalone PWA)
-const shouldShowSplash = (skipForOAuth: boolean = false): boolean => {
+const shouldShowSplash = (): boolean => {
   if (typeof window === 'undefined') return false;
   
-  // Skip splash screen if this is an OAuth callback to prevent login loop
-  if (skipForOAuth) {
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const isOAuthCallback = hash.includes('access_token') || 
-                           hash.includes('refresh_token') ||
-                           search.includes('code=') ||
-                           sessionStorage.getItem('oauth_login_pending') === 'true';
-    if (isOAuthCallback) return false;
+  // CRITICAL: Skip splash screen if this is an OAuth callback to prevent login loop
+  // Check FIRST before any other logic
+  const hash = window.location.hash;
+  const search = window.location.search;
+  const isOAuthCallback = hash.includes('access_token') || 
+                         hash.includes('refresh_token') ||
+                         search.includes('code=') ||
+                         sessionStorage.getItem('oauth_login_pending') === 'true';
+  
+  if (isOAuthCallback) {
+    console.log('OAuth callback detected, skipping splash screen');
+    return false;
   }
   
   // Native Capacitor app
@@ -211,7 +214,7 @@ const AppUpdateChecker = () => {
 };
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => shouldShowSplash(true));
+  const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
 
   return (
     <ErrorBoundary>
