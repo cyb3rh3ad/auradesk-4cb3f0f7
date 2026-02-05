@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
+import auraLogo from "@/assets/logo-option-5.png";
 import {
   Dialog,
   DialogContent,
@@ -37,44 +38,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// SVG cutout "A" logo - pure vector, no image, background shows through
-const CutoutLogo = ({ size = 160 }: { size?: number }) => (
-  <svg
-    viewBox="0 0 100 100"
+// Image-based logo with screen blend to integrate with background
+const LogoImage = ({ size = 160 }: { size?: number }) => (
+  <img
+    src={auraLogo}
+    alt="AuraDesk Logo"
     width={size}
     height={size}
-    style={{ filter: 'drop-shadow(0 0 15px hsl(var(--primary) / 0.6))' }}
-  >
-    <defs>
-      {/* Gradient for the glowing stroke */}
-      <linearGradient id="auraGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="hsl(262, 83%, 58%)" />
-        <stop offset="50%" stopColor="hsl(280, 80%, 60%)" />
-        <stop offset="100%" stopColor="hsl(217, 91%, 60%)" />
-      </linearGradient>
-      
-      {/* Inner glow filter */}
-      <filter id="auraGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-    
-    {/* The "A" letterform - elegant geometric cutout design */}
-    <g filter="url(#auraGlow)">
-      <path
-        d="M50 10 L85 90 L73 90 L63 68 L37 68 L27 90 L15 90 L50 10 Z M50 28 L38 60 L62 60 L50 28 Z"
-        fill="none"
-        stroke="url(#auraGradient)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </g>
-  </svg>
+    className="object-contain"
+    style={{
+      filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.6))',
+      mixBlendMode: 'screen',
+    }}
+  />
 );
 
 // Premium hero logo - pure SVG cutout, background visible through the strokes
@@ -113,7 +89,7 @@ const HeroLogo = () => {
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <CutoutLogo size={200} />
+          <LogoImage size={200} />
         </motion.div>
       </div>
     </motion.div>
@@ -262,8 +238,8 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Nav logo - small cutout version */}
-            <CutoutLogo size={40} />
+            {/* Nav logo */}
+            <LogoImage size={40} />
             <span className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">
               AuraDesk
             </span>
