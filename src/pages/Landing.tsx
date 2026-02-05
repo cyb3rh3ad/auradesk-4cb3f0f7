@@ -25,9 +25,9 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate, Link } from "react-router-dom";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
 import { AuroraLogo, AuroraLogoHero } from "@/components/icons/AuroraLogo";
@@ -47,20 +47,8 @@ const Landing = () => {
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
   
-  // Performance: Detect mobile and reduced motion preferences
+  // Performance: Detect mobile for conditional rendering
   const isMobile = useIsMobile();
-  const prefersReducedMotion = useReducedMotion();
-  const shouldReduceMotion = isMobile || prefersReducedMotion;
-  
-  // Memoized animation variants for performance
-  const fadeInVariant = useMemo(() => ({
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: shouldReduceMotion ? 0.2 : 0.6 } }
-  }), [shouldReduceMotion]);
-  
-  const cardHoverVariant = useMemo(() => 
-    shouldReduceMotion ? {} : { scale: 1.03, y: -8 }
-  , [shouldReduceMotion]);
 
   const features = [
     {
@@ -237,8 +225,8 @@ const Landing = () => {
         {/* Deep space background */}
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,70%,8%)] via-background to-[hsl(220,60%,8%)]" />
         
-        {/* Nebula clouds - CSS animations instead of framer-motion for performance */}
-        {!shouldReduceMotion && (
+        {/* Nebula clouds - only on desktop for performance */}
+        {!isMobile && (
           <>
             <div 
               className="absolute top-20 left-10 w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full blur-3xl opacity-30 animate-nebula-1"
@@ -262,17 +250,13 @@ const Landing = () => {
         )}
 
         <div className="container mx-auto max-w-6xl relative">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInVariant}
-            className="text-center space-y-6 md:space-y-8"
-          >
+          {/* On mobile, use simple CSS. On desktop, use motion */}
+          <div className="text-center space-y-6 md:space-y-8 animate-fade-in">
             {/* Premium hero logo - SVG-based, truly integrated - BIGGER */}
-            <AuroraLogoHero size={isMobile ? 200 : 320} />
+            <AuroraLogoHero size={isMobile ? 180 : 320} />
 
             <div 
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-cosmic text-sm font-medium hover:scale-105 transition-transform duration-200"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass-cosmic text-sm font-medium"
             >
               <Sparkles className="w-4 h-4 text-cosmic" />
               <span className="text-cosmic">Now with Discord-style voice channels</span>
@@ -290,165 +274,191 @@ const Landing = () => {
               Discord meets Zoom, but better.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              {/* Meiosis-style Splitting Download Button */}
-              <div 
-                className="relative h-14 flex items-center justify-center"
-                style={{ width: '280px' }}
-                onMouseEnter={() => setShowDownloadOptions(true)}
-                onMouseLeave={() => setShowDownloadOptions(false)}
-              >
-                {/* The unified button - fades out cleanly */}
-                <motion.div
-                  className="absolute inset-0 flex items-center justify-center z-10"
-                  animate={{ 
-                    opacity: showDownloadOptions ? 0 : 1,
-                    scaleX: showDownloadOptions ? 1.02 : 1,
-                  }}
-                  transition={{ 
-                    opacity: { duration: 0.3, ease: "easeOut" },
-                    scaleX: { duration: 0.4, ease: "easeOut" },
-                  }}
-                  style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
+            {/* Mobile: Simple stacked buttons. Desktop: Animated split buttons */}
+            {isMobile ? (
+              <div className="flex flex-col gap-3 pt-4">
+                <a
+                  href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg h-14 px-8 w-full"
                 >
-                  <Button
-                    size="lg"
-                    className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
-                    onClick={() => setShowDownloadOptions(true)}
-                  >
-                    <Download className="w-5 h-5 mr-2" />
-                    Download App
-                  </Button>
-                </motion.div>
-
-                {/* The two daughter cells - simple and clean */}
-                <div className="relative flex items-center justify-center h-full w-full">
-                  {/* Left cell - Windows */}
-                  <motion.div
-                    className="absolute left-0"
-                    animate={{ 
-                      opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
-                      x: showDownloadOptions ? [-8, -3, -4, -4] : -8,
-                    }}
-                    transition={{ 
-                      opacity: { duration: 0.4, ease: "easeOut" },
-                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
-                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
-                    }}
-                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
-                  >
-                    <a
-                      href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
-                    >
-                      <Monitor className="w-4 h-4 mr-2" />
-                      Windows
-                    </a>
-                  </motion.div>
-
-                  {/* Right cell - Mobile (expands to iOS/Android) */}
-                  <motion.div
-                    className="absolute right-0"
-                    animate={{ 
-                      opacity: showDownloadOptions ? 1 : 0,
-                      scale: showDownloadOptions ? [0.92, 1.015, 0.995, 1] : 0.92,
-                      x: showDownloadOptions ? [8, 3, 4, 4] : 8,
-                    }}
-                    transition={{ 
-                      opacity: { duration: 0.4, ease: "easeOut" },
-                      scale: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
-                      x: { duration: 0.9, times: [0, 0.5, 0.75, 1], ease: "easeOut" },
-                    }}
-                    style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
-                  >
-                    <div 
-                      className="relative h-14 flex items-center justify-center"
-                      style={{ width: '136px' }}
-                      onMouseEnter={() => setShowMobileOptions(true)}
-                      onMouseLeave={() => setShowMobileOptions(false)}
-                    >
-                      {/* Mobile button - splits into iOS/Android */}
-                      <motion.button
-                        className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg shadow-emerald-500/30 h-14 px-6 w-full"
-                        animate={{ 
-                          opacity: showMobileOptions ? 0 : 1,
-                        }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        style={{ pointerEvents: showMobileOptions ? "none" : "auto" }}
-                        onClick={() => setShowMobileOptions(true)}
-                      >
-                        <Smartphone className="w-4 h-4 mr-2" />
-                        Mobile
-                      </motion.button>
-
-                      {/* iOS Button */}
-                      <motion.button
-                        className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 hover:from-slate-600 hover:via-slate-500 hover:to-slate-600 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-slate-500/30 h-14 px-4 w-[66px]"
-                        animate={{ 
-                          opacity: showMobileOptions ? 1 : 0,
-                          x: showMobileOptions ? -35 : 0,
-                        }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
-                        onClick={() => setShowIOSInstructions(true)}
-                      >
-                        iOS
-                      </motion.button>
-
-                      {/* Android Button */}
-                      <motion.button
-                        className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
-                        animate={{ 
-                          opacity: showMobileOptions ? 1 : 0,
-                          x: showMobileOptions ? 35 : 0,
-                        }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
-                        onClick={() => setShowAndroidInstructions(true)}
-                      >
-                        Android
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                </div>
+                  <Monitor className="w-5 h-5 mr-2" />
+                  Windows
+                </a>
+                <button
+                  onClick={() => setShowIOSInstructions(true)}
+                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 text-white rounded-full shadow-lg h-14 px-8 w-full"
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  iOS
+                </button>
+                <button
+                  onClick={() => setShowAndroidInstructions(true)}
+                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg h-14 px-8 w-full"
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Android
+                </button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg h-14 px-8 rounded-full border-2 w-full"
+                  onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                >
+                  <Globe className="w-5 h-5 mr-2" />
+                  Use in Browser
+                </Button>
               </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                {/* Meiosis-style Splitting Download Button - Desktop only */}
+                <div 
+                  className="relative h-14 flex items-center justify-center"
+                  style={{ width: '280px' }}
+                  onMouseEnter={() => setShowDownloadOptions(true)}
+                  onMouseLeave={() => setShowDownloadOptions(false)}
+                >
+                  {/* The unified button - fades out cleanly */}
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center z-10"
+                    animate={{ 
+                      opacity: showDownloadOptions ? 0 : 1,
+                      scaleX: showDownloadOptions ? 1.02 : 1,
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.3, ease: "easeOut" },
+                      scaleX: { duration: 0.4, ease: "easeOut" },
+                    }}
+                    style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
+                  >
+                    <Button
+                      size="lg"
+                      className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
+                      onClick={() => setShowDownloadOptions(true)}
+                    >
+                      <Download className="w-5 h-5 mr-2" />
+                      Download App
+                    </Button>
+                  </motion.div>
 
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg h-14 px-8 rounded-full border-2 w-[280px]"
-                onClick={() => navigate(user ? "/dashboard" : "/auth")}
-              >
-                <Globe className="w-5 h-5 mr-2" />
-                Use in Browser
-              </Button>
-            </div>
+                  {/* The two daughter cells - simple and clean */}
+                  <div className="relative flex items-center justify-center h-full w-full">
+                    {/* Left cell - Windows */}
+                    <motion.div
+                      className="absolute left-0"
+                      animate={{ 
+                        opacity: showDownloadOptions ? 1 : 0,
+                        scale: showDownloadOptions ? 1 : 0.92,
+                        x: showDownloadOptions ? -4 : -8,
+                      }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
+                    >
+                      <a
+                        href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
+                      >
+                        <Monitor className="w-4 h-4 mr-2" />
+                        Windows
+                      </a>
+                    </motion.div>
 
-          </motion.div>
+                    {/* Right cell - Mobile (expands to iOS/Android) */}
+                    <motion.div
+                      className="absolute right-0"
+                      animate={{ 
+                        opacity: showDownloadOptions ? 1 : 0,
+                        scale: showDownloadOptions ? 1 : 0.92,
+                        x: showDownloadOptions ? 4 : 8,
+                      }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
+                    >
+                      <div 
+                        className="relative h-14 flex items-center justify-center"
+                        style={{ width: '136px' }}
+                        onMouseEnter={() => setShowMobileOptions(true)}
+                        onMouseLeave={() => setShowMobileOptions(false)}
+                      >
+                        {/* Mobile button - splits into iOS/Android */}
+                        <motion.button
+                          className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg shadow-emerald-500/30 h-14 px-6 w-full"
+                          animate={{ 
+                            opacity: showMobileOptions ? 0 : 1,
+                          }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          style={{ pointerEvents: showMobileOptions ? "none" : "auto" }}
+                          onClick={() => setShowMobileOptions(true)}
+                        >
+                          <Smartphone className="w-4 h-4 mr-2" />
+                          Mobile
+                        </motion.button>
+
+                        {/* iOS Button */}
+                        <motion.button
+                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 hover:from-slate-600 hover:via-slate-500 hover:to-slate-600 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-slate-500/30 h-14 px-4 w-[66px]"
+                          animate={{ 
+                            opacity: showMobileOptions ? 1 : 0,
+                            x: showMobileOptions ? -35 : 0,
+                          }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
+                          onClick={() => setShowIOSInstructions(true)}
+                        >
+                          iOS
+                        </motion.button>
+
+                        {/* Android Button */}
+                        <motion.button
+                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
+                          animate={{ 
+                            opacity: showMobileOptions ? 1 : 0,
+                            x: showMobileOptions ? 35 : 0,
+                          }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
+                          onClick={() => setShowAndroidInstructions(true)}
+                        >
+                          Android
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg h-14 px-8 rounded-full border-2 w-[280px]"
+                  onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                >
+                  <Globe className="w-5 h-5 mr-2" />
+                  Use in Browser
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Stats Bar - cosmic styling */}
+      {/* Stats Bar - cosmic styling - no motion on mobile */}
       <section className="py-10 px-6 glass-cosmic border-y-0">
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {stats.map((stat, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center"
+                className="text-center animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <p className="text-2xl md:text-3xl font-bold text-cosmic-glow">
                   {stat.value}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -482,16 +492,12 @@ const Landing = () => {
             ))}
           </div>
 
-          {/* Interactive App Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="mt-12 md:mt-16"
-          >
-            <AppPreview />
-          </motion.div>
+          {/* Interactive App Preview - hidden on mobile for performance */}
+          {!isMobile && (
+            <div className="mt-12 md:mt-16 animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <AppPreview />
+            </div>
+          )}
         </div>
       </section>
 
@@ -507,19 +513,14 @@ const Landing = () => {
         />
         
         <div className="container mx-auto max-w-6xl relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12 md:mb-16"
-          >
+          <div className="text-center mb-12 md:mb-16 animate-fade-in">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
               Everything you need, <span className="text-cosmic-glow">in one place</span>
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Stop juggling between Slack, Discord, Zoom, and Google Meet. AuraDesk brings it all together.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
@@ -552,18 +553,13 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Use Cases - cosmic styling */}
+      {/* Use Cases - cosmic styling - CSS animations only */}
       <section className="py-16 md:py-24 px-6">
         <div className="container mx-auto max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+          <div className="text-center mb-12 animate-fade-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for <span className="text-cosmic">everyone</span></h2>
             <p className="text-muted-foreground text-lg">From startups to gaming communities</p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {useCases.map((useCase, index) => (
@@ -595,15 +591,10 @@ const Landing = () => {
         />
         
         <div className="container mx-auto max-w-6xl relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+          <div className="text-center mb-12 animate-fade-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet the Team Behind <span className="text-cosmic-glow">AuraDesk</span></h2>
             <p className="text-muted-foreground text-lg">Built with passion by people who care</p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial, index) => (
