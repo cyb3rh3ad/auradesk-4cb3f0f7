@@ -224,8 +224,8 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="text-center space-y-6 md:space-y-8"
           >
-            {/* Premium hero logo - SVG-based, truly integrated */}
-            <AuroraLogoHero size={260} />
+            {/* Premium hero logo - SVG-based, truly integrated - BIGGER */}
+            <AuroraLogoHero size={320} />
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
               <Sparkles className="w-4 h-4" />
