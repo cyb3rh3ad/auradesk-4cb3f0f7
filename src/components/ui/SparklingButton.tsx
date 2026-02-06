@@ -7,18 +7,28 @@ interface SparklingButtonProps {
   onClick?: () => void;
   className?: string;
   variant?: "cosmic" | "outline" | "slate";
+  hue?: "teal" | "blue"; // teal = default cyan-teal, blue = more blue-ish for Windows
   href?: string;
   download?: boolean;
   disabled?: boolean;
 }
 
-// Polar ray colors - blue-green aurora spectrum
-const polarColors = [
+// Polar ray colors - blue-green aurora spectrum (teal default)
+const polarColorsTeal = [
   'hsl(175, 85%, 55%)',  // cyan-teal
   'hsl(165, 80%, 50%)',  // teal
   'hsl(185, 85%, 55%)',  // light cyan
   'hsl(195, 80%, 55%)',  // sky blue
   'hsl(170, 75%, 50%)',  // sea green
+];
+
+// Blue-shifted colors for Windows
+const polarColorsBlue = [
+  'hsl(210, 85%, 55%)',  // azure blue
+  'hsl(200, 80%, 55%)',  // sky blue
+  'hsl(220, 85%, 60%)',  // royal blue
+  'hsl(195, 80%, 55%)',  // cyan-blue
+  'hsl(205, 75%, 55%)',  // ocean blue
 ];
 
 const slateColors = [
@@ -33,12 +43,14 @@ export const SparklingButton = memo(({
   onClick,
   className,
   variant = "cosmic",
+  hue = "teal",
   href,
   download,
   disabled,
 }: SparklingButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const polarColors = hue === "blue" ? polarColorsBlue : polarColorsTeal;
   const particleColors = variant === "slate" ? slateColors : polarColors;
 
   // For outline variant, use simpler styling
@@ -251,6 +263,13 @@ export const SparklingButton = memo(({
     );
   }
 
+  // Get hue-specific values
+  const isBlue = hue === "blue";
+  const bgHue1 = isBlue ? 210 : 175;
+  const bgHue2 = isBlue ? 200 : 165;
+  const bgHue3 = isBlue ? 215 : 180;
+  const bgHue4 = isBlue ? 205 : 170;
+
   // Cosmic variant (default) - polar ray effect
   const content = (
     <>
@@ -259,12 +278,12 @@ export const SparklingButton = memo(({
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(175 80% 50% / 0.2) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(${bgHue1} 80% 50% / 0.2) 0%, transparent 50%),
             linear-gradient(135deg, 
-              hsl(175 70% 22%) 0%, 
-              hsl(165 65% 26%) 35%,
-              hsl(180 70% 24%) 65%,
-              hsl(170 65% 22%) 100%
+              hsl(${bgHue1} 70% 22%) 0%, 
+              hsl(${bgHue2} 65% 26%) 35%,
+              hsl(${bgHue3} 70% 24%) 65%,
+              hsl(${bgHue4} 65% 22%) 100%
             )
           `,
         }}
@@ -275,11 +294,11 @@ export const SparklingButton = memo(({
         className="absolute inset-0 rounded-xl"
         style={{
           background: `linear-gradient(135deg, 
-            hsl(175 90% 55% / ${isHovered ? 0.8 : 0.45}) 0%, 
-            hsl(165 85% 50% / ${isHovered ? 0.7 : 0.4}) 25%,
-            hsl(185 90% 55% / ${isHovered ? 0.75 : 0.42}) 50%, 
-            hsl(195 85% 55% / ${isHovered ? 0.7 : 0.4}) 75%,
-            hsl(170 90% 50% / ${isHovered ? 0.8 : 0.45}) 100%
+            hsl(${bgHue1} 90% 55% / ${isHovered ? 0.8 : 0.45}) 0%, 
+            hsl(${bgHue2} 85% 50% / ${isHovered ? 0.7 : 0.4}) 25%,
+            hsl(${bgHue3} 90% 55% / ${isHovered ? 0.75 : 0.42}) 50%, 
+            hsl(${bgHue1 + 10} 85% 55% / ${isHovered ? 0.7 : 0.4}) 75%,
+            hsl(${bgHue4} 90% 50% / ${isHovered ? 0.8 : 0.45}) 100%
           )`,
           padding: '1.5px',
           WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
@@ -296,9 +315,9 @@ export const SparklingButton = memo(({
         style={{
           background: `linear-gradient(90deg, 
             transparent 0%, 
-            hsl(175 85% 55% / 0.25) 25%,
-            hsl(185 90% 55% / 0.22) 50%, 
-            hsl(175 85% 55% / 0.25) 75%,
+            hsl(${bgHue1} 85% 55% / 0.25) 25%,
+            hsl(${bgHue3} 90% 55% / 0.22) 50%, 
+            hsl(${bgHue1} 85% 55% / 0.25) 75%,
             transparent 100%
           )`,
         }}
@@ -366,7 +385,7 @@ export const SparklingButton = memo(({
         className="relative z-10 flex items-center gap-2 text-sm font-medium"
         style={{
           background: isHovered 
-            ? 'linear-gradient(90deg, hsl(175, 85%, 70%), hsl(165, 80%, 65%), hsl(185, 85%, 70%))' 
+            ? `linear-gradient(90deg, hsl(${bgHue1}, 85%, 70%), hsl(${bgHue2}, 80%, 65%), hsl(${bgHue3}, 85%, 70%))` 
             : 'none',
           WebkitBackgroundClip: isHovered ? 'text' : 'unset',
           WebkitTextFillColor: isHovered ? 'transparent' : 'hsl(0 0% 95%)',
