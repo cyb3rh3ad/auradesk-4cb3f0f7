@@ -48,6 +48,10 @@ export const TeamCallDialog = ({ team, isVideo, open, onClose, isHost = false }:
       minHeight={280}
       maxWidth={1400}
       maxHeight={1000}
+      roomName={roomName}
+      participantName={userName}
+      isVideo={isVideo}
+      isHost={isHost}
     >
       <HybridCallRoom
         roomName={roomName}

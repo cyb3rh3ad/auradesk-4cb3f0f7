@@ -1,7 +1,14 @@
-const { app, BrowserWindow, shell, protocol, dialog } = require('electron');
+const { app, BrowserWindow, shell, protocol, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
+const {
+  createCallWindow,
+  closeCallWindow,
+  toggleAlwaysOnTop,
+  getAlwaysOnTop,
+  isCallWindowOpen,
+} = require('./callWindow.cjs');
 
 // Optional auto-updater
 let autoUpdater = null;
@@ -12,6 +19,9 @@ if (app.isPackaged) {
     console.log('Auto-updater not available');
   }
 }
+
+// Store current call data for the pop-out window
+let currentCallData = null;
 
 let mainWindow = null;
 
@@ -201,6 +211,56 @@ function createWindow() {
     });
   }
 }
+
+// IPC handlers for call window management
+ipcMain.handle('pop-out-call', (event, callData) => {
+  console.log('[Main] Pop-out call requested:', callData);
+  currentCallData = callData;
+  createCallWindow(app, mainWindow, callData);
+  return true;
+});
+
+ipcMain.handle('pop-in-call', () => {
+  console.log('[Main] Pop-in call requested');
+  closeCallWindow();
+  currentCallData = null;
+  return true;
+});
+
+ipcMain.handle('toggle-call-always-on-top', () => {
+  const newState = toggleAlwaysOnTop();
+  console.log('[Main] Always on top toggled:', newState);
+  return newState;
+});
+
+ipcMain.handle('get-call-always-on-top', () => {
+  return getAlwaysOnTop();
+});
+
+ipcMain.handle('is-call-window-open', () => {
+  return isCallWindowOpen();
+});
+
+ipcMain.handle('close-call-window', () => {
+  closeCallWindow();
+  currentCallData = null;
+  return true;
+});
+
+ipcMain.handle('end-call-from-popout', () => {
+  console.log('[Main] End call from popout window');
+  closeCallWindow();
+  // Notify main window to end the call
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('call-ended-from-popout');
+  }
+  currentCallData = null;
+  return true;
+});
+
+ipcMain.handle('get-call-data', () => {
+  return currentCallData;
+});
 
 app.whenReady().then(createWindow);
 

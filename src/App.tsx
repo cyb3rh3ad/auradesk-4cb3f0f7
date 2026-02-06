@@ -38,6 +38,7 @@ import Auth from "./pages/Auth";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+import ElectronCall from "./pages/ElectronCall";
 
 // Check if running as a native app or standalone PWA (skip landing page)
 const isStandaloneApp = (): boolean => {
@@ -236,6 +237,8 @@ const App = () => {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
+                {/* Electron pop-out call window route */}
+                <Route path="/electron-call" element={<ElectronCall />} />
                 <Route
                   path="/*"
                   element={
