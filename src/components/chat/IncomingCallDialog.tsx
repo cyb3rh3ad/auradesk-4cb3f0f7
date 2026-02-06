@@ -197,47 +197,32 @@ export const IncomingCallDialog = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-12 pt-4 relative z-50">
+              <div className="flex items-center justify-center gap-12 pt-4 relative z-50">
                 {/* Decline button */}
-                <motion.div
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                >
+                <div className="flex flex-col items-center">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-16 h-16 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-colors touch-manipulation shadow-lg shadow-red-500/20"
+                    className="w-16 h-16 rounded-full bg-red-500/20 hover:bg-red-500/40 hover:scale-110 text-red-400 hover:text-red-300 transition-all duration-200 touch-manipulation shadow-lg shadow-red-500/20"
                     onClick={handleDecline}
                   >
                     <PhoneOff className="w-7 h-7" />
                   </Button>
                   <p className="text-xs text-muted-foreground mt-2">Decline</p>
-                </motion.div>
+                </div>
                 
                 {/* Accept button */}
-                <motion.div
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{ 
-                    boxShadow: [
-                      '0 0 20px rgba(34, 197, 94, 0.3)',
-                      '0 0 40px rgba(34, 197, 94, 0.4)',
-                      '0 0 20px rgba(34, 197, 94, 0.3)'
-                    ]
-                  }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="rounded-full"
-                >
+                <div className="flex flex-col items-center">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 text-white transition-colors touch-manipulation"
+                    className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 hover:scale-110 text-white transition-all duration-200 touch-manipulation shadow-lg shadow-green-500/40 animate-pulse"
                     onClick={handleAccept}
                   >
                     {isVideo ? <Video className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-2">Accept</p>
-                </motion.div>
+                </div>
               </div>
             </div>
           </DialogContent>
