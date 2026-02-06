@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { GripHorizontal, Minimize2, Maximize2, X } from 'lucide-react';
+import { GripHorizontal, Minimize2, Maximize2, X, ExternalLink, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useElectronCallWindow } from '@/hooks/useElectronCallWindow';
 
 interface ResizableCallWindowProps {
   children: React.ReactNode;
@@ -15,6 +16,10 @@ interface ResizableCallWindowProps {
   defaultWidth?: number;
   defaultHeight?: number;
   className?: string;
+  roomName?: string;
+  participantName?: string;
+  isVideo?: boolean;
+  isHost?: boolean;
 }
 
 type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
@@ -31,7 +36,12 @@ export const ResizableCallWindow = ({
   defaultWidth = 640,
   defaultHeight = 480,
   className,
+  roomName,
+  participantName,
+  isVideo = true,
+  isHost = false,
 }: ResizableCallWindowProps) => {
+  const { isElectron, isPoppedOut, popOutCall, popInCall } = useElectronCallWindow();
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ width: defaultWidth, height: defaultHeight });
@@ -254,6 +264,36 @@ export const ResizableCallWindow = ({
           </div>
           
           <div className="flex items-center gap-1">
+            {/* Pop-out button - only show in Electron when not already popped out */}
+            {isElectron && !isPoppedOut && roomName && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:bg-primary/20"
+                onClick={() => popOutCall({
+                  roomName,
+                  participantName: participantName || 'User',
+                  conversationName: title,
+                  isVideo,
+                  isHost,
+                })}
+                title="Pop out to separate window"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            {/* Pop-in button - only show in Electron when popped out */}
+            {isElectron && isPoppedOut && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:bg-primary/20"
+                onClick={popInCall}
+                title="Pop back into app"
+              >
+                <ArrowDownLeft className="w-3.5 h-3.5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -273,7 +313,7 @@ export const ResizableCallWindow = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 hover:bg-red-500/20 text-red-400"
+              className="h-6 w-6 hover:bg-destructive/20 text-destructive"
               onClick={onClose}
             >
               <X className="w-3.5 h-3.5" />
