@@ -35,23 +35,48 @@ const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
 // Multiple STUN servers for better NAT traversal success
 // TURN servers provide relay fallback when P2P fails (~30% of connections)
+// Using multiple providers for maximum reliability through firewalls
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // Google STUN servers (free, reliable)
+    // Google STUN servers (free, highly reliable)
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
-    // Additional public STUN servers for redundancy
-    { urls: "stun:stun.stunprotocol.org:3478" },
-    { urls: "stun:stun.voip.eutelia.it:3478" },
-    // OpenRelay TURN servers (free tier - relay when P2P fails)
+    // Twilio STUN (reliable)
+    { urls: "stun:global.stun.twilio.com:3478" },
+    // Metered TURN servers (free tier - very reliable)
+    // UDP (fastest when not blocked)
     {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:a.relay.metered.ca:80",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
     },
+    // TCP on port 80 (bypasses most firewalls)
+    {
+      urls: "turn:a.relay.metered.ca:80?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TLS on port 443 (HTTPS port - bypasses corporate firewalls)
+    {
+      urls: "turn:a.relay.metered.ca:443",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    {
+      urls: "turn:a.relay.metered.ca:443?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURNS (TURN over TLS - most firewall-friendly)
+    {
+      urls: "turns:a.relay.metered.ca:443?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // OpenRelay backup TURN servers
     {
       urls: "turn:openrelay.metered.ca:443",
       username: "openrelayproject",
@@ -62,16 +87,18 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    // Xirsys free TURN (backup)
-    {
-      urls: "turn:turn.anyfirewall.com:443?transport=tcp",
-      username: "webrtc",
-      credential: "webrtc",
-    },
   ],
   iceCandidatePoolSize: 10,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
+  // Allow relay candidates even if direct connection possible
+  iceTransportPolicy: "all",
+};
+
+// Force relay configuration for when direct connection fails
+const ICE_SERVERS_RELAY_ONLY: RTCConfiguration = {
+  ...ICE_SERVERS,
+  iceTransportPolicy: "relay",
 };
 
 export const useWebRTC = (roomId: string | null, userName: string) => {
@@ -96,6 +123,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const lastStatsTime = useRef<number>(Date.now());
   const lowBandwidthCount = useRef<number>(0);
   const currentAdaptiveMode = useRef<'high' | 'medium' | 'low' | 'audio-only'>('high');
+  
+  // Ref to hold sendOffer function for use in createPeerConnection
+  const sendOfferRef = useRef<((remoteUserId: string, remoteName: string) => Promise<void>) | null>(null);
 
   // Adapt video quality based on bandwidth
   const adaptVideoQuality = useCallback(async (mode: 'high' | 'medium' | 'low' | 'audio-only') => {
@@ -313,25 +343,78 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
     try {
       console.log("[WebRTC] Requesting media:", { video, audio });
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: video
-          ? {
-              width: { ideal: 1280, max: 1280 },
-              height: { ideal: 720, max: 720 },
-              frameRate: { ideal: 30, max: 30 },
-            }
-          : false,
-        audio: audio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
+      
+      // Try with both audio and video first
+      let stream: MediaStream | null = null;
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: video
+            ? {
+                width: { ideal: 1280, max: 1280 },
+                height: { ideal: 720, max: 720 },
+                frameRate: { ideal: 30, max: 30 },
+              }
+            : false,
+          audio: audio ? { 
+            echoCancellation: true, 
+            noiseSuppression: true, 
+            autoGainControl: true,
+            // Ensure we get audio even with strict constraints
+            sampleRate: { ideal: 48000 },
+            channelCount: { ideal: 1 },
+          } : false,
+        });
+      } catch (primaryErr: any) {
+        console.warn("[WebRTC] Primary media request failed:", primaryErr.name, primaryErr.message);
+        
+        // Fallback: try audio-only if video fails
+        if (video && audio) {
+          console.log("[WebRTC] Falling back to audio-only");
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: false,
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            });
+          } catch (audioErr) {
+            console.error("[WebRTC] Audio-only fallback failed:", audioErr);
+            throw primaryErr;
+          }
+        } else {
+          throw primaryErr;
+        }
+      }
+      
+      if (!stream) {
+        throw new Error("Failed to get media stream");
+      }
+
+      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+      
+      // Ensure all tracks are enabled
+      stream.getTracks().forEach(track => {
+        track.enabled = true;
+        console.log("[WebRTC] Track enabled:", track.kind, track.id);
       });
-      console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => t.kind));
+      
       setLocalStream(stream);
       localStreamRef.current = stream;
       return stream;
     } catch (err: any) {
       console.error("[WebRTC] Media error:", err);
-      setError(err.name === 'NotAllowedError' 
-        ? "Camera/microphone permission denied. Please allow access." 
-        : "Failed to access camera/microphone.");
+      let errorMessage = "Failed to access camera/microphone.";
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = "Camera/microphone permission denied. Please allow access in your browser settings.";
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = "No camera or microphone found. Please connect a device.";
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = "Camera/microphone is in use by another application.";
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage = "Camera does not meet requirements. Trying with lower quality...";
+      }
+      
+      setError(errorMessage);
       return null;
     }
   }, []);
@@ -343,8 +426,11 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     return user.id < remoteUserId;
   }, [user]);
 
+  // Track failed connections for relay fallback
+  const failedConnections = useRef<Set<string>>(new Set());
+  
   const createPeerConnection = useCallback(
-    (remoteUserId: string, remoteName: string) => {
+    (remoteUserId: string, remoteName: string, forceRelay: boolean = false) => {
       if (!localStreamRef.current || !user) {
         console.error("[WebRTC] Cannot create peer connection - no local stream or user");
         return null;
@@ -364,16 +450,31 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         peerConnections.current.delete(remoteUserId);
       }
 
-      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName);
-      const pc = new RTCPeerConnection(ICE_SERVERS);
+      // Use relay-only if we've failed before or if forced
+      const shouldUseRelay = forceRelay || failedConnections.current.has(remoteUserId);
+      const config = shouldUseRelay ? ICE_SERVERS_RELAY_ONLY : ICE_SERVERS;
+      
+      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName, 
+        shouldUseRelay ? "(RELAY MODE)" : "(NORMAL MODE)");
+      const pc = new RTCPeerConnection(config);
       
       // Add local tracks to the connection with proper transceiver configuration
       localStreamRef.current.getTracks().forEach((track) => {
-        console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled);
+        console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled, "id:", track.id);
         try {
-          pc.addTrack(track, localStreamRef.current!);
+          // Use addTransceiver for better control
+          const transceiver = pc.addTransceiver(track, {
+            direction: 'sendrecv',
+            streams: [localStreamRef.current!],
+          });
+          console.log("[WebRTC] Added transceiver for:", track.kind);
         } catch (err) {
-          console.error("[WebRTC] Failed to add track:", err);
+          console.warn("[WebRTC] addTransceiver failed, falling back to addTrack:", err);
+          try {
+            pc.addTrack(track, localStreamRef.current!);
+          } catch (addErr) {
+            console.error("[WebRTC] Failed to add track:", addErr);
+          }
         }
       });
 
@@ -382,7 +483,14 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       let hasReceivedTrack = false;
 
       pc.ontrack = (event) => {
-        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId, "readyState:", event.track.readyState);
+        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId, 
+          "readyState:", event.track.readyState, "enabled:", event.track.enabled);
+        
+        // Ensure track is enabled
+        if (!event.track.enabled) {
+          console.log("[WebRTC] Enabling disabled remote track");
+          event.track.enabled = true;
+        }
         
         // Add track to the remote stream
         remoteStream.addTrack(event.track);
@@ -401,7 +509,10 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
           console.log("[WebRTC] Remote track unmuted:", event.track.kind);
         };
 
-        // Update participants with the combined stream
+        // Update participants with the combined stream - use a fresh stream reference
+        console.log("[WebRTC] Updating participants with stream, tracks:", 
+          remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+          
         setParticipants((prev) => {
           const newMap = new Map(prev);
           newMap.set(remoteUserId, { 
@@ -416,7 +527,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
-          console.log("[WebRTC] Sending ICE candidate to:", remoteUserId, "type:", event.candidate.type);
+          console.log("[WebRTC] Sending ICE candidate to:", remoteUserId, 
+            "type:", event.candidate.type, "protocol:", event.candidate.protocol);
           channelRef.current.send({
             type: "broadcast",
             event: "ice-candidate",
@@ -427,33 +539,89 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
 
       pc.onicegatheringstatechange = () => {
         console.log("[WebRTC] ICE gathering state for", remoteUserId, ":", pc.iceGatheringState);
+        if (pc.iceGatheringState === 'complete') {
+          console.log("[WebRTC] ICE gathering complete, candidates collected");
+        }
       };
 
+      // Connection state handling with relay fallback
+      let connectionTimeout: NodeJS.Timeout | null = null;
+      
       pc.onconnectionstatechange = () => {
         console.log("[WebRTC] Connection state for", remoteUserId, ":", pc.connectionState);
+        
+        // Clear any pending timeout
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
         if (pc.connectionState === 'connected') {
           setIsConnected(true);
           setCallStatus("IN_CALL");
+          // Clear from failed list on success
+          failedConnections.current.delete(remoteUserId);
           console.log("[WebRTC] Successfully connected to:", remoteUserId);
         } else if (pc.connectionState === 'failed') {
-          console.warn("[WebRTC] Connection failed for:", remoteUserId, "- attempting ICE restart");
-          try {
-            pc.restartIce();
-          } catch (err) {
-            console.error("[WebRTC] ICE restart failed:", err);
+          console.warn("[WebRTC] Connection failed for:", remoteUserId);
+          
+          // If not already using relay, try again with relay-only
+          if (!forceRelay) {
+            console.log("[WebRTC] Attempting reconnection with TURN relay...");
+            failedConnections.current.add(remoteUserId);
+            pc.close();
+            peerConnections.current.delete(remoteUserId);
+            
+            // Recreate with relay
+            setTimeout(() => {
+              const newPc = createPeerConnection(remoteUserId, remoteName, true);
+              if (newPc && channelRef.current) {
+                // Re-initiate offer if we're polite
+                if (isPolite(remoteUserId)) {
+                  sendOfferRef.current?.(remoteUserId, remoteName);
+                }
+              }
+            }, 500);
+          } else {
+            // Already tried relay, do ICE restart
+            console.log("[WebRTC] Already using relay, attempting ICE restart");
+            try {
+              pc.restartIce();
+            } catch (err) {
+              console.error("[WebRTC] ICE restart failed:", err);
+            }
           }
+        } else if (pc.connectionState === 'connecting') {
+          // Set a timeout for connection attempt
+          connectionTimeout = setTimeout(() => {
+            if (pc.connectionState === 'connecting') {
+              console.warn("[WebRTC] Connection timeout after 15s, attempting reconnect with relay");
+              failedConnections.current.add(remoteUserId);
+              pc.close();
+              peerConnections.current.delete(remoteUserId);
+              
+              if (!forceRelay) {
+                setTimeout(() => {
+                  const newPc = createPeerConnection(remoteUserId, remoteName, true);
+                  if (newPc && isPolite(remoteUserId)) {
+                    sendOfferRef.current?.(remoteUserId, remoteName);
+                  }
+                }, 500);
+              }
+            }
+          }, 15000);
         } else if (pc.connectionState === 'disconnected') {
           console.warn("[WebRTC] Connection disconnected for:", remoteUserId, "- monitoring for recovery");
-          setTimeout(() => {
+          connectionTimeout = setTimeout(() => {
             if (pc.connectionState === 'disconnected') {
-              console.log("[WebRTC] Still disconnected after 3s, attempting ICE restart");
+              console.log("[WebRTC] Still disconnected after 5s, attempting ICE restart");
               try {
                 pc.restartIce();
               } catch (err) {
                 console.error("[WebRTC] ICE restart failed:", err);
               }
             }
-          }, 3000);
+          }, 5000);
         } else if (pc.connectionState === 'closed') {
           console.log("[WebRTC] Connection closed for:", remoteUserId);
           peerConnections.current.delete(remoteUserId);
@@ -557,6 +725,11 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     },
     [createPeerConnection, userName, user],
   );
+
+  // Store sendOffer in ref for use in createPeerConnection callbacks
+  useEffect(() => {
+    sendOfferRef.current = sendOffer;
+  }, [sendOffer]);
 
   const handleOffer = useCallback(
     async (from: string, fromName: string, offer: RTCSessionDescriptionInit) => {

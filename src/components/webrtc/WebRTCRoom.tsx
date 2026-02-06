@@ -709,27 +709,38 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
   // Handle video stream attachment
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !stream) return;
 
-    console.log("[VideoElement] Attaching stream, tracks:", stream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+    const tracks = stream.getTracks();
+    console.log("[VideoElement] Attaching stream, tracks:", tracks.map(t => `${t.kind}:${t.enabled}:${t.readyState}:${t.id}`));
+    
+    // Check if we have actual video tracks
+    const videoTracks = stream.getVideoTracks();
+    const hasActiveVideo = videoTracks.length > 0 && videoTracks.some(t => t.enabled && t.readyState === 'live');
     
     video.srcObject = stream;
+    
+    // Ensure video element is properly configured
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = isLocal || muted; // Mute local to prevent echo
     
     // Ensure video plays
     const playVideo = async () => {
       try {
         await video.play();
-        console.log("[VideoElement] Video playing successfully");
+        console.log("[VideoElement] Video playing successfully, hasActiveVideo:", hasActiveVideo);
         setIsPlaying(true);
-      } catch (err) {
-        console.warn("[VideoElement] Video autoplay blocked:", err);
+      } catch (err: any) {
+        console.warn("[VideoElement] Video autoplay blocked:", err.name, err.message);
         // Retry on user interaction
         const retryPlay = () => {
-          video.play().catch(() => {});
+          video.play().then(() => setIsPlaying(true)).catch(() => {});
           document.removeEventListener('click', retryPlay);
           document.removeEventListener('touchstart', retryPlay);
         };
@@ -738,38 +749,53 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
       }
     };
 
-    playVideo();
+    // Small delay to ensure tracks are ready
+    const playTimeout = setTimeout(playVideo, 100);
 
     // Handle track changes
     const handleTrackChange = () => {
       console.log("[VideoElement] Stream tracks changed, re-attaching");
+      video.srcObject = null;
       video.srcObject = stream;
-      playVideo();
+      setTimeout(playVideo, 100);
     };
 
     stream.onaddtrack = handleTrackChange;
     stream.onremovetrack = handleTrackChange;
 
     return () => {
+      clearTimeout(playTimeout);
       stream.onaddtrack = null;
       stream.onremovetrack = null;
     };
-  }, [stream]);
+  }, [stream, isLocal, muted]);
 
   // Handle remote audio separately for better reliability
   useEffect(() => {
-    if (!stream || isLocal || muted) return;
+    if (!stream || isLocal) return;
 
     const audioTracks = stream.getAudioTracks();
-    console.log("[VideoElement] Audio tracks:", audioTracks.map(t => `${t.label}:${t.enabled}:${t.readyState}`));
+    console.log("[VideoElement] Setting up remote audio, tracks:", audioTracks.map(t => `${t.label}:${t.enabled}:${t.readyState}:${t.id}`));
     
-    if (audioTracks.length === 0) return;
+    if (audioTracks.length === 0) {
+      console.log("[VideoElement] No audio tracks yet, waiting...");
+      return;
+    }
 
-    // Create separate audio element for remote audio
+    // Check if tracks are live
+    const hasLiveAudio = audioTracks.some(t => t.enabled && t.readyState === 'live');
+    if (!hasLiveAudio) {
+      console.log("[VideoElement] No live audio tracks yet");
+    }
+
+    // Create separate audio element for remote audio - this is more reliable
     const audio = document.createElement('audio');
+    audio.id = `remote-audio-${Date.now()}`;
     audio.autoplay = true;
     (audio as any).playsInline = true;
-    audio.style.cssText = 'position:absolute;left:-9999px;';
+    audio.muted = false; // Explicitly not muted for remote audio
+    audio.volume = 1.0;
+    audio.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;';
     document.body.appendChild(audio);
     audioRef.current = audio;
 
@@ -779,34 +805,65 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
 
     const playAudio = async () => {
       try {
-        await audio.play();
-        console.log("[VideoElement] Remote audio playing");
-      } catch (err) {
-        console.warn("[VideoElement] Audio autoplay blocked:", err);
+        // Some browsers need the element to be in DOM before playing
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        if (audio.paused) {
+          await audio.play();
+          console.log("[VideoElement] Remote audio playing successfully, volume:", audio.volume);
+          setAudioPlaying(true);
+        }
+      } catch (err: any) {
+        console.warn("[VideoElement] Audio autoplay blocked:", err.name, err.message);
         // Queue playback for user interaction
-        const resumeAudio = () => {
-          audio.play().catch(e => console.warn("[VideoElement] Audio retry failed:", e));
+        const resumeAudio = async () => {
+          try {
+            audio.muted = false;
+            await audio.play();
+            console.log("[VideoElement] Audio resumed after user interaction");
+            setAudioPlaying(true);
+          } catch (e) {
+            console.warn("[VideoElement] Audio retry failed:", e);
+          }
           document.removeEventListener('click', resumeAudio);
           document.removeEventListener('touchstart', resumeAudio);
+          document.removeEventListener('keydown', resumeAudio);
         };
         document.addEventListener('click', resumeAudio, { once: true });
         document.addEventListener('touchstart', resumeAudio, { once: true });
+        document.addEventListener('keydown', resumeAudio, { once: true });
       }
     };
 
-    playAudio();
+    // Delay audio play slightly to ensure stream is ready
+    const audioTimeout = setTimeout(playAudio, 200);
 
     // Monitor audio track state changes
     audioTracks.forEach(track => {
-      track.onended = () => console.log("[VideoElement] Audio track ended");
-      track.onmute = () => console.log("[VideoElement] Audio track muted");
+      track.onended = () => {
+        console.log("[VideoElement] Audio track ended:", track.id);
+        setAudioPlaying(false);
+      };
+      track.onmute = () => {
+        console.log("[VideoElement] Audio track muted (by remote):", track.id);
+      };
       track.onunmute = () => {
-        console.log("[VideoElement] Audio track unmuted, resuming playback");
+        console.log("[VideoElement] Audio track unmuted, resuming playback:", track.id);
         playAudio();
       };
     });
 
+    // Periodically check if audio is still playing
+    const checkInterval = setInterval(() => {
+      if (audio && audio.paused && audioTracks.some(t => t.enabled && t.readyState === 'live')) {
+        console.log("[VideoElement] Audio element paused but tracks are live, attempting resume");
+        playAudio();
+      }
+    }, 3000);
+
     return () => {
+      clearTimeout(audioTimeout);
+      clearInterval(checkInterval);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.srcObject = null;
@@ -819,7 +876,7 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
         track.onunmute = null;
       });
     };
-  }, [stream, isLocal, muted]);
+  }, [stream, isLocal]);
 
   return (
     <video
