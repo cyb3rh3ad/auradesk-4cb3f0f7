@@ -15,7 +15,8 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        cosmic: "relative overflow-hidden bg-gradient-to-r from-[hsl(180,80%,45%)] via-[hsl(var(--primary))] to-[hsl(280,70%,55%)] text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300",
+        cosmic: "relative overflow-hidden bg-gradient-to-r from-[hsl(180,80%,48%)] via-[hsl(170,75%,45%)] to-[hsl(200,80%,50%)] text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300",
+        aurora: "relative overflow-hidden bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:from-cyan-400 hover:via-teal-400 hover:to-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300",
       },
       size: {
         default: "h-10 px-4 py-2",

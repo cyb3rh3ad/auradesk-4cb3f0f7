@@ -40,14 +40,16 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
         }}
       />
       
-      {/* Cosmic border glow */}
+      {/* Aurora border glow - blue-green-cyan */}
       <motion.div
         className="absolute inset-0 rounded-lg"
         style={{
           background: `linear-gradient(135deg, 
-            hsl(280 80% 65% / ${isHovered ? 0.6 : 0.3}) 0%, 
-            hsl(var(--primary) / ${isHovered ? 0.5 : 0.25}) 50%, 
-            hsl(180 80% 55% / ${isHovered ? 0.6 : 0.3}) 100%
+            hsl(180 85% 55% / ${isHovered ? 0.7 : 0.35}) 0%, 
+            hsl(165 80% 50% / ${isHovered ? 0.6 : 0.3}) 25%,
+            hsl(200 85% 55% / ${isHovered ? 0.65 : 0.32}) 50%, 
+            hsl(220 80% 60% / ${isHovered ? 0.6 : 0.3}) 75%,
+            hsl(190 85% 55% / ${isHovered ? 0.7 : 0.35}) 100%
           )`,
           padding: '1.5px',
           WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
@@ -60,13 +62,15 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
         transition={{ duration: 0.3 }}
       />
       
-      {/* Animated aurora sweep */}
+      {/* Animated aurora sweep - blue-green shimmer */}
       <motion.div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{
           background: `linear-gradient(90deg, 
             transparent 0%, 
-            hsl(var(--primary) / 0.15) 50%, 
+            hsl(175 80% 55% / 0.2) 25%,
+            hsl(195 85% 55% / 0.18) 50%, 
+            hsl(175 80% 55% / 0.2) 75%,
             transparent 100%
           )`,
         }}
@@ -88,12 +92,12 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
           transition={{ duration: 0.3 }}
         >
           <defs>
-            {/* Cosmic gradient for G */}
+            {/* Aurora gradient for G - blue-green-cyan spectrum */}
             <linearGradient id={`${uniqueId}-cosmic`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(180, 80%, 65%)" />
-              <stop offset="33%" stopColor="hsl(var(--primary))" />
-              <stop offset="66%" stopColor="hsl(280, 75%, 65%)" />
-              <stop offset="100%" stopColor="hsl(320, 70%, 60%)" />
+              <stop offset="0%" stopColor="hsl(180, 85%, 60%)" />
+              <stop offset="33%" stopColor="hsl(165, 80%, 55%)" />
+              <stop offset="66%" stopColor="hsl(200, 85%, 60%)" />
+              <stop offset="100%" stopColor="hsl(190, 80%, 55%)" />
             </linearGradient>
             
             {/* Neon glow filter */}
@@ -131,12 +135,12 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
           />
         </motion.svg>
         
-        {/* Text with cosmic glow */}
+        {/* Text with aurora glow - blue-green gradient */}
         <motion.span
           className="text-sm font-medium"
           style={{
             background: isHovered 
-              ? 'linear-gradient(90deg, hsl(180, 80%, 75%), hsl(var(--primary)), hsl(280, 75%, 75%))' 
+              ? 'linear-gradient(90deg, hsl(180, 85%, 70%), hsl(165, 80%, 65%), hsl(200, 85%, 70%))' 
               : 'none',
             WebkitBackgroundClip: isHovered ? 'text' : 'unset',
             WebkitTextFillColor: isHovered ? 'transparent' : 'hsl(0 0% 95%)',
@@ -147,7 +151,7 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
         </motion.span>
       </div>
       
-      {/* Floating particles on hover */}
+      {/* Floating particles on hover - aurora colors */}
       {isHovered && (
         <>
           {[...Array(4)].map((_, i) => (
@@ -157,7 +161,7 @@ export const CosmicGoogleButton = ({ onClick, loading, disabled }: CosmicGoogleB
               style={{
                 width: 3 + Math.random() * 2,
                 height: 3 + Math.random() * 2,
-                background: i % 2 === 0 ? 'hsl(var(--primary))' : 'hsl(180, 80%, 65%)',
+                background: ['hsl(180, 85%, 60%)', 'hsl(165, 80%, 55%)', 'hsl(200, 85%, 60%)', 'hsl(190, 80%, 55%)'][i],
                 left: `${15 + i * 20}%`,
                 top: '50%',
               }}
