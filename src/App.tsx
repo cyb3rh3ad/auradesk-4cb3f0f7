@@ -128,27 +128,44 @@ const ThemeInit = () => {
 const queryClient = new QueryClient();
 
 import { PageTransition } from "@/components/PageTransition";
+import { memo, useMemo } from "react";
 
-const PageTransitionWrapper = ({ children }: { children: React.ReactNode }) => {
+// Memoized wrapper to prevent unnecessary re-renders
+const PageTransitionWrapper = memo(({ children }: { children: React.ReactNode }) => {
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="popLayout" initial={false}>
       <PageTransition>
         {children}
       </PageTransition>
     </AnimatePresence>
   );
-};
+});
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => {
+const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
+  const isElectron = useMemo(() => isElectronApp(), []);
   
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div 
+      className="flex h-screen w-full overflow-hidden"
+      style={{ 
+        // GPU acceleration for the main container
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden'
+      }}
+    >
       {!isMobile && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {isElectronApp() && <div className="h-8 flex-shrink-0" />}
+        {isElectron && <div className="h-8 flex-shrink-0" />}
         <Header />
-        <main className={cn("flex-1 overflow-auto", isMobile && "pb-16")}>
+        <main 
+          className={cn("flex-1 overflow-auto", isMobile && "pb-16")}
+          style={{ 
+            // Optimize scroll performance
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain'
+          }}
+        >
           <PageTransitionWrapper>
             {children}
           </PageTransitionWrapper>
@@ -157,7 +174,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {isMobile && <MobileNavBar />}
     </div>
   );
-};
+});
 
 // Utility for className concatenation
 const cn = (...classes: (string | boolean | undefined)[]) => 
