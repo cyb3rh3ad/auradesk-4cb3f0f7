@@ -336,6 +336,13 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     }
   }, []);
 
+  // Determine if this user should be the "polite" peer (sends offer)
+  const isPolite = useCallback((remoteUserId: string) => {
+    if (!user) return false;
+    // Alphabetically lower ID is "polite" and initiates the offer
+    return user.id < remoteUserId;
+  }, [user]);
+
   const createPeerConnection = useCallback(
     (remoteUserId: string, remoteName: string) => {
       if (!localStreamRef.current || !user) {
@@ -343,42 +350,83 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         return null;
       }
 
-      // Check if connection already exists
-      if (peerConnections.current.has(remoteUserId)) {
-        console.log("[WebRTC] Peer connection already exists for:", remoteUserId);
-        return peerConnections.current.get(remoteUserId)!;
+      // Check if connection already exists and is healthy
+      const existingPc = peerConnections.current.get(remoteUserId);
+      if (existingPc) {
+        const state = existingPc.connectionState;
+        if (state === 'connected' || state === 'connecting') {
+          console.log("[WebRTC] Healthy peer connection already exists for:", remoteUserId);
+          return existingPc;
+        }
+        // Close unhealthy connection
+        console.log("[WebRTC] Closing unhealthy connection for:", remoteUserId, "state:", state);
+        existingPc.close();
+        peerConnections.current.delete(remoteUserId);
       }
 
-      console.log("[WebRTC] Creating peer connection for:", remoteUserId, remoteName);
+      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName);
       const pc = new RTCPeerConnection(ICE_SERVERS);
       
-      // Add local tracks to the connection
+      // Add local tracks to the connection with proper transceiver configuration
       localStreamRef.current.getTracks().forEach((track) => {
-        console.log("[WebRTC] Adding local track:", track.kind);
-        pc.addTrack(track, localStreamRef.current!);
+        console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled);
+        try {
+          pc.addTrack(track, localStreamRef.current!);
+        } catch (err) {
+          console.error("[WebRTC] Failed to add track:", err);
+        }
       });
 
+      // Create a MediaStream to collect remote tracks
+      const remoteStream = new MediaStream();
+      let hasReceivedTrack = false;
+
       pc.ontrack = (event) => {
-        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId);
-        if (event.streams[0]) {
-          setParticipants((prev) => {
-            const newMap = new Map(prev);
-            newMap.set(remoteUserId, { odakle: remoteUserId, stream: event.streams[0], name: remoteName });
-            return newMap;
+        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId, "readyState:", event.track.readyState);
+        
+        // Add track to the remote stream
+        remoteStream.addTrack(event.track);
+        hasReceivedTrack = true;
+        
+        // Handle track ended event
+        event.track.onended = () => {
+          console.log("[WebRTC] Remote track ended:", event.track.kind);
+        };
+        
+        event.track.onmute = () => {
+          console.log("[WebRTC] Remote track muted:", event.track.kind);
+        };
+        
+        event.track.onunmute = () => {
+          console.log("[WebRTC] Remote track unmuted:", event.track.kind);
+        };
+
+        // Update participants with the combined stream
+        setParticipants((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(remoteUserId, { 
+            odakle: remoteUserId, 
+            stream: remoteStream, 
+            name: remoteName 
           });
-          setCallStatus("IN_CALL");
-        }
+          return newMap;
+        });
+        setCallStatus("IN_CALL");
       };
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
-          console.log("[WebRTC] Sending ICE candidate to:", remoteUserId);
+          console.log("[WebRTC] Sending ICE candidate to:", remoteUserId, "type:", event.candidate.type);
           channelRef.current.send({
             type: "broadcast",
             event: "ice-candidate",
             payload: { candidate: event.candidate.toJSON(), from: user.id, to: remoteUserId },
-          });
+          }).catch(err => console.error("[WebRTC] Failed to send ICE candidate:", err));
         }
+      };
+
+      pc.onicegatheringstatechange = () => {
+        console.log("[WebRTC] ICE gathering state for", remoteUserId, ":", pc.iceGatheringState);
       };
 
       pc.onconnectionstatechange = () => {
@@ -386,37 +434,62 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         if (pc.connectionState === 'connected') {
           setIsConnected(true);
           setCallStatus("IN_CALL");
+          console.log("[WebRTC] Successfully connected to:", remoteUserId);
         } else if (pc.connectionState === 'failed') {
-          console.warn("[WebRTC] Connection failed for:", remoteUserId, "- attempting recovery");
-          // Try ICE restart for failed connections
-          pc.restartIce();
+          console.warn("[WebRTC] Connection failed for:", remoteUserId, "- attempting ICE restart");
+          try {
+            pc.restartIce();
+          } catch (err) {
+            console.error("[WebRTC] ICE restart failed:", err);
+          }
         } else if (pc.connectionState === 'disconnected') {
-          console.warn("[WebRTC] Connection disconnected for:", remoteUserId, "- waiting for recovery");
-          // Give it a moment to reconnect before taking action
+          console.warn("[WebRTC] Connection disconnected for:", remoteUserId, "- monitoring for recovery");
           setTimeout(() => {
             if (pc.connectionState === 'disconnected') {
-              console.log("[WebRTC] Still disconnected, attempting ICE restart");
-              pc.restartIce();
+              console.log("[WebRTC] Still disconnected after 3s, attempting ICE restart");
+              try {
+                pc.restartIce();
+              } catch (err) {
+                console.error("[WebRTC] ICE restart failed:", err);
+              }
             }
           }, 3000);
+        } else if (pc.connectionState === 'closed') {
+          console.log("[WebRTC] Connection closed for:", remoteUserId);
+          peerConnections.current.delete(remoteUserId);
         }
       };
 
       pc.oniceconnectionstatechange = () => {
         console.log("[WebRTC] ICE connection state for", remoteUserId, ":", pc.iceConnectionState);
         if (pc.iceConnectionState === 'failed') {
-          console.log("[WebRTC] ICE failed, restarting ICE");
-          pc.restartIce();
+          console.log("[WebRTC] ICE connection failed, attempting restart");
+          try {
+            pc.restartIce();
+          } catch (err) {
+            console.error("[WebRTC] ICE restart failed:", err);
+          }
+        } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          console.log("[WebRTC] ICE connected successfully for:", remoteUserId);
         }
+      };
+
+      pc.onsignalingstatechange = () => {
+        console.log("[WebRTC] Signaling state for", remoteUserId, ":", pc.signalingState);
       };
 
       // Handle negotiation needed (for dynamic track changes)
       pc.onnegotiationneeded = async () => {
-        console.log("[WebRTC] Negotiation needed for:", remoteUserId);
+        console.log("[WebRTC] Negotiation needed for:", remoteUserId, "polite:", isPolite(remoteUserId));
         if (isPolite(remoteUserId) && !makingOffer.current.has(remoteUserId)) {
           try {
             makingOffer.current.add(remoteUserId);
+            console.log("[WebRTC] Creating offer for renegotiation");
             const offer = await pc.createOffer();
+            if (pc.signalingState !== 'stable') {
+              console.log("[WebRTC] Signaling state changed during offer creation, aborting");
+              return;
+            }
             await pc.setLocalDescription(offer);
             if (channelRef.current && user) {
               await channelRef.current.send({
@@ -429,6 +502,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
                   to: remoteUserId 
                 },
               });
+              console.log("[WebRTC] Sent renegotiation offer to:", remoteUserId);
             }
           } catch (err) {
             console.error("[WebRTC] Renegotiation error:", err);
@@ -442,16 +516,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       knownPeers.current.set(remoteUserId, remoteName);
       return pc;
     },
-    [user],
+    [user, userName, isPolite],
   );
-
-  // Determine if this user should be the "polite" peer (sends offer)
-  const isPolite = useCallback((remoteUserId: string) => {
-    if (!user) return false;
-    // Alphabetically lower ID is "polite" and initiates the offer
-    return user.id < remoteUserId;
-  }, [user]);
-
   const sendOffer = useCallback(
     async (remoteUserId: string, remoteName: string) => {
       if (!channelRef.current || !user) return;
