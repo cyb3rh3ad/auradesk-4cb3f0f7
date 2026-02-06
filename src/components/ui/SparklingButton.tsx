@@ -182,16 +182,17 @@ export const SparklingButton = memo(({
   // Cosmic variant (default) - polar ray effect
   const content = (
     <>
-      {/* Deep space background */}
+      {/* Deep aurora background */}
       <div 
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(0 0% 100% / 0.05) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(175 60% 45% / 0.15) 0%, transparent 50%),
             linear-gradient(135deg, 
-              hsl(180 25% 10% / 0.95) 0%, 
-              hsl(170 30% 14% / 0.9) 50%, 
-              hsl(180 25% 10% / 0.95) 100%
+              hsl(175 50% 18%) 0%, 
+              hsl(165 45% 22%) 35%,
+              hsl(180 50% 20%) 65%,
+              hsl(170 45% 18%) 100%
             )
           `,
         }}
