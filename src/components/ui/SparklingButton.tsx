@@ -53,21 +53,57 @@ export const SparklingButton = memo(({
           animate={isHovered ? { x: ['-100%', '200%'], opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {isHovered && polarColors.slice(0, 4).map((color, i) => (
+{/* Champagne bubbles - rising from bottom */}
+        {isHovered && [...Array(6)].map((_, i) => (
           <motion.div
-            key={i}
+            key={`bubble-${i}`}
             className="absolute rounded-full pointer-events-none"
             style={{
-              width: 3 + Math.random() * 2,
-              height: 3 + Math.random() * 2,
-              background: color,
-              left: `${15 + i * 20}%`,
-              top: '50%',
-              boxShadow: `0 0 6px ${color}`,
+              width: 2 + (i % 3),
+              height: 2 + (i % 3),
+              background: polarColors[i % polarColors.length],
+              left: `${8 + i * 15}%`,
+              bottom: 0,
+              boxShadow: `0 0 5px ${polarColors[i % polarColors.length]}`,
             }}
             initial={{ opacity: 0, y: 0 }}
-            animate={{ opacity: [0, 1, 0], y: [0, -18, -30], x: [0, (i - 1.5) * 5] }}
-            transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18, ease: 'easeOut' }}
+            animate={{ 
+              opacity: [0, 0.8, 1, 0.8, 0],
+              y: [0, -12, -24, -36, -50],
+              x: [0, (i % 2 === 0 ? 2 : -2), (i % 2 === 0 ? -1 : 1), (i % 2 === 0 ? 3 : -3), 0],
+            }}
+            transition={{
+              duration: 1.6 + (i % 3) * 0.2,
+              repeat: Infinity,
+              delay: i * 0.18,
+              ease: 'easeOut',
+            }}
+          />
+        ))}
+        {/* Twinkling stars */}
+        {isHovered && [...Array(4)].map((_, i) => (
+          <motion.div
+            key={`star-${i}`}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 2 + (i % 2),
+              height: 2 + (i % 2),
+              background: polarColors[i % polarColors.length],
+              left: `${15 + i * 20}%`,
+              top: `${25 + (i % 3) * 20}%`,
+              boxShadow: `0 0 4px ${polarColors[i % polarColors.length]}`,
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ 
+              opacity: [0, 1, 0.3, 1, 0],
+              scale: [0, 1, 0.7, 1, 0],
+            }}
+            transition={{
+              duration: 1.8 + (i % 3) * 0.4,
+              repeat: Infinity,
+              delay: i * 0.35,
+              ease: 'easeInOut',
+            }}
           />
         ))}
         <span className="relative z-10 flex items-center gap-2">{children}</span>
@@ -136,20 +172,56 @@ export const SparklingButton = memo(({
           animate={isHovered ? { x: ['-100%', '200%'], opacity: 1 } : {}}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {isHovered && slateColors.map((color, i) => (
+{/* Champagne bubbles - rising from bottom */}
+        {isHovered && [...Array(6)].map((_, i) => (
           <motion.div
-            key={i}
+            key={`bubble-${i}`}
             className="absolute rounded-full pointer-events-none"
             style={{
-              width: 3 + Math.random() * 2,
-              height: 3 + Math.random() * 2,
-              background: color,
-              left: `${15 + i * 20}%`,
-              top: '50%',
+              width: 2 + (i % 3),
+              height: 2 + (i % 3),
+              background: slateColors[i % slateColors.length],
+              left: `${8 + i * 15}%`,
+              bottom: 0,
+              boxShadow: `0 0 4px ${slateColors[i % slateColors.length]}`,
             }}
             initial={{ opacity: 0, y: 0 }}
-            animate={{ opacity: [0, 1, 0], y: [0, -15, -30], x: [0, (i - 1.5) * 5] }}
-            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeOut' }}
+            animate={{ 
+              opacity: [0, 0.7, 1, 0.7, 0],
+              y: [0, -12, -24, -36, -50],
+              x: [0, (i % 2 === 0 ? 2 : -2), (i % 2 === 0 ? -1 : 1), (i % 2 === 0 ? 3 : -3), 0],
+            }}
+            transition={{
+              duration: 1.6 + (i % 3) * 0.2,
+              repeat: Infinity,
+              delay: i * 0.18,
+              ease: 'easeOut',
+            }}
+          />
+        ))}
+        {/* Twinkling stars */}
+        {isHovered && [...Array(4)].map((_, i) => (
+          <motion.div
+            key={`star-${i}`}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 2 + (i % 2),
+              height: 2 + (i % 2),
+              background: slateColors[i % slateColors.length],
+              left: `${15 + i * 20}%`,
+              top: `${25 + (i % 3) * 20}%`,
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ 
+              opacity: [0, 1, 0.3, 1, 0],
+              scale: [0, 1, 0.7, 1, 0],
+            }}
+            transition={{
+              duration: 1.8 + (i % 3) * 0.4,
+              repeat: Infinity,
+              delay: i * 0.35,
+              ease: 'easeInOut',
+            }}
           />
         ))}
         <span className="relative z-10 flex items-center gap-2 text-slate-200">{children}</span>
