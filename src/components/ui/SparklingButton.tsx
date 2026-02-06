@@ -182,32 +182,32 @@ export const SparklingButton = memo(({
   // Cosmic variant (default) - polar ray effect
   const content = (
     <>
-      {/* Deep aurora background */}
+      {/* Deep aurora background - more vibrant */}
       <div 
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(175 60% 45% / 0.15) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 60% at 50% 0%, hsl(175 80% 50% / 0.2) 0%, transparent 50%),
             linear-gradient(135deg, 
-              hsl(175 50% 18%) 0%, 
-              hsl(165 45% 22%) 35%,
-              hsl(180 50% 20%) 65%,
-              hsl(170 45% 18%) 100%
+              hsl(175 70% 22%) 0%, 
+              hsl(165 65% 26%) 35%,
+              hsl(180 70% 24%) 65%,
+              hsl(170 65% 22%) 100%
             )
           `,
         }}
       />
       
-      {/* Polar ray border glow */}
+      {/* Polar ray border glow - stronger */}
       <motion.div
         className="absolute inset-0 rounded-xl"
         style={{
           background: `linear-gradient(135deg, 
-            hsl(175 85% 55% / ${isHovered ? 0.7 : 0.35}) 0%, 
-            hsl(165 80% 50% / ${isHovered ? 0.6 : 0.3}) 25%,
-            hsl(185 85% 55% / ${isHovered ? 0.65 : 0.32}) 50%, 
-            hsl(195 80% 55% / ${isHovered ? 0.6 : 0.3}) 75%,
-            hsl(170 85% 50% / ${isHovered ? 0.7 : 0.35}) 100%
+            hsl(175 90% 55% / ${isHovered ? 0.8 : 0.45}) 0%, 
+            hsl(165 85% 50% / ${isHovered ? 0.7 : 0.4}) 25%,
+            hsl(185 90% 55% / ${isHovered ? 0.75 : 0.42}) 50%, 
+            hsl(195 85% 55% / ${isHovered ? 0.7 : 0.4}) 75%,
+            hsl(170 90% 50% / ${isHovered ? 0.8 : 0.45}) 100%
           )`,
           padding: '1.5px',
           WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
@@ -224,9 +224,9 @@ export const SparklingButton = memo(({
         style={{
           background: `linear-gradient(90deg, 
             transparent 0%, 
-            hsl(175 80% 55% / 0.2) 25%,
-            hsl(185 85% 55% / 0.18) 50%, 
-            hsl(175 80% 55% / 0.2) 75%,
+            hsl(175 85% 55% / 0.25) 25%,
+            hsl(185 90% 55% / 0.22) 50%, 
+            hsl(175 85% 55% / 0.25) 75%,
             transparent 100%
           )`,
         }}
@@ -234,33 +234,38 @@ export const SparklingButton = memo(({
         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Floating particles */}
-      {isHovered && polarColors.slice(0, 5).map((color, i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: 3 + Math.random() * 2,
-            height: 3 + Math.random() * 2,
-            background: color,
-            left: `${10 + i * 18}%`,
-            top: '50%',
-            boxShadow: `0 0 8px ${color}`,
-          }}
-          initial={{ opacity: 0, y: 0 }}
-          animate={{ 
-            opacity: [0, 1, 0],
-            y: [0, -18, -32],
-            x: [0, (i - 2) * 5],
-          }}
-          transition={{
-            duration: 1.2,
-            repeat: Infinity,
-            delay: i * 0.18,
-            ease: 'easeOut',
-          }}
-        />
-      ))}
+      {/* Floating particles - spread across entire button */}
+      {isHovered && [...Array(12)].map((_, i) => {
+        const row = Math.floor(i / 4);
+        const col = i % 4;
+        return (
+          <motion.div
+            key={i}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 2 + Math.random() * 3,
+              height: 2 + Math.random() * 3,
+              background: polarColors[i % polarColors.length],
+              left: `${8 + col * 25 + Math.random() * 15}%`,
+              top: `${20 + row * 30}%`,
+              boxShadow: `0 0 8px ${polarColors[i % polarColors.length]}`,
+            }}
+            initial={{ opacity: 0, y: 0, scale: 0 }}
+            animate={{ 
+              opacity: [0, 1, 0],
+              y: [0, -20 - Math.random() * 15, -40],
+              x: [0, (Math.random() - 0.5) * 20],
+              scale: [0, 1, 0.5],
+            }}
+            transition={{
+              duration: 1 + Math.random() * 0.5,
+              repeat: Infinity,
+              delay: i * 0.1,
+              ease: 'easeOut',
+            }}
+          />
+        );
+      })}
       
       {/* Content */}
       <motion.span
