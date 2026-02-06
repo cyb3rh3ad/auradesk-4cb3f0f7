@@ -282,6 +282,7 @@ const Landing = () => {
                   href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                   download
                   variant="cosmic"
+                  hue="blue"
                   className="text-lg h-14 px-8 w-full"
                 >
                   <Monitor className="w-5 h-5" />
@@ -361,6 +362,7 @@ const Landing = () => {
                         href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                         download
                         variant="cosmic"
+                        hue="blue"
                         className="text-base h-14 px-6 w-[136px]"
                       >
                         <Monitor className="w-4 h-4" />
