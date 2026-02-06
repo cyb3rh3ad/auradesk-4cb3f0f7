@@ -41,11 +41,26 @@ export const AuraBubbleIcon = ({
   })) : [], [shouldAnimate]);
   
   return (
-    <div 
+    <motion.div 
       className={cn("relative flex items-center justify-center", className)}
       style={{ 
         width: size, 
         height: size,
+      }}
+      animate={shouldAnimate ? {
+        scale: [1, 1.02, 1, 0.99, 1],
+        rotate: [0, 0.5, 0, -0.5, 0],
+      } : (isActive ? {
+        scale: [1, 1.01, 1],
+      } : {})}
+      transition={shouldAnimate ? {
+        duration: 3,
+        repeat: Infinity,
+        ease: "easeInOut",
+      } : {
+        duration: 2,
+        repeat: Infinity,
+        ease: "easeInOut",
       }}
     >
       {/* Show bubble effect when hovered or active */}
@@ -205,7 +220,7 @@ export const AuraBubbleIcon = ({
       <div className="relative z-10">
         {children}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
