@@ -33,25 +33,30 @@ const HIGH_QUALITY_THRESHOLD = 5000; // 5 Mbps
 const MEDIUM_QUALITY_THRESHOLD = 2000; // 2 Mbps
 const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
-// Multiple TURN providers with various ports for maximum firewall compatibility
-// Includes non-standard ports (3478, 5349) and standard web ports (80, 443)
-// Default to relay-only mode for corporate/strict firewalls
+// TURN-only configuration for maximum firewall compatibility
+// Using relay-only mode - STUN is disabled as it's useless in relay mode
+// Multiple providers for redundancy, prioritizing TURNS (TLS) on port 443
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // === METERED.CA TURN SERVERS (Primary) ===
-    // TURNS on port 5349 (standard TURNS port)
-    {
-      urls: "turns:a.relay.metered.ca:5349?transport=tcp",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    // TURNS on port 443 (HTTPS port - most firewall friendly)
+    // === PRIMARY: METERED.CA TURNS on 443 (looks like HTTPS traffic) ===
     {
       urls: "turns:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURN on port 3478 (standard TURN port)
+    // TURNS on standard port 5349
+    {
+      urls: "turns:a.relay.metered.ca:5349?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN TCP on port 443 (alternative)
+    {
+      urls: "turn:a.relay.metered.ca:443?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN on standard port 3478 (UDP and TCP)
     {
       urls: "turn:a.relay.metered.ca:3478",
       username: "e8dd65f92eb0895c19533add",
@@ -62,23 +67,21 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURN on port 443 (TCP)
-    {
-      urls: "turn:a.relay.metered.ca:443?transport=tcp",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    // TURN on port 80 (HTTP port fallback)
+    // TURN on port 80 (HTTP-like traffic)
     {
       urls: "turn:a.relay.metered.ca:80?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
     
-    // === OPENRELAY TURN SERVERS (Backup) ===
-    // Standard TURN port 3478
+    // === BACKUP: OPENRELAY (public free TURN) ===
     {
-      urls: "turn:openrelay.metered.ca:3478",
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
@@ -87,33 +90,16 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    // Port 443 for firewall bypass
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    // Port 80 fallback
     {
       urls: "turn:openrelay.metered.ca:80?transport=tcp",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    
-    // === STUN SERVERS (for ICE gathering only) ===
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:global.stun.twilio.com:3478" },
   ],
-  iceCandidatePoolSize: 10,
+  iceCandidatePoolSize: 5, // Reduced since we're relay-only
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
-  // Force relay mode by default for firewall compatibility
+  // Force relay mode - all traffic goes through TURN servers
   iceTransportPolicy: "relay",
 };
 
