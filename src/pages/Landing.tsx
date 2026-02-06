@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppPreview } from "@/components/landing/AppPreview";
 import { UserGuideDownload } from "@/components/landing/UserGuideDownload";
 import { AuroraLogo, AuroraLogoHero } from "@/components/icons/AuroraLogo";
@@ -50,6 +50,27 @@ const Landing = () => {
   
   // Performance: Detect mobile for conditional rendering
   const isMobile = useIsMobile();
+
+  // Force dark theme on landing page - always
+  useEffect(() => {
+    const root = document.documentElement;
+    const themes = ['dark', 'theme-discord-dark', 'theme-midnight', 'theme-forest', 'theme-sunset', 'theme-purple'];
+    
+    // Store current theme to restore later if user navigates away
+    const currentTheme = themes.find(t => root.classList.contains(t)) || 'light';
+    
+    // Force dark theme on landing page
+    themes.forEach(t => root.classList.remove(t));
+    root.classList.add('dark');
+    
+    // Cleanup: restore user's theme when leaving landing page
+    return () => {
+      // Only restore if we're navigating to an authenticated route
+      // The ThemeInit component will handle loading the correct theme
+      themes.forEach(t => root.classList.remove(t));
+      // Don't set any theme here - let ThemeInit handle it based on user preferences
+    };
+  }, []);
 
   const features = [
     {
