@@ -280,7 +280,7 @@ const Landing = () => {
                 <a
                   href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                   download
-                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg h-14 px-8 w-full"
+                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-white rounded-full shadow-lg shadow-cyan-500/30 h-14 px-8 w-full"
                 >
                   <Monitor className="w-5 h-5 mr-2" />
                   Windows
@@ -294,7 +294,7 @@ const Landing = () => {
                 </button>
                 <button
                   onClick={() => setShowAndroidInstructions(true)}
-                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg h-14 px-8 w-full"
+                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white rounded-full shadow-lg shadow-teal-500/30 h-14 px-8 w-full"
                 >
                   <Smartphone className="w-5 h-5 mr-2" />
                   Android
@@ -302,7 +302,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg h-14 px-8 rounded-full border-2 w-full"
+                  className="text-lg h-14 px-8 rounded-full border-2 border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/10 w-full"
                   onClick={() => navigate(user ? "/dashboard" : "/auth")}
                 >
                   <Globe className="w-5 h-5 mr-2" />
@@ -333,7 +333,7 @@ const Landing = () => {
                   >
                     <Button
                       size="lg"
-                      className="text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 h-14 px-8 w-full"
+                      className="text-lg font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:via-teal-400 hover:to-emerald-400 text-white rounded-full shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/40 h-14 px-8 w-full"
                       onClick={() => setShowDownloadOptions(true)}
                     >
                       <Download className="w-5 h-5 mr-2" />
@@ -357,7 +357,7 @@ const Landing = () => {
                       <a
                         href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                         download
-                        className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
+                        className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:via-teal-400 hover:to-emerald-400 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-cyan-500/30 h-14 px-6 w-[136px]"
                       >
                         <Monitor className="w-4 h-4 mr-2" />
                         Windows
@@ -383,7 +383,7 @@ const Landing = () => {
                       >
                         {/* Mobile button - splits into iOS/Android */}
                         <motion.button
-                          className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-full shadow-lg shadow-emerald-500/30 h-14 px-6 w-full"
+                          className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:from-teal-400 hover:via-cyan-400 hover:to-blue-400 text-white rounded-full shadow-lg shadow-teal-500/30 h-14 px-6 w-full"
                           animate={{ 
                             opacity: showMobileOptions ? 0 : 1,
                           }}
@@ -411,7 +411,7 @@ const Landing = () => {
 
                         {/* Android Button */}
                         <motion.button
-                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-500 hover:via-green-500 hover:to-teal-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 h-14 px-4 w-[66px]"
+                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:from-teal-400 hover:via-cyan-400 hover:to-blue-400 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-teal-500/30 h-14 px-4 w-[66px]"
                           animate={{ 
                             opacity: showMobileOptions ? 1 : 0,
                             x: showMobileOptions ? 35 : 0,
@@ -430,7 +430,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg h-14 px-8 rounded-full border-2 w-[280px]"
+                  className="text-lg h-14 px-8 rounded-full border-2 border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/10 w-[280px]"
                   onClick={() => navigate(user ? "/dashboard" : "/auth")}
                 >
                   <Globe className="w-5 h-5 mr-2" />
