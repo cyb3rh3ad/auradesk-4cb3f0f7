@@ -279,8 +279,7 @@ const Landing = () => {
               <div className="flex flex-col gap-3 pt-4">
                 <a
                   href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  download
                   className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white rounded-full shadow-lg h-14 px-8 w-full"
                 >
                   <Monitor className="w-5 h-5 mr-2" />
@@ -357,8 +356,7 @@ const Landing = () => {
                     >
                       <a
                         href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        download
                         className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 hover:from-violet-500 hover:via-purple-500 hover:to-blue-500 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-violet-500/30 h-14 px-6 w-[136px]"
                       >
                         <Monitor className="w-4 h-4 mr-2" />
