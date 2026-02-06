@@ -281,7 +281,7 @@ const Landing = () => {
                 <SparklingButton
                   href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                   download
-                  variant="aurora"
+                  variant="cosmic"
                   className="text-lg h-14 px-8 w-full"
                 >
                   <Monitor className="w-5 h-5" />
@@ -297,7 +297,7 @@ const Landing = () => {
                 </SparklingButton>
                 <SparklingButton
                   onClick={() => setShowAndroidInstructions(true)}
-                  variant="aurora"
+                  variant="cosmic"
                   className="text-lg h-14 px-8 w-full"
                 >
                   <Smartphone className="w-5 h-5" />
@@ -336,7 +336,7 @@ const Landing = () => {
                   >
                     <SparklingButton
                       onClick={() => setShowDownloadOptions(true)}
-                      variant="aurora"
+                      variant="cosmic"
                       className="text-lg h-14 px-8 w-full"
                     >
                       <Download className="w-5 h-5" />
@@ -360,7 +360,7 @@ const Landing = () => {
                       <SparklingButton
                         href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                         download
-                        variant="aurora"
+                        variant="cosmic"
                         className="text-base h-14 px-6 w-[136px]"
                       >
                         <Monitor className="w-4 h-4" />
@@ -396,7 +396,7 @@ const Landing = () => {
                         >
                           <SparklingButton
                             onClick={() => setShowMobileOptions(true)}
-                            variant="aurora"
+                            variant="cosmic"
                             className="text-base h-14 px-6 w-full"
                           >
                             <Smartphone className="w-4 h-4" />
@@ -435,7 +435,7 @@ const Landing = () => {
                         >
                           <SparklingButton
                             onClick={() => setShowAndroidInstructions(true)}
-                            variant="aurora"
+                            variant="cosmic"
                             className="text-sm h-14 px-4 w-[66px]"
                           >
                             Android
