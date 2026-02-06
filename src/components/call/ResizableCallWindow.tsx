@@ -328,15 +328,15 @@ export const ResizableCallWindow = ({
           </div>
         )}
 
-        {/* Resize handles - only show when not minimized and not on mobile */}
+        {/* Invisible resize handles - like Windows windows */}
         {!isMinimized && (
           <>
-            {/* Corner handles */}
+            {/* Corner handles - invisible but functional */}
             {(['nw', 'ne', 'sw', 'se'] as ResizeHandle[]).map((handle) => (
               <div
                 key={handle}
                 className={cn(
-                  "absolute w-4 h-4 z-10 hidden md:block",
+                  "absolute w-3 h-3 z-10 hidden md:block",
                   getCursorStyle(handle),
                   handle === 'nw' && "top-0 left-0",
                   handle === 'ne' && "top-0 right-0",
@@ -345,32 +345,27 @@ export const ResizableCallWindow = ({
                 )}
                 onMouseDown={handleResizeStart(handle)}
                 onTouchStart={handleResizeStart(handle)}
-              >
-                {/* Visual indicator for SE corner */}
-                {handle === 'se' && (
-                  <div className="absolute bottom-1 right-1 w-2 h-2 border-r-2 border-b-2 border-muted-foreground/40 rounded-br-sm" />
-                )}
-              </div>
+              />
             ))}
 
-            {/* Edge handles */}
+            {/* Edge handles - invisible but functional */}
             <div
-              className="absolute top-0 left-4 right-4 h-1.5 cursor-ns-resize hidden md:block"
+              className="absolute top-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block"
               onMouseDown={handleResizeStart('n')}
               onTouchStart={handleResizeStart('n')}
             />
             <div
-              className="absolute bottom-0 left-4 right-4 h-1.5 cursor-ns-resize hidden md:block"
+              className="absolute bottom-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block"
               onMouseDown={handleResizeStart('s')}
               onTouchStart={handleResizeStart('s')}
             />
             <div
-              className="absolute left-0 top-10 bottom-4 w-1.5 cursor-ew-resize hidden md:block"
+              className="absolute left-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block"
               onMouseDown={handleResizeStart('w')}
               onTouchStart={handleResizeStart('w')}
             />
             <div
-              className="absolute right-0 top-10 bottom-4 w-1.5 cursor-ew-resize hidden md:block"
+              className="absolute right-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block"
               onMouseDown={handleResizeStart('e')}
               onTouchStart={handleResizeStart('e')}
             />
