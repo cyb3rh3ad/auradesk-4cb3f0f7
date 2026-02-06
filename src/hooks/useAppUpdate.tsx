@@ -25,10 +25,9 @@ interface UpdateInfo {
 // Current app version - update this with each release
 const CURRENT_VERSION = '1.0.0';
 
-// GitHub repo info - UPDATE THESE WITH YOUR ACTUAL VALUES
-// After exporting to GitHub, update these with your repo details
-const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME'; // e.g., 'john-doe'
-const GITHUB_REPO = 'YOUR_REPO_NAME'; // e.g., 'auradesk-app'
+// GitHub repo info for AuraDesk releases
+const GITHUB_OWNER = 'cyb3rh3ad';
+const GITHUB_REPO = 'auradesk-4cb3f0f7';
 
 export const useAppUpdate = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
