@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { SparklingButton } from "@/components/ui/SparklingButton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Globe,
@@ -277,37 +278,39 @@ const Landing = () => {
             {/* Mobile: Simple stacked buttons. Desktop: Animated split buttons */}
             {isMobile ? (
               <div className="flex flex-col gap-3 pt-4">
-                <a
+                <SparklingButton
                   href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                   download
-                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-white rounded-full shadow-lg shadow-cyan-500/30 h-14 px-8 w-full"
+                  variant="aurora"
+                  className="text-lg h-14 px-8 w-full"
                 >
-                  <Monitor className="w-5 h-5 mr-2" />
+                  <Monitor className="w-5 h-5" />
                   Windows
-                </a>
-                <button
+                </SparklingButton>
+                <SparklingButton
                   onClick={() => setShowIOSInstructions(true)}
-                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 text-white rounded-full shadow-lg h-14 px-8 w-full"
+                  variant="slate"
+                  className="text-lg h-14 px-8 w-full"
                 >
-                  <Smartphone className="w-5 h-5 mr-2" />
+                  <Smartphone className="w-5 h-5" />
                   iOS
-                </button>
-                <button
+                </SparklingButton>
+                <SparklingButton
                   onClick={() => setShowAndroidInstructions(true)}
-                  className="inline-flex items-center justify-center text-lg font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white rounded-full shadow-lg shadow-teal-500/30 h-14 px-8 w-full"
+                  variant="aurora"
+                  className="text-lg h-14 px-8 w-full"
                 >
-                  <Smartphone className="w-5 h-5 mr-2" />
+                  <Smartphone className="w-5 h-5" />
                   Android
-                </button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="text-lg h-14 px-8 rounded-full border-2 border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/10 w-full"
+                </SparklingButton>
+                <SparklingButton
                   onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                  variant="outline"
+                  className="text-lg h-14 px-8 w-full"
                 >
-                  <Globe className="w-5 h-5 mr-2" />
+                  <Globe className="w-5 h-5" />
                   Use in Browser
-                </Button>
+                </SparklingButton>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
@@ -331,14 +334,14 @@ const Landing = () => {
                     }}
                     style={{ pointerEvents: showDownloadOptions ? "none" : "auto" }}
                   >
-                    <Button
-                      size="lg"
-                      className="text-lg font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:via-teal-400 hover:to-emerald-400 text-white rounded-full shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/40 h-14 px-8 w-full"
+                    <SparklingButton
                       onClick={() => setShowDownloadOptions(true)}
+                      variant="aurora"
+                      className="text-lg h-14 px-8 w-full"
                     >
-                      <Download className="w-5 h-5 mr-2" />
+                      <Download className="w-5 h-5" />
                       Download App
-                    </Button>
+                    </SparklingButton>
                   </motion.div>
 
                   {/* The two daughter cells - simple and clean */}
@@ -354,14 +357,15 @@ const Landing = () => {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       style={{ pointerEvents: showDownloadOptions ? "auto" : "none" }}
                     >
-                      <a
+                      <SparklingButton
                         href="https://github.com/cyb3rh3ad/auradesk-4cb3f0f7/releases/latest/download/AuraDesk-Setup.exe"
                         download
-                        className="inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:via-teal-400 hover:to-emerald-400 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-cyan-500/30 h-14 px-6 w-[136px]"
+                        variant="aurora"
+                        className="text-base h-14 px-6 w-[136px]"
                       >
-                        <Monitor className="w-4 h-4 mr-2" />
+                        <Monitor className="w-4 h-4" />
                         Windows
-                      </a>
+                      </SparklingButton>
                     </motion.div>
 
                     {/* Right cell - Mobile (expands to iOS/Android) */}
@@ -382,60 +386,74 @@ const Landing = () => {
                         onMouseLeave={() => setShowMobileOptions(false)}
                       >
                         {/* Mobile button - splits into iOS/Android */}
-                        <motion.button
-                          className="absolute inset-0 inline-flex items-center justify-center text-base font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:from-teal-400 hover:via-cyan-400 hover:to-blue-400 text-white rounded-full shadow-lg shadow-teal-500/30 h-14 px-6 w-full"
+                        <motion.div
+                          className="absolute inset-0"
                           animate={{ 
                             opacity: showMobileOptions ? 0 : 1,
                           }}
                           transition={{ duration: 0.3, ease: "easeOut" }}
                           style={{ pointerEvents: showMobileOptions ? "none" : "auto" }}
-                          onClick={() => setShowMobileOptions(true)}
                         >
-                          <Smartphone className="w-4 h-4 mr-2" />
-                          Mobile
-                        </motion.button>
+                          <SparklingButton
+                            onClick={() => setShowMobileOptions(true)}
+                            variant="aurora"
+                            className="text-base h-14 px-6 w-full"
+                          >
+                            <Smartphone className="w-4 h-4" />
+                            Mobile
+                          </SparklingButton>
+                        </motion.div>
 
                         {/* iOS Button */}
-                        <motion.button
-                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 hover:from-slate-600 hover:via-slate-500 hover:to-slate-600 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-slate-500/30 h-14 px-4 w-[66px]"
+                        <motion.div
+                          className="absolute"
                           animate={{ 
                             opacity: showMobileOptions ? 1 : 0,
                             x: showMobileOptions ? -35 : 0,
                           }}
                           transition={{ duration: 0.3, ease: "easeOut" }}
                           style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
-                          onClick={() => setShowIOSInstructions(true)}
                         >
-                          iOS
-                        </motion.button>
+                          <SparklingButton
+                            onClick={() => setShowIOSInstructions(true)}
+                            variant="slate"
+                            className="text-sm h-14 px-4 w-[66px]"
+                          >
+                            iOS
+                          </SparklingButton>
+                        </motion.div>
 
                         {/* Android Button */}
-                        <motion.button
-                          className="absolute inline-flex items-center justify-center text-sm font-medium bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:from-teal-400 hover:via-cyan-400 hover:to-blue-400 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-teal-500/30 h-14 px-4 w-[66px]"
+                        <motion.div
+                          className="absolute"
                           animate={{ 
                             opacity: showMobileOptions ? 1 : 0,
                             x: showMobileOptions ? 35 : 0,
                           }}
                           transition={{ duration: 0.3, ease: "easeOut" }}
                           style={{ pointerEvents: showMobileOptions ? "auto" : "none" }}
-                          onClick={() => setShowAndroidInstructions(true)}
                         >
-                          Android
-                        </motion.button>
+                          <SparklingButton
+                            onClick={() => setShowAndroidInstructions(true)}
+                            variant="aurora"
+                            className="text-sm h-14 px-4 w-[66px]"
+                          >
+                            Android
+                          </SparklingButton>
+                        </motion.div>
                       </div>
                     </motion.div>
                   </div>
                 </div>
 
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="text-lg h-14 px-8 rounded-full border-2 border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/10 w-[280px]"
+                <SparklingButton
                   onClick={() => navigate(user ? "/dashboard" : "/auth")}
+                  variant="outline"
+                  className="text-lg h-14 px-8 w-[280px]"
                 >
-                  <Globe className="w-5 h-5 mr-2" />
+                  <Globe className="w-5 h-5" />
                   Use in Browser
-                </Button>
+                </SparklingButton>
               </div>
             )}
           </div>
