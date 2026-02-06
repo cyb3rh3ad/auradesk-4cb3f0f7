@@ -234,38 +234,60 @@ export const SparklingButton = memo(({
         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
       />
       
-      {/* Floating particles - spread across entire button */}
-      {isHovered && [...Array(12)].map((_, i) => {
-        const row = Math.floor(i / 4);
-        const col = i % 4;
-        return (
-          <motion.div
-            key={i}
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: 2 + Math.random() * 3,
-              height: 2 + Math.random() * 3,
-              background: polarColors[i % polarColors.length],
-              left: `${8 + col * 25 + Math.random() * 15}%`,
-              top: `${20 + row * 30}%`,
-              boxShadow: `0 0 8px ${polarColors[i % polarColors.length]}`,
-            }}
-            initial={{ opacity: 0, y: 0, scale: 0 }}
-            animate={{ 
-              opacity: [0, 1, 0],
-              y: [0, -20 - Math.random() * 15, -40],
-              x: [0, (Math.random() - 0.5) * 20],
-              scale: [0, 1, 0.5],
-            }}
-            transition={{
-              duration: 1 + Math.random() * 0.5,
-              repeat: Infinity,
-              delay: i * 0.1,
-              ease: 'easeOut',
-            }}
-          />
-        );
-      })}
+      {/* Champagne bubbles - rising from bottom */}
+      {isHovered && [...Array(8)].map((_, i) => (
+        <motion.div
+          key={`bubble-${i}`}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: 2 + (i % 3),
+            height: 2 + (i % 3),
+            background: polarColors[i % polarColors.length],
+            left: `${5 + i * 12}%`,
+            bottom: 0,
+            boxShadow: `0 0 6px ${polarColors[i % polarColors.length]}`,
+          }}
+          initial={{ opacity: 0, y: 0 }}
+          animate={{ 
+            opacity: [0, 0.8, 1, 0.8, 0],
+            y: [0, -15, -30, -45, -60],
+            x: [0, (i % 2 === 0 ? 3 : -3), (i % 2 === 0 ? -2 : 2), (i % 2 === 0 ? 4 : -4), 0],
+          }}
+          transition={{
+            duration: 1.8 + (i % 3) * 0.3,
+            repeat: Infinity,
+            delay: i * 0.2,
+            ease: 'easeOut',
+          }}
+        />
+      ))}
+      
+      {/* Twinkling stars - scattered across button */}
+      {isHovered && [...Array(6)].map((_, i) => (
+        <motion.div
+          key={`star-${i}`}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: 2 + (i % 2),
+            height: 2 + (i % 2),
+            background: polarColors[i % polarColors.length],
+            left: `${10 + (i * 15) + (i % 2) * 5}%`,
+            top: `${20 + (i % 3) * 25}%`,
+            boxShadow: `0 0 4px ${polarColors[i % polarColors.length]}`,
+          }}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ 
+            opacity: [0, 1, 0.3, 1, 0],
+            scale: [0, 1, 0.7, 1, 0],
+          }}
+          transition={{
+            duration: 2 + (i % 3) * 0.5,
+            repeat: Infinity,
+            delay: i * 0.4,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
       
       {/* Content */}
       <motion.span
