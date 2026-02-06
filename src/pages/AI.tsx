@@ -187,8 +187,8 @@ const AI = () => {
 
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
               <div className="relative shrink-0">
-                <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-primary via-primary/80 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25">
-                  <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
+                <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                  <span className="text-white font-bold text-sm md:text-base">A</span>
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-emerald-500 border-2 border-background" />
               </div>
