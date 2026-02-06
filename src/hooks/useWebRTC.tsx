@@ -33,29 +33,13 @@ const HIGH_QUALITY_THRESHOLD = 5000; // 5 Mbps
 const MEDIUM_QUALITY_THRESHOLD = 2000; // 2 Mbps
 const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
-// Multiple STUN servers for better NAT traversal success
-// TURN servers provide relay fallback when P2P fails (~30% of connections)
-// Using multiple providers for maximum reliability through firewalls
+// TURN/TURNS servers for reliable firewall traversal
+// Default to relay-only mode for maximum compatibility through corporate firewalls
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // Google STUN servers (free, highly reliable)
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-    // Twilio STUN (reliable)
-    { urls: "stun:global.stun.twilio.com:3478" },
-    // Metered TURN servers (free tier - very reliable)
-    // UDP (fastest when not blocked)
+    // TURNS (TURN over TLS on port 443) - most firewall-friendly, looks like HTTPS
     {
-      urls: "turn:a.relay.metered.ca:80",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    // TCP on port 80 (bypasses most firewalls)
-    {
-      urls: "turn:a.relay.metered.ca:80?transport=tcp",
+      urls: "turns:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
@@ -70,35 +54,32 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURNS (TURN over TLS - most firewall-friendly)
+    // TCP on port 80 (HTTP port - fallback)
     {
-      urls: "turns:a.relay.metered.ca:443?transport=tcp",
+      urls: "turn:a.relay.metered.ca:80?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // OpenRelay backup TURN servers
+    // UDP (fastest when not blocked)
     {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:a.relay.metered.ca:80",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
     },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
+    // Google STUN as fallback only
+    { urls: "stun:stun.l.google.com:19302" },
   ],
   iceCandidatePoolSize: 10,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
-  // Allow relay candidates even if direct connection possible
-  iceTransportPolicy: "all",
+  // Force relay mode by default for firewall compatibility
+  iceTransportPolicy: "relay",
 };
 
-// Force relay configuration for when direct connection fails
-const ICE_SERVERS_RELAY_ONLY: RTCConfiguration = {
+// P2P-first configuration for when relay isn't needed
+const ICE_SERVERS_P2P: RTCConfiguration = {
   ...ICE_SERVERS,
-  iceTransportPolicy: "relay",
+  iceTransportPolicy: "all",
 };
 
 export const useWebRTC = (roomId: string | null, userName: string) => {
@@ -450,13 +431,10 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         peerConnections.current.delete(remoteUserId);
       }
 
-      // Use relay-only if we've failed before or if forced
-      const shouldUseRelay = forceRelay || failedConnections.current.has(remoteUserId);
-      const config = shouldUseRelay ? ICE_SERVERS_RELAY_ONLY : ICE_SERVERS;
-      
-      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName, 
-        shouldUseRelay ? "(RELAY MODE)" : "(NORMAL MODE)");
-      const pc = new RTCPeerConnection(config);
+      // ICE_SERVERS is already relay-only by default for firewall compatibility
+      // forceRelay parameter is now redundant but kept for API compatibility
+      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName, "(RELAY MODE)");
+      const pc = new RTCPeerConnection(ICE_SERVERS);
       
       // Add local tracks to the connection with proper transceiver configuration
       localStreamRef.current.getTracks().forEach((track) => {
