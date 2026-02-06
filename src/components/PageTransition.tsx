@@ -1,74 +1,74 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { memo, useMemo } from 'react';
 
 interface PageTransitionProps {
   children: React.ReactNode;
 }
 
-// Define page order for determining slide direction
-const pageOrder = [
-  '/dashboard',
-  '/chat',
-  '/teams',
-  '/meetings',
-  '/files',
-  '/ai',
-  '/subscription',
-  '/admin',
-  '/settings'
-];
-
-const getPageIndex = (path: string) => {
-  const index = pageOrder.indexOf(path);
-  return index === -1 ? pageOrder.length : index;
+// Optimized mobile animation - minimal, GPU-only transforms
+const mobileVariants = {
+  initial: { opacity: 0, x: 8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -8 }
 };
 
-export const PageTransition = ({ children }: PageTransitionProps) => {
+// Desktop animation with subtle scale
+const desktopVariants = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -6 }
+};
+
+// Ultra-fast transition for mobile - prioritize responsiveness
+const mobileTransition = {
+  type: "tween" as const,
+  ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
+  duration: 0.15
+};
+
+// Slightly richer desktop transition
+const desktopTransition = {
+  type: "tween" as const,
+  ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
+  duration: 0.18
+};
+
+export const PageTransition = memo(({ children }: PageTransitionProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const currentIndex = getPageIndex(location.pathname);
+  const prefersReducedMotion = useReducedMotion();
 
-  // Mobile: Smooth slide transitions based on navigation direction
-  if (isMobile) {
-    return (
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -20 }}
-        transition={{
-          type: "spring",
-          stiffness: 300,
-          damping: 30,
-          mass: 0.8
-        }}
-        className="w-full h-full"
-        style={{ willChange: 'transform, opacity' }}
-      >
-        {children}
-      </motion.div>
-    );
+  // Skip all animations if user prefers reduced motion
+  if (prefersReducedMotion) {
+    return <div className="w-full h-full">{children}</div>;
   }
 
-  // Desktop: Subtle fade with scale
+  const variants = isMobile ? mobileVariants : desktopVariants;
+  const transition = isMobile ? mobileTransition : desktopTransition;
+
   return (
     <motion.div
       key={location.pathname}
-      initial={{ opacity: 0, y: 8, scale: 0.99 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.99 }}
-      transition={{
-        type: "tween",
-        ease: [0.25, 0.1, 0.25, 1],
-        duration: 0.2
-      }}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={variants}
+      transition={transition}
       className="w-full h-full"
+      style={{ 
+        willChange: 'transform, opacity',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        transform: 'translateZ(0)',
+        WebkitTransform: 'translateZ(0)'
+      }}
     >
       {children}
     </motion.div>
   );
-};
+});
 
 // Shared element wrapper for elements that persist across pages
 interface SharedElementProps {
@@ -93,7 +93,7 @@ export const SharedElement = ({ layoutId, children, className }: SharedElementPr
   );
 };
 
-// Page header with shared layout animation
+// Page header - simplified for performance
 interface PageHeaderProps {
   icon: React.ReactNode;
   title: string;
@@ -102,115 +102,115 @@ interface PageHeaderProps {
   pageId: string;
 }
 
-export const PageHeader = ({ icon, title, subtitle, actions, pageId }: PageHeaderProps) => {
+export const PageHeader = memo(({ icon, title, subtitle, actions, pageId }: PageHeaderProps) => {
   const isMobile = useIsMobile();
+  const prefersReducedMotion = useReducedMotion();
+
+  // Static render for reduced motion preference
+  if (prefersReducedMotion) {
+    return (
+      <div className="relative mb-6">
+        <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 ${isMobile ? '' : 'md:p-2.5'}`}>
+              {icon}
+            </div>
+            <div>
+              <h1 className={`text-xl font-bold text-foreground ${isMobile ? '' : 'md:text-4xl'}`}>{title}</h1>
+              {subtitle && <p className={`text-sm text-muted-foreground ${isMobile ? '' : 'md:text-lg'}`}>{subtitle}</p>}
+            </div>
+          </div>
+          {actions}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
       className="relative mb-6"
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Background glow effects */}
-      <motion.div 
-        className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      />
-      <motion.div 
-        className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      />
+      {/* Background glow - CSS-only, no animation */}
+      <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-20 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
       
       <div className="relative flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <motion.div 
-            layoutId={`page-icon-${pageId}`}
-            className={`p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 ${isMobile ? '' : 'md:p-2.5'}`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
+          <div className={`p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 ${isMobile ? '' : 'md:p-2.5'}`}>
             {icon}
-          </motion.div>
+          </div>
           <div>
-            <motion.h1 
-              layoutId={`page-title-${pageId}`}
-              className={`text-xl font-bold text-foreground ${isMobile ? '' : 'md:text-4xl'}`}
-            >
-              {title}
-            </motion.h1>
+            <h1 className={`text-xl font-bold text-foreground ${isMobile ? '' : 'md:text-4xl'}`}>{title}</h1>
             {subtitle && (
-              <motion.p 
-                className={`text-sm text-muted-foreground ${isMobile ? '' : 'md:text-lg'}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {subtitle}
-              </motion.p>
+              <p className={`text-sm text-muted-foreground ${isMobile ? '' : 'md:text-lg'}`}>{subtitle}</p>
             )}
           </div>
         </div>
-        {actions && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            {actions}
-          </motion.div>
-        )}
+        {actions}
       </div>
     </motion.div>
   );
-};
+});
 
-// Staggered list animation for items
+// Staggered list - optimized with CSS fallback
 interface StaggeredListProps {
   children: React.ReactNode[];
   staggerDelay?: number;
   className?: string;
 }
 
-export const StaggeredList = ({ children, staggerDelay = 0.05, className }: StaggeredListProps) => {
+export const StaggeredList = memo(({ children, staggerDelay = 0.03, className }: StaggeredListProps) => {
+  const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+
+  // On mobile or reduced motion, use simple CSS animation
+  if (prefersReducedMotion || isMobile) {
+    return (
+      <div className={className}>
+        {children.map((child, index) => (
+          <div 
+            key={index} 
+            className="animate-fade-in"
+            style={{ animationDelay: `${index * 30}ms` }}
+          >
+            {child}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <motion.div 
       className={className}
       initial="hidden"
       animate="visible"
       variants={{
-        visible: {
-          transition: {
-            staggerChildren: staggerDelay
-          }
-        }
+        visible: { transition: { staggerChildren: staggerDelay } }
       }}
     >
       {children.map((child, index) => (
         <motion.div
           key={index}
           variants={{
-            hidden: { opacity: 0, y: 20 },
+            hidden: { opacity: 0, y: 12 },
             visible: { opacity: 1, y: 0 }
           }}
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 25
-          }}
+          transition={{ type: "tween", duration: 0.15 }}
         >
           {child}
         </motion.div>
       ))}
     </motion.div>
   );
-};
+});
 
-// Card with entrance animation
+// Card with entrance animation - optimized
 interface AnimatedCardProps {
   children: React.ReactNode;
   index?: number;
@@ -218,23 +218,39 @@ interface AnimatedCardProps {
   onClick?: () => void;
 }
 
-export const AnimatedCard = ({ children, index = 0, className, onClick }: AnimatedCardProps) => {
+export const AnimatedCard = memo(({ children, index = 0, className, onClick }: AnimatedCardProps) => {
+  const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+
+  // Static card for mobile/reduced motion
+  if (prefersReducedMotion || isMobile) {
+    return (
+      <div 
+        className={`${className} animate-fade-in`} 
+        style={{ animationDelay: `${index * 30}ms` }}
+        onClick={onClick}
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 25,
-        delay: index * 0.05
+        type: "tween",
+        duration: 0.15,
+        delay: index * 0.03
       }}
       onClick={onClick}
+      style={{ willChange: 'transform, opacity' }}
     >
       {children}
     </motion.div>
   );
-};
+});
