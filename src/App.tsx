@@ -144,6 +144,12 @@ const PageTransitionWrapper = memo(({ children }: { children: React.ReactNode })
 const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
   const isElectron = useMemo(() => isElectronApp(), []);
+  const location = useLocation();
+  
+  // Pages that manage their own scroll/layout (chat, teams, ai with sidebars)
+  // These pages need to handle the mobile nav offset themselves
+  const selfManagedPages = ['/chat', '/teams', '/ai'];
+  const isSelfManagedPage = selfManagedPages.some(p => location.pathname.startsWith(p));
   
   return (
     <div 
@@ -158,11 +164,16 @@ const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {isElectron && <div className="h-8 flex-shrink-0" />}
         <Header />
+        {/* Main content area - different handling for self-managed vs regular pages */}
         <main 
-          className="flex-1 overflow-auto"
+          className={cn(
+            "flex-1 min-h-0",
+            // Self-managed pages handle their own scroll and nav offset
+            isSelfManagedPage ? "overflow-hidden" : "overflow-auto"
+          )}
           style={{ 
-            // Adaptive bottom padding for mobile nav - uses CSS variable that auto-calculates
-            paddingBottom: isMobile ? 'var(--adaptive-bottom-spacing)' : undefined,
+            // Only apply bottom padding for non-self-managed pages on mobile
+            paddingBottom: (isMobile && !isSelfManagedPage) ? 'var(--adaptive-bottom-spacing)' : undefined,
             // Optimize scroll performance
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain'
