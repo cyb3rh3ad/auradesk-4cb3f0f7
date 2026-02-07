@@ -178,7 +178,7 @@ export const MobileNavBar = () => {
       </AnimatePresence>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-xl border-t border-border/30 safe-area-pb">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-xl border-t border-border/30" style={{ paddingBottom: 'max(var(--safe-area-bottom), 0.5rem)', height: 'var(--mobile-nav-height)' }}>
         {/* Gradient glow effect */}
         <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         
