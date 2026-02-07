@@ -36,7 +36,7 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
       onClick={handleClick}
       className={({ isActive }) =>
         cn(
-          "relative flex flex-col items-center justify-center gap-1 py-2.5 px-4 rounded-2xl transition-all duration-300 touch-manipulation min-w-[64px]",
+          "relative flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all duration-300 touch-manipulation min-w-[56px]",
           "active:scale-90 active:opacity-70",
           isActive
             ? "text-primary"
@@ -50,7 +50,7 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
           {isActive && (
             <motion.div
               layoutId="navActiveBackground"
-              className="absolute inset-0 bg-primary/10 rounded-2xl"
+              className="absolute inset-0 bg-primary/10 rounded-xl"
               transition={{ type: "spring", stiffness: 500, damping: 35 }}
             />
           )}
@@ -59,7 +59,7 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
           >
             <Icon 
-              size="sm"
+              size="md"
               isActive={isActive} 
               isHovered={false}
               className={cn(
@@ -178,11 +178,17 @@ export const MobileNavBar = () => {
       </AnimatePresence>
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-xl border-t border-border/30" style={{ paddingBottom: 'max(var(--safe-area-bottom), 0.5rem)', height: 'var(--mobile-nav-height)' }}>
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-30 bg-background/90 backdrop-blur-xl border-t border-border/30" 
+        style={{ 
+          paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)',
+          minHeight: '4rem'
+        }}
+      >
         {/* Gradient glow effect */}
         <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         
-        <div className="flex items-center justify-around px-1 py-1.5">
+        <div className="flex items-center justify-around px-2 py-2">
           {primaryItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}
@@ -190,7 +196,7 @@ export const MobileNavBar = () => {
             onClick={handleMoreClick}
             whileTap={{ scale: 0.9 }}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-1 py-2.5 px-4 rounded-2xl transition-all duration-300 touch-manipulation min-w-[64px]",
+              "relative flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all duration-300 touch-manipulation min-w-[56px]",
               showMore 
                 ? "text-primary" 
                 : "text-muted-foreground"
@@ -199,7 +205,7 @@ export const MobileNavBar = () => {
             {showMore && (
               <motion.div
                 layoutId="navActiveBackground"
-                className="absolute inset-0 bg-primary/10 rounded-2xl"
+                className="absolute inset-0 bg-primary/10 rounded-xl"
                 transition={{ type: "spring", stiffness: 500, damping: 35 }}
               />
             )}
@@ -208,7 +214,7 @@ export const MobileNavBar = () => {
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
               <MoreIcon 
-                size="sm"
+                size="md"
                 isActive={showMore}
                 isHovered={false}
                 className={cn(
