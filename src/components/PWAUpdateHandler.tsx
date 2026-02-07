@@ -28,7 +28,7 @@ export const PWAUpdateHandler = () => {
           if (document.visibilityState === 'visible' && navigator.onLine) {
             registration.update();
           }
-        }, 60 * 1000); // Every 60 seconds
+        }, 20 * 1000); // Every 20 seconds
         
         console.log('PWA: Service worker registered');
       }
