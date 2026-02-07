@@ -28,6 +28,8 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     backgroundColor: '#0c0a14',
+    // Configure URL schemes for deep linking
+    scheme: 'app.auradesk.mobile',
   },
   android: {
     allowMixedContent: false, // Security: don't allow mixed HTTP/HTTPS

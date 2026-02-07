@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +20,13 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Check if running as native mobile app (Capacitor)
+const isNativeMobile = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const capacitor = (window as any).Capacitor;
+  return capacitor?.isNativePlatform?.() ?? false;
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -272,6 +281,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isElectron = typeof window !== 'undefined' && 
       (window as any).electronAPI?.isElectron;
     
+    // Check if we're on native mobile (Capacitor)
+    const isNative = isNativeMobile();
+    
     if (isElectron) {
       // For Electron: Use custom protocol redirect
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -298,6 +310,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     }
     
+    if (isNative) {
+      // For native mobile apps: Use deep link redirect with in-app browser
+      // The redirect URL uses the app's custom URL scheme
+      const redirectUrl = 'app.auradesk.mobile://auth-callback';
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        }
+      });
+      
+      if (error) {
+        console.error('OAuth initiation error:', error);
+        return { error };
+      }
+      
+      if (data?.url) {
+        try {
+          // Mark OAuth as pending before opening browser
+          sessionStorage.setItem('oauth_login_pending', 'true');
+          
+          // Open OAuth URL in system browser (better compatibility than in-app browser)
+          // System browser has better cookie handling for OAuth
+          await Browser.open({ 
+            url: data.url,
+            presentationStyle: 'popover',
+            windowName: '_blank',
+          });
+          
+          console.log('Opened OAuth URL in browser:', data.url);
+        } catch (browserError) {
+          console.error('Failed to open browser:', browserError);
+          // Fallback to window.open
+          window.open(data.url, '_blank');
+        }
+      }
+      
+      return { error: null };
+    }
+    
     // Mark OAuth login as pending BEFORE redirect - this ensures MFA check runs
     sessionStorage.setItem('oauth_login_pending', 'true');
     
@@ -310,6 +364,132 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     return { error };
   };
+
+  // Handle deep link OAuth callback from Capacitor app
+  const handleDeepLink = useCallback(async (url: string) => {
+    console.log('Deep link received:', url);
+    
+    // Parse the URL to extract tokens
+    // Expected format: app.auradesk.mobile://auth-callback#access_token=xxx&refresh_token=yyy
+    // or: app.auradesk.mobile://auth-callback?code=xxx
+    
+    try {
+      // Handle hash fragment tokens (implicit flow)
+      if (url.includes('access_token=')) {
+        const hashPart = url.split('#')[1] || url.split('?')[1];
+        if (hashPart) {
+          const params = new URLSearchParams(hashPart);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            console.log('Setting session from deep link tokens');
+            
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (error) {
+              console.error('Failed to set session from deep link:', error);
+              window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: false } }));
+              return;
+            }
+            
+            // Close the browser after successful auth
+            try {
+              await Browser.close();
+            } catch (e) {
+              // Browser might already be closed
+            }
+            
+            if (data.session) {
+              const mfaNeeded = await checkAndHandleMfa(data.session);
+              
+              if (mfaNeeded) {
+                setSession(null);
+                setUser(null);
+              } else {
+                sessionStorage.removeItem('oauth_login_pending');
+                setSession(data.session);
+                setUser(data.session.user);
+                navigate('/dashboard');
+              }
+            }
+            
+            window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: true } }));
+          }
+        }
+      }
+      
+      // Handle authorization code flow
+      if (url.includes('code=')) {
+        const urlPart = url.split('?')[1] || url.split('#')[1];
+        if (urlPart) {
+          const params = new URLSearchParams(urlPart);
+          const code = params.get('code');
+          
+          if (code) {
+            console.log('Exchanging auth code for session');
+            
+            // Exchange the code for a session
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error('Failed to exchange code for session:', error);
+              window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: false } }));
+              return;
+            }
+            
+            // Close the browser after successful auth
+            try {
+              await Browser.close();
+            } catch (e) {
+              // Browser might already be closed
+            }
+            
+            if (data.session) {
+              const mfaNeeded = await checkAndHandleMfa(data.session);
+              
+              if (mfaNeeded) {
+                setSession(null);
+                setUser(null);
+              } else {
+                sessionStorage.removeItem('oauth_login_pending');
+                setSession(data.session);
+                setUser(data.session.user);
+                navigate('/dashboard');
+              }
+            }
+            
+            window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: true } }));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error handling deep link:', err);
+      window.dispatchEvent(new CustomEvent('oauth-complete', { detail: { success: false } }));
+    }
+  }, [navigate]);
+
+  // Set up deep link listener for Capacitor
+  useEffect(() => {
+    if (!isNativeMobile()) return;
+    
+    console.log('Setting up Capacitor deep link listener');
+    
+    // Listen for deep links when app is open
+    const unsubscribe = CapacitorApp.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
+      console.log('App URL opened:', event.url);
+      if (event.url.includes('auth-callback')) {
+        handleDeepLink(event.url);
+      }
+    });
+    
+    return () => {
+      unsubscribe.then(handle => handle.remove());
+    };
+  }, [handleDeepLink]);
 
   // Listen for OAuth callback from Electron deep link
   useEffect(() => {
