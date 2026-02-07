@@ -23,6 +23,20 @@ const config: CapacitorConfig = {
     CapacitorHttp: {
       enabled: true,
     },
+    StatusBar: {
+      style: 'DARK',
+      backgroundColor: '#0c0a14',
+      overlaysWebView: true,
+    },
+    NavigationBar: {
+      backgroundColor: '#0c0a14',
+      barStyle: 'DARK',
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'DARK',
+      resizeOnFullScreen: true,
+    },
   },
   ios: {
     contentInset: 'automatic',
@@ -30,10 +44,14 @@ const config: CapacitorConfig = {
     backgroundColor: '#0c0a14',
     // Configure URL schemes for deep linking
     scheme: 'app.auradesk.mobile',
+    // Fullscreen/edge-to-edge display
+    allowsLinkPreview: false,
   },
   android: {
     allowMixedContent: false, // Security: don't allow mixed HTTP/HTTPS
     backgroundColor: '#0c0a14',
+    // Immersive fullscreen mode
+    overrideUserAgent: 'AuraDesk Mobile App',
     buildOptions: {
       keystorePath: undefined,
       keystorePassword: undefined,
