@@ -67,10 +67,10 @@ const Chat = () => {
   };
 
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
-  // Uses adaptive CSS variables that auto-calculate based on device viewport and safe areas
+  // Uses flexbox layout - input bar stays at bottom naturally within the flex container
   if (isMobile) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full mobile-nav-compensate overflow-hidden flex flex-col">
+      <PullToRefresh onRefresh={handleRefresh} className="h-full flex flex-col overflow-hidden">
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
           <AnimatePresence mode="wait" initial={false}>
             {selectedConversationId ? (
