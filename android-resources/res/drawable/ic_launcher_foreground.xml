@@ -5,51 +5,56 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- AuraDesk Premium "A" Logo with Aura Glow Effect -->
+    <!-- AuraDesk Premium "A" Logo with Cosmic Ring Effect -->
     <!-- Content centered in safe zone (18dp padding on each side = 72dp content area) -->
     <group
         android:translateX="18"
         android:translateY="18">
         
-        <!-- Outer aura glow ring -->
+        <!-- Outer cosmic ring glow - purple to cyan gradient effect -->
         <path
-            android:pathData="M36,8 A28,28 0 1,1 36,64 A28,28 0 1,1 36,8"
-            android:strokeWidth="1.5"
-            android:strokeColor="#8b5cf6"
-            android:strokeAlpha="0.4"
-            android:fillColor="#00000000"/>
-        
-        <!-- Middle aura ring with gradient effect -->
-        <path
-            android:pathData="M36,12 A24,24 0 1,1 36,60 A24,24 0 1,1 36,12"
-            android:strokeWidth="2"
-            android:strokeColor="#a855f7"
-            android:strokeAlpha="0.6"
-            android:fillColor="#00000000"/>
-        
-        <!-- Inner glow ring -->
-        <path
-            android:pathData="M36,16 A20,20 0 1,1 36,56 A20,20 0 1,1 36,16"
+            android:pathData="M36,6 A30,30 0 1,1 35.99,6 A30,30 0 1,1 36,6"
             android:strokeWidth="2.5"
-            android:strokeColor="#c084fc"
+            android:strokeColor="#a855f7"
+            android:strokeAlpha="0.7"
+            android:fillColor="#00000000"/>
+        
+        <!-- Inner ring accent - cyan -->
+        <path
+            android:pathData="M36,10 A26,26 0 1,1 35.99,10 A26,26 0 1,1 36,10"
+            android:strokeWidth="1.5"
+            android:strokeColor="#06b6d4"
             android:strokeAlpha="0.5"
             android:fillColor="#00000000"/>
         
         <!-- Center glow fill -->
         <path
-            android:pathData="M36,20 A16,16 0 1,1 36,52 A16,16 0 1,1 36,20"
+            android:pathData="M36,14 A22,22 0 1,1 35.99,14 A22,22 0 1,1 36,14"
             android:fillColor="#8b5cf6"
-            android:fillAlpha="0.15"/>
+            android:fillAlpha="0.12"/>
         
-        <!-- Premium stylized "A" letter - elegant and bold -->
+        <!-- Premium stylized "A" letter with gradient-like effect using layers -->
+        <!-- Base A - white core -->
         <path
-            android:pathData="M36,18 L50,54 L45,54 L42,46 L30,46 L27,54 L22,54 L36,18 Z M36,26 L32,42 L40,42 L36,26 Z"
+            android:pathData="M36,16 L52,56 L46.5,56 L43,47 L29,47 L25.5,56 L20,56 L36,16 Z M36,25 L30.5,43 L41.5,43 L36,25 Z"
             android:fillColor="#ffffff"/>
         
-        <!-- Subtle inner shadow on A for depth -->
+        <!-- Gradient overlay top - purple tint -->
         <path
-            android:pathData="M36,20 L48,52 L44,52 L41.5,45 L30.5,45 L28,52 L24,52 L36,20 Z"
-            android:fillColor="#e0e7ff"
-            android:fillAlpha="0.3"/>
+            android:pathData="M36,16 L44,40 L28,40 L36,16 Z"
+            android:fillColor="#c084fc"
+            android:fillAlpha="0.35"/>
+        
+        <!-- Gradient overlay bottom - cyan tint -->
+        <path
+            android:pathData="M25.5,56 L29,47 L43,47 L46.5,56 L52,56 L44,40 L28,40 L20,56 L25.5,56 Z M30.5,43 L41.5,43 L36,25 L36,25 Z"
+            android:fillColor="#22d3ee"
+            android:fillAlpha="0.25"/>
+            
+        <!-- Subtle glow highlight on A -->
+        <path
+            android:pathData="M36,18 L49,54 L45,54 L42,46 L30,46 L27,54 L23,54 L36,18 Z"
+            android:fillColor="#ffffff"
+            android:fillAlpha="0.15"/>
     </group>
 </vector>
