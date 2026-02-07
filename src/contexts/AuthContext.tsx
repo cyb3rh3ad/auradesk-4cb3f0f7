@@ -28,6 +28,22 @@ const isNativeMobile = (): boolean => {
   return capacitor?.isNativePlatform?.() ?? false;
 };
 
+// Check if running as standalone PWA (Add to Home Screen)
+const isStandalonePWA = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         (window.navigator as any).standalone === true;
+};
+
+// Check if on a custom domain (not lovable.app or lovableproject.com)
+const isCustomDomain = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return !hostname.includes('lovable.app') && 
+         !hostname.includes('lovableproject.com') &&
+         hostname !== 'localhost';
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -284,6 +300,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check if we're on native mobile (Capacitor)
     const isNative = isNativeMobile();
     
+    // Check if we're in standalone PWA mode or on a custom domain
+    const isPWA = isStandalonePWA();
+    const isCustom = isCustomDomain();
+    
+    console.log('OAuth context:', { isElectron, isNative, isPWA, isCustom });
+    
     if (isElectron) {
       // For Electron: Use custom protocol redirect
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -352,10 +374,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     }
     
-    // Mark OAuth login as pending BEFORE redirect - this ensures MFA check runs
+    // For PWA standalone mode or custom domains: Use skipBrowserRedirect to bypass auth-bridge
+    // This prevents the OAuth flow from getting stuck in a redirect loop
+    if (isPWA || isCustom) {
+      console.log('Using PWA/custom domain OAuth flow with skipBrowserRedirect');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/#/auth`,
+          skipBrowserRedirect: true, // Critical: bypass auth-bridge
+        }
+      });
+      
+      if (error) {
+        console.error('OAuth initiation error:', error);
+        return { error };
+      }
+      
+      if (data?.url) {
+        // Validate OAuth URL before redirect (security: prevent open redirect)
+        try {
+          const oauthUrl = new URL(data.url);
+          const allowedHosts = [
+            'accounts.google.com',
+            'www.googleapis.com',
+            // Supabase auth endpoints
+            'jtbxuiyhuyvqvdkqqioo.supabase.co',
+          ];
+          
+          const isAllowedHost = allowedHosts.some(host => 
+            oauthUrl.hostname === host || oauthUrl.hostname.endsWith('.supabase.co')
+          );
+          
+          if (!isAllowedHost) {
+            console.error('Invalid OAuth redirect URL:', oauthUrl.hostname);
+            return { error: new Error('Invalid OAuth redirect URL') };
+          }
+          
+          // Mark OAuth as pending before redirect
+          sessionStorage.setItem('oauth_login_pending', 'true');
+          
+          // For PWA: Use location.replace to stay in same window context
+          // This helps maintain the PWA standalone mode after OAuth completes
+          console.log('Redirecting to OAuth URL:', data.url);
+          window.location.href = data.url;
+          
+        } catch (urlError) {
+          console.error('Failed to parse OAuth URL:', urlError);
+          return { error: new Error('Invalid OAuth URL format') };
+        }
+      }
+      
+      return { error: null };
+    }
+    
+    // Standard web: Normal OAuth flow - redirect to auth page for MFA check
     sessionStorage.setItem('oauth_login_pending', 'true');
     
-    // Web: Normal OAuth flow - redirect to auth page for MFA check
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
