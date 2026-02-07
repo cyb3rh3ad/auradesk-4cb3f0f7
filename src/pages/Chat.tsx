@@ -67,10 +67,11 @@ const Chat = () => {
   };
 
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
+  // Use negative margin to counteract the pb-16 from AppLayout, then add our own proper padding
   if (isMobile) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-hidden">
-        <div className="flex flex-col h-full overflow-hidden bg-background">
+      <PullToRefresh onRefresh={handleRefresh} className="h-full -mb-16 pb-16 overflow-hidden flex flex-col">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
           <AnimatePresence mode="wait" initial={false}>
             {selectedConversationId ? (
               // Mobile Chat View - Full screen messaging with slide animation
@@ -80,7 +81,7 @@ const Chat = () => {
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: '100%', opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="flex-1 flex flex-col min-h-0"
+                className="flex-1 flex flex-col min-h-0 overflow-hidden"
               >
                 {/* Chat Header - Premium glassmorphism style */}
                 <motion.div 
@@ -135,7 +136,7 @@ const Chat = () => {
                     </div>
                   </motion.div>
                 </motion.div>
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                   <MessageArea
                     messages={messages}
                     onSendMessage={sendMessage}
