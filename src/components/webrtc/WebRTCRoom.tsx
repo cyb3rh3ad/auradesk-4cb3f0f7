@@ -592,7 +592,7 @@ export function WebRTCRoom({
 }
 
 // Connection quality indicator component
-type ConnectionMode = 'direct' | 'stun' | 'relay';
+type ConnectionMode = 'direct' | 'stun' | 'hybrid' | 'relay';
 
 function ConnectionQualityIndicator({ stats, compact = false, mode = 'stun' }: { stats: ConnectionStats; compact?: boolean; mode?: ConnectionMode }) {
   const qualityColors = {
@@ -612,12 +612,14 @@ function ConnectionQualityIndicator({ stats, compact = false, mode = 'stun' }: {
   const modeLabels: Record<ConnectionMode, string> = {
     direct: '⚡ Direct',
     stun: '🌐 P2P',
+    hybrid: '🔀 Hybrid',
     relay: '🔄 Relay',
   };
 
   const modeDescriptions: Record<ConnectionMode, string> = {
     direct: 'Same network - zero servers',
     stun: 'Direct P2P via NAT traversal',
+    hybrid: 'P2P with TURN fallback ready',
     relay: 'Routed through TURN server',
   };
 
