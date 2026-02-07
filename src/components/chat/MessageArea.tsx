@@ -150,7 +150,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      <ScrollArea className="flex-1 chat-messages-scroll" ref={scrollRef}>
         <div className="p-3 md:p-6 space-y-4 md:space-y-6">
           {groupedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
