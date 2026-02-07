@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ Splash Screen API - Premium Native Experience -->
+    <!-- Android 12+ Splash Screen API - Premium Native Experience with Fullscreen -->
     <style name="AppTheme.SplashScreen" parent="AppTheme">
         <!-- Splash screen background color -->
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
@@ -11,19 +11,41 @@
         <!-- Icon background (circular on Android 12+) -->
         <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
         
-        <!-- Branding image at bottom (optional) -->
-        <!-- <item name="android:windowSplashScreenBrandingImage">@drawable/brand_logo</item> -->
-        
         <!-- Animation duration -->
         <item name="android:windowSplashScreenAnimationDuration">800</item>
         
-        <!-- System bars match splash theme -->
-        <item name="android:statusBarColor">@color/splash_background</item>
-        <item name="android:navigationBarColor">@color/splash_background</item>
+        <!-- System bars transparent for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         
-        <!-- Edge-to-edge immersive splash -->
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <!-- Edge-to-edge immersive splash - extends under cutout -->
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+    
+    <!-- Override base theme for Android 12+ with fullscreen immersive -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:colorPrimary">@color/colorPrimary</item>
+        <item name="android:colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="android:colorAccent">@color/colorAccent</item>
+        
+        <!-- Transparent system bars -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:colorBackground">@color/splash_background</item>
+        
+        <!-- Edge-to-edge -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:fitsSystemWindows">false</item>
+        
+        <!-- Display cutout mode - always extend under notch -->
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
     </style>
 </resources>
