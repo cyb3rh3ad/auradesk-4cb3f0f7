@@ -48,20 +48,72 @@ const isStandaloneApp = (): boolean => {
   const capacitor = (window as any).Capacitor;
   const isNative = capacitor?.isNativePlatform?.() ?? false;
   
-  // Standalone PWA (installed to home screen)
+  // Standalone PWA (installed to home screen) - multiple detection methods for reliability
   const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches ||
+                          window.matchMedia('(display-mode: fullscreen)').matches ||
                           (window.navigator as any).standalone === true;
   
   // Electron app
   const isElectron = !!(window as any).electronAPI?.isElectron || window.location.protocol === 'file:';
   
-  return isNative || isStandalonePWA || isElectron;
+  // Check localStorage flag (set when app was previously opened as standalone)
+  let wasStandalone = false;
+  try {
+    wasStandalone = localStorage.getItem('auradesk-is-standalone') === 'true';
+  } catch (e) {
+    // Ignore storage errors
+  }
+  
+  const result = isNative || isStandalonePWA || isElectron || wasStandalone;
+  
+  // Persist standalone status for future opens
+  if (result && !wasStandalone) {
+    try {
+      localStorage.setItem('auradesk-is-standalone', 'true');
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }
+  
+  return result;
 };
 
 // Component to handle root route - redirect standalone app users to auth
 const RootRoute = () => {
   const { user, loading } = useAuth();
-  const isStandalone = isStandaloneApp();
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
+  
+  // Re-check standalone status after mount (some browsers need a tick to detect)
+  useEffect(() => {
+    // Immediate re-check
+    const checkNow = isStandaloneApp();
+    if (checkNow !== isStandalone) {
+      setIsStandalone(checkNow);
+    }
+    
+    // Also listen for display mode changes (rare but possible)
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const fullscreenQuery = window.matchMedia('(display-mode: fullscreen)');
+    
+    const handleChange = () => {
+      if (mediaQuery.matches || fullscreenQuery.matches) {
+        setIsStandalone(true);
+        try {
+          localStorage.setItem('auradesk-is-standalone', 'true');
+        } catch (e) {
+          // Ignore
+        }
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    fullscreenQuery.addEventListener('change', handleChange);
+    
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+      fullscreenQuery.removeEventListener('change', handleChange);
+    };
+  }, [isStandalone]);
   
   // If standalone app (Electron, PWA, or native mobile), skip landing page entirely
   if (isStandalone) {
