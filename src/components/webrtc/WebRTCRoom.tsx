@@ -52,6 +52,7 @@ export function WebRTCRoom({
     error,
     callStatus,
     connectionStats,
+    connectionMode,
     joinRoom,
     leaveRoom,
     toggleAudio,
@@ -398,7 +399,7 @@ export function WebRTCRoom({
     >
       {/* Connection Quality Indicator - hide in mini mode */}
       {connectionStats && pipMode !== 'mini' && (
-        <ConnectionQualityIndicator stats={connectionStats} compact={pipMode === 'small'} />
+        <ConnectionQualityIndicator stats={connectionStats} compact={pipMode === 'small'} mode={connectionMode} />
       )}
       
       {/* Participants grid */}
@@ -591,7 +592,9 @@ export function WebRTCRoom({
 }
 
 // Connection quality indicator component
-function ConnectionQualityIndicator({ stats, compact = false }: { stats: ConnectionStats; compact?: boolean }) {
+type ConnectionMode = 'direct' | 'stun' | 'relay';
+
+function ConnectionQualityIndicator({ stats, compact = false, mode = 'stun' }: { stats: ConnectionStats; compact?: boolean; mode?: ConnectionMode }) {
   const qualityColors = {
     excellent: 'text-green-500',
     good: 'text-green-400',
@@ -606,6 +609,18 @@ function ConnectionQualityIndicator({ stats, compact = false }: { stats: Connect
     poor: 'bg-red-500/20',
   };
 
+  const modeLabels: Record<ConnectionMode, string> = {
+    direct: '⚡ Direct',
+    stun: '🌐 P2P',
+    relay: '🔄 Relay',
+  };
+
+  const modeDescriptions: Record<ConnectionMode, string> = {
+    direct: 'Same network - zero servers',
+    stun: 'Direct P2P via NAT traversal',
+    relay: 'Routed through TURN server',
+  };
+
   if (compact) {
     return (
       <div className={cn(
@@ -613,7 +628,9 @@ function ConnectionQualityIndicator({ stats, compact = false }: { stats: Connect
         qualityBgColors[stats.connectionQuality],
         "backdrop-blur-sm"
       )}>
-        {stats.isRelay ? (
+        {mode === 'direct' ? (
+          <Sparkles className={cn("h-3 w-3", qualityColors[stats.connectionQuality])} />
+        ) : stats.isRelay ? (
           <Server className={cn("h-3 w-3", qualityColors[stats.connectionQuality])} />
         ) : (
           <Radio className={cn("h-3 w-3", qualityColors[stats.connectionQuality])} />
@@ -643,6 +660,9 @@ function ConnectionQualityIndicator({ stats, compact = false }: { stats: Connect
     'audio-only': 'text-orange-500',
   };
 
+  // Determine display mode based on actual connection
+  const displayMode = mode === 'direct' ? 'direct' : (stats.isRelay ? 'relay' : 'stun');
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -652,13 +672,15 @@ function ConnectionQualityIndicator({ stats, compact = false }: { stats: Connect
             qualityBgColors[stats.connectionQuality],
             "backdrop-blur-sm border border-border/30"
           )}>
-            {stats.isRelay ? (
+            {displayMode === 'direct' ? (
+              <Sparkles className={cn("h-3.5 w-3.5", qualityColors[stats.connectionQuality])} />
+            ) : displayMode === 'relay' ? (
               <Server className={cn("h-3.5 w-3.5", qualityColors[stats.connectionQuality])} />
             ) : (
               <Radio className={cn("h-3.5 w-3.5", qualityColors[stats.connectionQuality])} />
             )}
             <span className={cn("text-[10px] font-medium", qualityColors[stats.connectionQuality])}>
-              {stats.isRelay ? 'Relay' : 'P2P'}
+              {displayMode === 'direct' ? 'Direct' : displayMode === 'relay' ? 'Relay' : 'P2P'}
             </span>
             <span className={cn("text-[10px] font-medium", adaptiveModeColors[stats.adaptiveMode])}>
               {adaptiveModeLabels[stats.adaptiveMode]}
@@ -688,10 +710,10 @@ function ConnectionQualityIndicator({ stats, compact = false }: { stats: Connect
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="space-y-1 text-xs">
             <div className="font-medium">
-              {stats.isRelay ? '🔄 TURN Relay' : '⚡ Direct P2P'}
+              {modeLabels[displayMode]}
             </div>
             <div className="text-muted-foreground text-[10px]">
-              {stats.isRelay ? 'Routed through relay server' : 'Direct peer-to-peer connection'}
+              {modeDescriptions[displayMode]}
             </div>
             <div className="pt-1 border-t border-border/50 space-y-0.5">
               <div>↓ {formatBandwidth(stats.inboundBitrate)} ↑ {formatBandwidth(stats.outboundBitrate)}</div>
