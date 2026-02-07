@@ -150,7 +150,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 chat-messages-scroll" ref={scrollRef}>
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="p-3 md:p-6 space-y-4 md:space-y-6">
           {groupedMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
@@ -228,7 +228,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="p-3 md:p-4 flex gap-2 md:gap-3 items-center">
+        <form onSubmit={handleSubmit} className="p-3 md:p-4 pb-4 flex gap-2 md:gap-3 items-center safe-area-pb">
           <Input
             value={input}
             onChange={handleInputChange}
