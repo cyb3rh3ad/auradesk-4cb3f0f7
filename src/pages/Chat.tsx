@@ -68,15 +68,10 @@ const Chat = () => {
 
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
   // CRITICAL: This page manages its own layout - AppLayout sets overflow-hidden on main
-  // We use a wrapper div with explicit height calculation for the mobile nav bar
+  // We use h-full to fill the available space from the parent flex container
   if (isMobile) {
     return (
-      <div 
-        className="flex flex-col overflow-hidden bg-background"
-        style={{ 
-          height: 'calc(100dvh - var(--mobile-nav-height) - var(--safe-area-bottom) - var(--safe-area-top) - 3.5rem)' // Account for header + nav
-        }}
-      >
+      <div className="h-full flex flex-col overflow-hidden bg-background">
         <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden min-h-0">
           <AnimatePresence mode="wait" initial={false}>
             {selectedConversationId ? (
