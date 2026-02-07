@@ -67,11 +67,17 @@ const Chat = () => {
   };
 
   // Mobile: Show either friends list or chat, not both - Discord/Snap style
-  // Uses flexbox layout - input bar stays at bottom naturally within the flex container
+  // CRITICAL: This page manages its own layout - AppLayout sets overflow-hidden on main
+  // We use a wrapper div with explicit height calculation for the mobile nav bar
   if (isMobile) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
+      <div 
+        className="flex flex-col overflow-hidden bg-background"
+        style={{ 
+          height: 'calc(100dvh - var(--mobile-nav-height) - var(--safe-area-bottom) - var(--safe-area-top) - 3.5rem)' // Account for header + nav
+        }}
+      >
+        <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden min-h-0">
           <AnimatePresence mode="wait" initial={false}>
             {selectedConversationId ? (
               // Mobile Chat View - Full screen messaging with slide animation
@@ -124,11 +130,7 @@ const Chat = () => {
                         {getConversationName()}
                       </motion.p>
                       <div className="flex items-center gap-1.5">
-                        <motion.span 
-                          className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        />
+                        <span className="w-2 h-2 rounded-full bg-primary shadow-sm shadow-primary/50" />
                         <p className="text-xs text-muted-foreground">
                           {selectedConversation?.is_group ? 'Group' : 'Active now'}
                         </p>
@@ -184,8 +186,8 @@ const Chat = () => {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </PullToRefresh>
+        </PullToRefresh>
+      </div>
     );
   }
 
