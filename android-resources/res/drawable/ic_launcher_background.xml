@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Deep dark base -->
+    <!-- Deep cosmic dark base matching app theme -->
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#0c0a14"/>
         </shape>
     </item>
     
-    <!-- Subtle radial gradient for depth -->
+    <!-- Subtle purple cosmic radial gradient for depth -->
     <item>
         <shape android:shape="oval">
             <gradient
@@ -15,7 +15,21 @@
                 android:gradientRadius="54dp"
                 android:centerX="50%"
                 android:centerY="50%"
-                android:startColor="#1a1625"
+                android:startColor="#1e1b4b"
+                android:centerColor="#12101c"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+    
+    <!-- Purple accent glow -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="40dp"
+                android:centerX="50%"
+                android:centerY="50%"
+                android:startColor="#188b5cf6"
                 android:endColor="#00000000" />
         </shape>
     </item>
