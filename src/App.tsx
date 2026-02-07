@@ -200,33 +200,41 @@ const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   
   // Pages that manage their own scroll/layout (chat, teams, ai with sidebars)
-  // These pages need to handle the mobile nav offset themselves
+  // These pages need full height and manage their own bottom padding
   const selfManagedPages = ['/chat', '/teams', '/ai'];
   const isSelfManagedPage = selfManagedPages.some(p => location.pathname.startsWith(p));
   
   return (
     <div 
-      className="flex h-screen w-full overflow-hidden"
+      className="flex w-full overflow-hidden"
       style={{ 
+        // Use dynamic viewport height for proper mobile sizing
+        height: '100dvh',
+        minHeight: '100dvh',
         // GPU acceleration for the main container
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden'
       }}
     >
       {!isMobile && <Sidebar />}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {isElectron && <div className="h-8 flex-shrink-0" />}
         <Header />
-        {/* Main content area - different handling for self-managed vs regular pages */}
+        {/* Main content area - fills remaining space above nav bar */}
         <main 
           className={cn(
             "flex-1 min-h-0",
-            // Self-managed pages handle their own scroll and nav offset
+            // Self-managed pages handle their own scroll
             isSelfManagedPage ? "overflow-hidden" : "overflow-auto"
           )}
           style={{ 
-            // Only apply bottom padding for non-self-managed pages on mobile
-            paddingBottom: (isMobile && !isSelfManagedPage) ? 'var(--adaptive-bottom-spacing)' : undefined,
+            // For self-managed pages, subtract the nav bar height so they fill exactly
+            // For regular pages, add padding so content doesn't go under nav
+            ...(isMobile && {
+              paddingBottom: isSelfManagedPage ? undefined : 'var(--adaptive-bottom-spacing)',
+              // Self-managed pages get explicit height minus nav
+              height: isSelfManagedPage ? 'calc(100% - var(--adaptive-bottom-spacing))' : undefined,
+            }),
             // Optimize scroll performance
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain'
