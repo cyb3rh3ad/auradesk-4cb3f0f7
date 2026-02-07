@@ -345,57 +345,69 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <div className="relative">
+        <div className="relative mb-6">
           {isMobile && (
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
           )}
           <TabsList className={cn(
-            "w-full gap-1 md:gap-1.5 bg-muted/50 p-1 rounded-lg",
+            "w-full gap-1 bg-transparent p-0 h-auto border-b border-border/40",
             isMobile 
-              ? "flex overflow-x-auto justify-start scrollbar-hide scroll-smooth" 
-              : "grid grid-cols-6"
+              ? "flex overflow-x-auto justify-start scrollbar-hide scroll-smooth pb-2" 
+              : "grid grid-cols-6 pb-2"
           )}>
             <TabsTrigger value="profile" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <User className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">Profile</span>
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">Profile</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <Palette className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">Appearance</span>
+              <Palette className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">Appearance</span>
             </TabsTrigger>
             <TabsTrigger value="security" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <Lock className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">Security</span>
+              <Lock className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">Security</span>
             </TabsTrigger>
             <TabsTrigger value="audio-video" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <Mic className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">Voice</span>
+              <Mic className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">Voice</span>
             </TabsTrigger>
             <TabsTrigger value="nicknames" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <Users className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">Nicknames</span>
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">Nicknames</span>
             </TabsTrigger>
             <TabsTrigger value="about" className={cn(
-              "gap-1.5 md:gap-2 min-h-[40px] md:min-h-[44px] transition-all rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm",
-              isMobile && "shrink-0 px-3 min-w-[48px] active:scale-95"
+              "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
+              "hover:text-foreground/80 text-muted-foreground",
+              isMobile && "shrink-0 px-3"
             )}>
-              <Info className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden sm:inline text-sm">About</span>
+              <Info className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm font-medium">About</span>
             </TabsTrigger>
           </TabsList>
         </div>
