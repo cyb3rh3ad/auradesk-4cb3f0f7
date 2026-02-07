@@ -33,30 +33,60 @@ const HIGH_QUALITY_THRESHOLD = 5000; // 5 Mbps
 const MEDIUM_QUALITY_THRESHOLD = 2000; // 2 Mbps
 const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
-// TURN-only configuration for maximum firewall compatibility
-// Using relay-only mode - STUN is disabled as it's useless in relay mode
-// Multiple providers for redundancy, prioritizing TURNS (TLS) on port 443
-const ICE_SERVERS: RTCConfiguration = {
+// ============================================================================
+// SMART CONNECTION STRATEGY
+// ============================================================================
+// 1. Same network detection → Direct P2P (no servers, fastest)
+// 2. Different network → STUN first (try direct P2P)
+// 3. Fallback → TURN relay only if STUN fails
+// ============================================================================
+
+// Direct P2P - for same network connections (no servers needed)
+const ICE_CONFIG_DIRECT: RTCConfiguration = {
+  iceServers: [], // No servers needed for same network
+  iceCandidatePoolSize: 2,
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceTransportPolicy: "all",
+};
+
+// STUN-first - tries direct P2P via NAT traversal (free, works ~70% of the time)
+const ICE_CONFIG_STUN: RTCConfiguration = {
   iceServers: [
-    // === PRIMARY: METERED.CA TURNS on 443 (looks like HTTPS traffic) ===
+    // Free Google STUN servers
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    // Backup STUN
+    { urls: "stun:stun.stunprotocol.org:3478" },
+  ],
+  iceCandidatePoolSize: 4,
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceTransportPolicy: "all", // Try direct first
+};
+
+// TURN relay - fallback for restrictive firewalls
+const ICE_CONFIG_RELAY: RTCConfiguration = {
+  iceServers: [
+    // === METERED.CA TURNS on 443 (looks like HTTPS traffic) ===
     {
       urls: "turns:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURNS on standard port 5349
     {
       urls: "turns:a.relay.metered.ca:5349?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURN TCP on port 443 (alternative)
     {
       urls: "turn:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURN on standard port 3478 (UDP and TCP)
     {
       urls: "turn:a.relay.metered.ca:3478",
       username: "e8dd65f92eb0895c19533add",
@@ -67,21 +97,14 @@ const ICE_SERVERS: RTCConfiguration = {
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    // TURN on port 80 (HTTP-like traffic)
     {
       urls: "turn:a.relay.metered.ca:80?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
-    
-    // === BACKUP: OPENRELAY (public free TURN) ===
+    // === BACKUP: OPENRELAY ===
     {
       urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
@@ -96,18 +119,63 @@ const ICE_SERVERS: RTCConfiguration = {
       credential: "openrelayproject",
     },
   ],
-  iceCandidatePoolSize: 5, // Reduced since we're relay-only
+  iceCandidatePoolSize: 5,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
-  // Force relay mode - all traffic goes through TURN servers
-  iceTransportPolicy: "relay",
+  iceTransportPolicy: "relay", // Force TURN
 };
 
-// P2P-first configuration for when relay isn't needed
-const ICE_SERVERS_P2P: RTCConfiguration = {
-  ...ICE_SERVERS,
-  iceTransportPolicy: "all",
+// Detect local IP to check if peers are on same network
+const getLocalIPs = async (): Promise<string[]> => {
+  return new Promise((resolve) => {
+    const ips: string[] = [];
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    
+    pc.createDataChannel('');
+    pc.createOffer().then(offer => pc.setLocalDescription(offer));
+    
+    const timeout = setTimeout(() => {
+      pc.close();
+      resolve(ips);
+    }, 2000);
+    
+    pc.onicecandidate = (event) => {
+      if (!event.candidate) {
+        clearTimeout(timeout);
+        pc.close();
+        resolve(ips);
+        return;
+      }
+      
+      const candidate = event.candidate.candidate;
+      // Extract IP from candidate string (e.g., "candidate:... 192.168.1.5 ...")
+      const ipMatch = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
+      if (ipMatch) {
+        const ip = ipMatch[0];
+        // Only include private IPs (local network)
+        if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.match(/^172\.(1[6-9]|2[0-9]|3[01])\./)) {
+          if (!ips.includes(ip)) {
+            ips.push(ip);
+          }
+        }
+      }
+    };
+  });
 };
+
+// Check if two IPs are on the same subnet (simple /24 check)
+const isSameNetwork = (ip1: string, ip2: string): boolean => {
+  if (!ip1 || !ip2) return false;
+  const parts1 = ip1.split('.');
+  const parts2 = ip2.split('.');
+  // Same /24 subnet
+  return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
+};
+
+type ConnectionMode = 'direct' | 'stun' | 'relay';
+
+// Legacy alias for compatibility
+const ICE_SERVERS = ICE_CONFIG_RELAY;
 
 export const useWebRTC = (roomId: string | null, userName: string) => {
   const { user } = useAuth();
@@ -118,6 +186,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const [error, setError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
   const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('stun');
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -130,6 +199,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const lastBytesSent = useRef<number>(0);
   const lastStatsTime = useRef<number>(Date.now());
   const lowBandwidthCount = useRef<number>(0);
+  const localIPsRef = useRef<string[]>([]);
+  const peerIPsRef = useRef<Map<string, string[]>>(new Map()); // peerId -> IPs
+  const connectionModeRef = useRef<Map<string, ConnectionMode>>(new Map()); // peerId -> mode
   const currentAdaptiveMode = useRef<'high' | 'medium' | 'low' | 'audio-only'>('high');
   
   // Ref to hold sendOffer function for use in createPeerConnection
@@ -437,8 +509,27 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   // Track failed connections for relay fallback
   const failedConnections = useRef<Set<string>>(new Set());
   
+  // Get the appropriate ICE config based on network detection
+  const getICEConfig = useCallback((remoteUserId: string, mode: ConnectionMode): RTCConfiguration => {
+    console.log(`[WebRTC] Using connection mode: ${mode} for peer: ${remoteUserId}`);
+    
+    switch (mode) {
+      case 'direct':
+        console.log("[WebRTC] ⚡ DIRECT P2P - Same network detected, no servers needed");
+        return ICE_CONFIG_DIRECT;
+      case 'stun':
+        console.log("[WebRTC] 🌐 STUN MODE - Trying direct P2P via NAT traversal");
+        return ICE_CONFIG_STUN;
+      case 'relay':
+        console.log("[WebRTC] 🔒 RELAY MODE - Using TURN servers for firewall bypass");
+        return ICE_CONFIG_RELAY;
+      default:
+        return ICE_CONFIG_STUN;
+    }
+  }, []);
+
   const createPeerConnection = useCallback(
-    (remoteUserId: string, remoteName: string, forceRelay: boolean = false) => {
+    (remoteUserId: string, remoteName: string, mode: ConnectionMode = 'stun') => {
       if (!localStreamRef.current || !user) {
         console.error("[WebRTC] Cannot create peer connection - no local stream or user");
         return null;
@@ -458,10 +549,27 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         peerConnections.current.delete(remoteUserId);
       }
 
-      // ICE_SERVERS is already relay-only by default for firewall compatibility
-      // forceRelay parameter is now redundant but kept for API compatibility
-      console.log("[WebRTC] Creating new peer connection for:", remoteUserId, remoteName, "(RELAY MODE)");
-      const pc = new RTCPeerConnection(ICE_SERVERS);
+      // Check if peer is on same network for direct P2P
+      const peerIPs = peerIPsRef.current.get(remoteUserId) || [];
+      const localIPs = localIPsRef.current;
+      const sameNetwork = localIPs.some(localIP => 
+        peerIPs.some(peerIP => isSameNetwork(localIP, peerIP))
+      );
+      
+      // Override mode to 'direct' if same network detected
+      let effectiveMode = mode;
+      if (sameNetwork && mode !== 'relay') {
+        console.log("[WebRTC] 🎯 Same network detected! Switching to DIRECT P2P mode");
+        effectiveMode = 'direct';
+      }
+      
+      // Store the mode for this peer
+      connectionModeRef.current.set(remoteUserId, effectiveMode);
+      setConnectionMode(effectiveMode);
+      
+      const iceConfig = getICEConfig(remoteUserId, effectiveMode);
+      console.log("[WebRTC] Creating peer connection for:", remoteUserId, remoteName, `(${effectiveMode.toUpperCase()} MODE)`);
+      const pc = new RTCPeerConnection(iceConfig);
       
       // Add local tracks to the connection with proper transceiver configuration
       localStreamRef.current.getTracks().forEach((track) => {
@@ -570,16 +678,25 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         } else if (pc.connectionState === 'failed') {
           console.warn("[WebRTC] Connection failed for:", remoteUserId);
           
-          // If not already using relay, try again with relay-only
-          if (!forceRelay) {
-            console.log("[WebRTC] Attempting reconnection with TURN relay...");
+          // Escalate: direct -> stun -> relay
+          const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
+          let nextMode: ConnectionMode | null = null;
+          
+          if (currentMode === 'direct') {
+            nextMode = 'stun';
+          } else if (currentMode === 'stun') {
+            nextMode = 'relay';
+          }
+          
+          if (nextMode) {
+            console.log(`[WebRTC] Escalating from ${currentMode} to ${nextMode} mode...`);
             failedConnections.current.add(remoteUserId);
             pc.close();
             peerConnections.current.delete(remoteUserId);
             
-            // Recreate with relay
+            // Recreate with next mode
             setTimeout(() => {
-              const newPc = createPeerConnection(remoteUserId, remoteName, true);
+              const newPc = createPeerConnection(remoteUserId, remoteName, nextMode!);
               if (newPc && channelRef.current) {
                 // Re-initiate offer if we're polite
                 if (isPolite(remoteUserId)) {
@@ -588,7 +705,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
               }
             }, 500);
           } else {
-            // Already tried relay, do ICE restart
+            // Already at relay, do ICE restart
             console.log("[WebRTC] Already using relay, attempting ICE restart");
             try {
               pc.restartIce();
@@ -597,24 +714,36 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             }
           }
         } else if (pc.connectionState === 'connecting') {
-          // Set a timeout for connection attempt
+          // Set a timeout for connection attempt (shorter for direct/stun, longer for relay)
+          const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
+          const timeoutMs = currentMode === 'relay' ? 15000 : 8000; // 8s for direct/stun, 15s for relay
+          
           connectionTimeout = setTimeout(() => {
             if (pc.connectionState === 'connecting') {
-              console.warn("[WebRTC] Connection timeout after 15s, attempting reconnect with relay");
-              failedConnections.current.add(remoteUserId);
-              pc.close();
-              peerConnections.current.delete(remoteUserId);
+              const mode = connectionModeRef.current.get(remoteUserId) || 'stun';
+              let nextMode: ConnectionMode | null = null;
               
-              if (!forceRelay) {
+              if (mode === 'direct') {
+                nextMode = 'stun';
+              } else if (mode === 'stun') {
+                nextMode = 'relay';
+              }
+              
+              if (nextMode) {
+                console.warn(`[WebRTC] Connection timeout after ${timeoutMs/1000}s, escalating to ${nextMode}`);
+                failedConnections.current.add(remoteUserId);
+                pc.close();
+                peerConnections.current.delete(remoteUserId);
+                
                 setTimeout(() => {
-                  const newPc = createPeerConnection(remoteUserId, remoteName, true);
+                  const newPc = createPeerConnection(remoteUserId, remoteName, nextMode!);
                   if (newPc && isPolite(remoteUserId)) {
                     sendOfferRef.current?.(remoteUserId, remoteName);
                   }
                 }, 500);
               }
             }
-          }, 15000);
+          }, timeoutMs);
         } else if (pc.connectionState === 'disconnected') {
           console.warn("[WebRTC] Connection disconnected for:", remoteUserId, "- monitoring for recovery");
           connectionTimeout = setTimeout(() => {
@@ -846,6 +975,12 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       setIsConnecting(true);
       setError(null);
       
+      // Detect local IPs for same-network detection
+      console.log("[WebRTC] Detecting local network IPs...");
+      const localIPs = await getLocalIPs();
+      localIPsRef.current = localIPs;
+      console.log("[WebRTC] Local IPs detected:", localIPs);
+      
       const stream = await initializeMedia(video, audio);
       if (!stream) {
         setIsConnecting(false);
@@ -872,6 +1007,14 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             if (peerId !== user.id && !peerConnections.current.has(peerId)) {
               const peerData = state[peerId]?.[0] as any;
               const peerName = peerData?.name || 'User';
+              const peerIPs = peerData?.localIPs || [];
+              
+              // Store peer's IPs for network detection
+              if (peerIPs.length > 0) {
+                peerIPsRef.current.set(peerId, peerIPs);
+                console.log("[WebRTC] Peer", peerId, "IPs:", peerIPs);
+              }
+              
               console.log("[WebRTC] Discovered peer:", peerId, peerName);
               
               // Only the "polite" peer sends the offer
@@ -890,6 +1033,14 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
           if (key !== user.id) {
             const peerData = newPresences[0] as any;
             const peerName = peerData?.name || 'User';
+            const peerIPs = peerData?.localIPs || [];
+            
+            // Store peer's IPs for network detection
+            if (peerIPs.length > 0) {
+              peerIPsRef.current.set(key, peerIPs);
+              console.log("[WebRTC] New peer", key, "IPs:", peerIPs);
+            }
+            
             console.log("[WebRTC] Peer joined:", key, peerName);
             
             if (isPolite(key)) {
@@ -907,6 +1058,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
               peerConnections.current.delete(key);
             }
             knownPeers.current.delete(key);
+            peerIPsRef.current.delete(key);
+            connectionModeRef.current.delete(key);
             setParticipants(prev => {
               const newMap = new Map(prev);
               newMap.delete(key);
@@ -933,9 +1086,13 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         .subscribe(async (status) => {
           console.log("[WebRTC] Channel status:", status);
           if (status === "SUBSCRIBED") {
-            // Track our presence so others can discover us
-            await channel.track({ name: userName, joined_at: Date.now() });
-            console.log("[WebRTC] Presence tracked, we are in the room");
+            // Track our presence with local IPs so peers can detect same-network
+            await channel.track({ 
+              name: userName, 
+              joined_at: Date.now(),
+              localIPs: localIPsRef.current, // Share our local IPs
+            });
+            console.log("[WebRTC] Presence tracked with local IPs:", localIPsRef.current);
             setIsConnecting(false);
             setIsConnected(true);
           }
@@ -963,6 +1120,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     knownPeers.current.clear();
     iceCandidateBuffer.current.clear();
     makingOffer.current.clear();
+    peerIPsRef.current.clear();
+    connectionModeRef.current.clear();
+    localIPsRef.current = [];
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => {
@@ -976,6 +1136,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     setParticipants(new Map());
     setCallStatus("IDLE");
     setIsConnected(false);
+    setConnectionMode('stun');
   }, []);
 
   const toggleAudio = useCallback((muted: boolean) => {
@@ -1000,5 +1161,5 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     return () => leaveRoom();
   }, [leaveRoom]);
 
-  return { localStream, participants, isConnecting, isConnected, error, callStatus, connectionStats, joinRoom, leaveRoom, toggleAudio, toggleVideo };
+  return { localStream, participants, isConnecting, isConnected, error, callStatus, connectionStats, connectionMode, joinRoom, leaveRoom, toggleAudio, toggleVideo };
 };
