@@ -34,11 +34,12 @@ const MEDIUM_QUALITY_THRESHOLD = 2000; // 2 Mbps
 const LOW_QUALITY_THRESHOLD = 500; // 500 kbps
 
 // ============================================================================
-// SMART CONNECTION STRATEGY
+// MAXIMUM RELIABILITY CONNECTION STRATEGY
 // ============================================================================
 // 1. Same network detection → Direct P2P (no servers, fastest)
-// 2. Different network → STUN first (try direct P2P)
-// 3. Fallback → TURN relay only if STUN fails
+// 2. Different network → STUN first (try direct P2P via NAT)
+// 3. Fallback → TURN relay with multiple providers for redundancy
+// 4. Aggressive reconnection and health monitoring
 // ============================================================================
 
 // Direct P2P - for same network connections (no servers needed)
@@ -50,35 +51,126 @@ const ICE_CONFIG_DIRECT: RTCConfiguration = {
   iceTransportPolicy: "all",
 };
 
-// STUN-first - tries direct P2P via NAT traversal (free, works ~70% of the time)
+// STUN-first - tries direct P2P via NAT traversal (free, works ~70-80% of the time)
+// Added more STUN servers for redundancy
 const ICE_CONFIG_STUN: RTCConfiguration = {
   iceServers: [
-    // Free Google STUN servers
+    // Google STUN servers (most reliable, globally distributed)
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
-    // Backup STUN
+    // Twilio STUN (reliable backup)
+    { urls: "stun:global.stun.twilio.com:3478" },
+    // Cloudflare STUN
+    { urls: "stun:stun.cloudflare.com:3478" },
+    // Mozilla STUN
+    { urls: "stun:stun.services.mozilla.com:3478" },
+    // Additional backups
     { urls: "stun:stun.stunprotocol.org:3478" },
+    { urls: "stun:stun.nextcloud.com:443" },
   ],
-  iceCandidatePoolSize: 4,
+  iceCandidatePoolSize: 6,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
   iceTransportPolicy: "all", // Try direct first
 };
 
-// TURN relay - fallback for restrictive firewalls
+// TURN relay - maximum redundancy for restrictive firewalls
+// Priority: TURNS on 443 (looks like HTTPS) > TURN TCP 443 > TURN TCP other ports > TURN UDP
 const ICE_CONFIG_RELAY: RTCConfiguration = {
   iceServers: [
-    // === METERED.CA TURNS on 443 (looks like HTTPS traffic) ===
+    // === PRIMARY: METERED.CA (reliable, free tier) ===
+    // TURNS on 443 - highest priority (TLS encrypted, looks like HTTPS)
     {
       urls: "turns:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
+    // TURNS on 5349 (standard TURNS port)
     {
       urls: "turns:a.relay.metered.ca:5349?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN TCP on 443 (non-TLS but still port 443)
+    {
+      urls: "turn:a.relay.metered.ca:443?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN on port 80 (HTTP-like)
+    {
+      urls: "turn:a.relay.metered.ca:80?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN UDP (fastest when not blocked)
+    {
+      urls: "turn:a.relay.metered.ca:3478",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    // TURN TCP 3478
+    {
+      urls: "turn:a.relay.metered.ca:3478?transport=tcp",
+      username: "e8dd65f92eb0895c19533add",
+      credential: "FU+f1s+Y0GhQSXFR",
+    },
+    
+    // === SECONDARY: OPENRELAY (public free TURN) ===
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:3478",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:3478?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    
+    // === TERTIARY: ADDITIONAL FREE TURN SERVERS ===
+    // Viagénie TURN (Canada-based, reliable)
+    {
+      urls: "turn:numb.viagenie.ca:3478",
+      username: "webrtc@live.com",
+      credential: "muazkh",
+    },
+    {
+      urls: "turn:numb.viagenie.ca:3478?transport=tcp",
+      username: "webrtc@live.com",
+      credential: "muazkh",
+    },
+  ],
+  iceCandidatePoolSize: 8, // More candidates for better chance of connection
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceTransportPolicy: "relay", // Force TURN
+};
+
+// Hybrid mode - STUN + TURN together for maximum reliability
+// Used after first escalation from STUN-only
+const ICE_CONFIG_HYBRID: RTCConfiguration = {
+  iceServers: [
+    // STUN servers
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+    // TURN servers (as fallback within same connection)
+    {
+      urls: "turns:a.relay.metered.ca:443?transport=tcp",
       username: "e8dd65f92eb0895c19533add",
       credential: "FU+f1s+Y0GhQSXFR",
     },
@@ -88,41 +180,15 @@ const ICE_CONFIG_RELAY: RTCConfiguration = {
       credential: "FU+f1s+Y0GhQSXFR",
     },
     {
-      urls: "turn:a.relay.metered.ca:3478",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    {
-      urls: "turn:a.relay.metered.ca:3478?transport=tcp",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    {
-      urls: "turn:a.relay.metered.ca:80?transport=tcp",
-      username: "e8dd65f92eb0895c19533add",
-      credential: "FU+f1s+Y0GhQSXFR",
-    },
-    // === BACKUP: OPENRELAY ===
-    {
       urls: "turn:openrelay.metered.ca:443?transport=tcp",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    {
-      urls: "turn:openrelay.metered.ca:3478?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:80?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
   ],
-  iceCandidatePoolSize: 5,
+  iceCandidatePoolSize: 8,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
-  iceTransportPolicy: "relay", // Force TURN
+  iceTransportPolicy: "all", // Try direct, fall back to relay automatically
 };
 
 // Detect local IP to check if peers are on same network
@@ -132,7 +198,7 @@ const getLocalIPs = async (): Promise<string[]> => {
     const pc = new RTCPeerConnection({ iceServers: [] });
     
     pc.createDataChannel('');
-    pc.createOffer().then(offer => pc.setLocalDescription(offer));
+    pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => {});
     
     const timeout = setTimeout(() => {
       pc.close();
@@ -148,7 +214,7 @@ const getLocalIPs = async (): Promise<string[]> => {
       }
       
       const candidate = event.candidate.candidate;
-      // Extract IP from candidate string (e.g., "candidate:... 192.168.1.5 ...")
+      // Extract IP from candidate string
       const ipMatch = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
       if (ipMatch) {
         const ip = ipMatch[0];
@@ -172,7 +238,8 @@ const isSameNetwork = (ip1: string, ip2: string): boolean => {
   return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
 };
 
-type ConnectionMode = 'direct' | 'stun' | 'relay';
+// Connection modes with escalation path: direct -> stun -> hybrid -> relay
+type ConnectionMode = 'direct' | 'stun' | 'hybrid' | 'relay';
 
 // Legacy alias for compatibility
 const ICE_SERVERS = ICE_CONFIG_RELAY;
@@ -520,6 +587,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       case 'stun':
         console.log("[WebRTC] 🌐 STUN MODE - Trying direct P2P via NAT traversal");
         return ICE_CONFIG_STUN;
+      case 'hybrid':
+        console.log("[WebRTC] 🔀 HYBRID MODE - P2P with TURN fallback ready");
+        return ICE_CONFIG_HYBRID;
       case 'relay':
         console.log("[WebRTC] 🔒 RELAY MODE - Using TURN servers for firewall bypass");
         return ICE_CONFIG_RELAY;
@@ -609,9 +679,18 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         remoteStream.addTrack(event.track);
         hasReceivedTrack = true;
         
-        // Handle track ended event
+        // Handle track ended event with recovery attempt
         event.track.onended = () => {
-          console.log("[WebRTC] Remote track ended:", event.track.kind);
+          console.warn("[WebRTC] ⚠️ Remote track ended unexpectedly:", event.track.kind);
+          // Attempt to recover by requesting renegotiation
+          if (pc.connectionState === 'connected') {
+            console.log("[WebRTC] Attempting track recovery via ICE restart");
+            try {
+              pc.restartIce();
+            } catch (err) {
+              console.error("[WebRTC] Track recovery failed:", err);
+            }
+          }
         };
         
         event.track.onmute = () => {
@@ -637,6 +716,35 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         });
         setCallStatus("IN_CALL");
       };
+
+      // Connection health monitoring - periodic check for silent failures
+      const healthCheckInterval = setInterval(() => {
+        if (pc.connectionState === 'connected') {
+          // Check if we're still receiving data
+          pc.getStats().then(stats => {
+            let hasInboundRtp = false;
+            stats.forEach(report => {
+              if (report.type === 'inbound-rtp' && report.bytesReceived > 0) {
+                hasInboundRtp = true;
+              }
+            });
+            
+            if (!hasInboundRtp && hasReceivedTrack) {
+              console.warn("[WebRTC] ⚠️ No inbound data detected, connection may be stale");
+              // Don't auto-restart, but log for debugging
+            }
+          }).catch(() => {});
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+          clearInterval(healthCheckInterval);
+        }
+      }, 10000); // Check every 10 seconds
+
+      // Clean up health check on connection close
+      pc.addEventListener('connectionstatechange', () => {
+        if (pc.connectionState === 'closed' || pc.connectionState === 'failed') {
+          clearInterval(healthCheckInterval);
+        }
+      });
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
@@ -678,23 +786,25 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         } else if (pc.connectionState === 'failed') {
           console.warn("[WebRTC] Connection failed for:", remoteUserId);
           
-          // Escalate: direct -> stun -> relay
+          // Escalate: direct -> stun -> hybrid -> relay
           const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
           let nextMode: ConnectionMode | null = null;
           
           if (currentMode === 'direct') {
             nextMode = 'stun';
           } else if (currentMode === 'stun') {
+            nextMode = 'hybrid'; // Try hybrid before pure relay
+          } else if (currentMode === 'hybrid') {
             nextMode = 'relay';
           }
           
           if (nextMode) {
-            console.log(`[WebRTC] Escalating from ${currentMode} to ${nextMode} mode...`);
+            console.log(`[WebRTC] 🔄 Escalating from ${currentMode} to ${nextMode} mode...`);
             failedConnections.current.add(remoteUserId);
             pc.close();
             peerConnections.current.delete(remoteUserId);
             
-            // Recreate with next mode
+            // Recreate with next mode (fast retry)
             setTimeout(() => {
               const newPc = createPeerConnection(remoteUserId, remoteName, nextMode!);
               if (newPc && channelRef.current) {
@@ -703,20 +813,33 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
                   sendOfferRef.current?.(remoteUserId, remoteName);
                 }
               }
-            }, 500);
+            }, 300); // Fast retry
           } else {
-            // Already at relay, do ICE restart
-            console.log("[WebRTC] Already using relay, attempting ICE restart");
+            // Already at relay, do aggressive ICE restart
+            console.log("[WebRTC] Already using relay, attempting aggressive ICE restart");
             try {
               pc.restartIce();
+              // Also try recreating after a delay if ICE restart doesn't work
+              setTimeout(() => {
+                if (pc.connectionState === 'failed') {
+                  console.log("[WebRTC] ICE restart didn't help, recreating connection");
+                  pc.close();
+                  peerConnections.current.delete(remoteUserId);
+                  const newPc = createPeerConnection(remoteUserId, remoteName, 'relay');
+                  if (newPc && isPolite(remoteUserId)) {
+                    sendOfferRef.current?.(remoteUserId, remoteName);
+                  }
+                }
+              }, 3000);
             } catch (err) {
               console.error("[WebRTC] ICE restart failed:", err);
             }
           }
         } else if (pc.connectionState === 'connecting') {
-          // Set a timeout for connection attempt (shorter for direct/stun, longer for relay)
+          // Set a timeout for connection attempt
           const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
-          const timeoutMs = currentMode === 'relay' ? 15000 : 8000; // 8s for direct/stun, 15s for relay
+          // Shorter timeouts for faster escalation
+          const timeoutMs = currentMode === 'relay' ? 12000 : currentMode === 'hybrid' ? 8000 : 6000;
           
           connectionTimeout = setTimeout(() => {
             if (pc.connectionState === 'connecting') {
@@ -726,11 +849,13 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
               if (mode === 'direct') {
                 nextMode = 'stun';
               } else if (mode === 'stun') {
+                nextMode = 'hybrid';
+              } else if (mode === 'hybrid') {
                 nextMode = 'relay';
               }
               
               if (nextMode) {
-                console.warn(`[WebRTC] Connection timeout after ${timeoutMs/1000}s, escalating to ${nextMode}`);
+                console.warn(`[WebRTC] ⏱️ Connection timeout after ${timeoutMs/1000}s, escalating to ${nextMode}`);
                 failedConnections.current.add(remoteUserId);
                 pc.close();
                 peerConnections.current.delete(remoteUserId);
@@ -740,7 +865,15 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
                   if (newPc && isPolite(remoteUserId)) {
                     sendOfferRef.current?.(remoteUserId, remoteName);
                   }
-                }, 500);
+                }, 300);
+              } else {
+                // At relay mode, try ICE restart instead of giving up
+                console.warn("[WebRTC] Relay connection timeout, attempting ICE restart");
+                try {
+                  pc.restartIce();
+                } catch (err) {
+                  console.error("[WebRTC] ICE restart failed:", err);
+                }
               }
             }
           }, timeoutMs);
