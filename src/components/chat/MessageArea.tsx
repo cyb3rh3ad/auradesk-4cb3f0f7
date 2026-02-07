@@ -209,8 +209,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         </div>
       </ScrollArea>
 
-      {/* Typing Indicator & Input - Fixed at bottom on mobile */}
-      <div className="border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 sticky bottom-0 z-10">
+      {/* Typing Indicator & Input - Adaptive positioning using CSS variables */}
+      <div className="border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 chat-input-container">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -228,7 +228,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="p-3 md:p-4 flex gap-2 md:gap-3 items-center safe-area-pb">
+        <form onSubmit={handleSubmit} className="p-3 md:p-4 flex gap-2 md:gap-3 items-center">
           <Input
             value={input}
             onChange={handleInputChange}

@@ -159,8 +159,10 @@ const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
         {isElectron && <div className="h-8 flex-shrink-0" />}
         <Header />
         <main 
-          className={cn("flex-1 overflow-auto", isMobile && "pb-16")}
+          className="flex-1 overflow-auto"
           style={{ 
+            // Adaptive bottom padding for mobile nav - uses CSS variable that auto-calculates
+            paddingBottom: isMobile ? 'var(--adaptive-bottom-spacing)' : undefined,
             // Optimize scroll performance
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain'
