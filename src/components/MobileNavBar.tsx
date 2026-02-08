@@ -177,18 +177,17 @@ export const MobileNavBar = () => {
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation Bar */}
+      {/* Bottom Navigation Bar - part of flex flow, not fixed */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-30 bg-background/90 backdrop-blur-xl border-t border-border/30" 
+        className="flex-shrink-0 z-30 bg-background/90 backdrop-blur-xl border-t border-border/30 relative" 
         style={{ 
-          paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)',
-          minHeight: '4rem'
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         {/* Gradient glow effect */}
         <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         
-        <div className="flex items-center justify-around px-2 py-2">
+        <div className="flex items-center justify-around px-2 py-2.5">
           {primaryItems.map((item) => (
             <NavItem key={item.path} {...item} />
           ))}

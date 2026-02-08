@@ -3,15 +3,7 @@
 @tailwind utilities;
 
 /* Fullscreen immersive mode - edge-to-edge display */
-html {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-body {
+html, body {
   height: 100%;
   width: 100%;
   margin: 0;
@@ -24,18 +16,17 @@ body {
 #root {
   /* Use dynamic viewport height for proper mobile sizing */
   height: 100dvh;
-  min-height: 100dvh;
-  /* Fallback for browsers without dvh support */
-  height: 100vh;
+  height: 100vh; /* Fallback */
   height: -webkit-fill-available;
   width: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* Safe area padding for notched devices */
+  /* Safe area insets for notched devices */
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Ensure all Radix popper content has high z-index */
