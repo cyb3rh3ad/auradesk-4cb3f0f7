@@ -664,20 +664,28 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       // Create a MediaStream to collect remote tracks
       const remoteStream = new MediaStream();
       let hasReceivedTrack = false;
+      let trackUpdateTimeout: NodeJS.Timeout | null = null;
 
       pc.ontrack = (event) => {
-        console.log("[WebRTC] Received remote track:", event.track.kind, "from:", remoteUserId, 
-          "readyState:", event.track.readyState, "enabled:", event.track.enabled);
+        console.log("[WebRTC] 🎬 Received remote track:", event.track.kind, "from:", remoteUserId, 
+          "readyState:", event.track.readyState, "enabled:", event.track.enabled,
+          "streams:", event.streams.length);
         
-        // Ensure track is enabled
-        if (!event.track.enabled) {
-          console.log("[WebRTC] Enabling disabled remote track");
-          event.track.enabled = true;
-        }
+        // CRITICAL: Ensure track is enabled
+        event.track.enabled = true;
+        console.log("[WebRTC] Track enabled set to true");
         
         // Add track to the remote stream
+        const existingTrack = remoteStream.getTracks().find(t => t.kind === event.track.kind);
+        if (existingTrack) {
+          console.log("[WebRTC] Replacing existing", event.track.kind, "track");
+          remoteStream.removeTrack(existingTrack);
+        }
         remoteStream.addTrack(event.track);
         hasReceivedTrack = true;
+        
+        console.log("[WebRTC] Remote stream now has tracks:", 
+          remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
         
         // Handle track ended event with recovery attempt
         event.track.onended = () => {
@@ -699,22 +707,33 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         
         event.track.onunmute = () => {
           console.log("[WebRTC] Remote track unmuted:", event.track.kind);
+          // Re-enable the track when unmuted
+          event.track.enabled = true;
         };
 
-        // Update participants with the combined stream - use a fresh stream reference
-        console.log("[WebRTC] Updating participants with stream, tracks:", 
-          remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
-          
-        setParticipants((prev) => {
-          const newMap = new Map(prev);
-          newMap.set(remoteUserId, { 
-            odakle: remoteUserId, 
-            stream: remoteStream, 
-            name: remoteName 
+        // Debounce participant update to batch multiple track additions
+        if (trackUpdateTimeout) {
+          clearTimeout(trackUpdateTimeout);
+        }
+        
+        trackUpdateTimeout = setTimeout(() => {
+          // Update participants with the combined stream
+          console.log("[WebRTC] Updating participants with stream, tracks:", 
+            remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+            
+          setParticipants((prev) => {
+            const newMap = new Map(prev);
+            // Create a new stream reference to ensure React detects the change
+            const updatedStream = new MediaStream(remoteStream.getTracks());
+            newMap.set(remoteUserId, { 
+              odakle: remoteUserId, 
+              stream: updatedStream, 
+              name: remoteName 
+            });
+            return newMap;
           });
-          return newMap;
-        });
-        setCallStatus("IN_CALL");
+          setCallStatus("IN_CALL");
+        }, 100);
       };
 
       // Connection health monitoring - periodic check for silent failures
