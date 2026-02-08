@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Sparkles, Loader2, Radio, Server, MoreHorizontal
+  Sparkles, Loader2, Radio, Server, MoreHorizontal, Volume2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
@@ -733,6 +733,32 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playRetryRef = useRef<number>(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [needsInteraction, setNeedsInteraction] = useState(false);
+
+  // CRITICAL: Force play on user interaction - this fixes mobile autoplay issues
+  const forcePlay = useCallback(async () => {
+    const video = videoRef.current;
+    const audio = audioRef.current;
+    
+    try {
+      if (video && video.paused) {
+        video.muted = isLocal; // Unmute for remote, keep muted for local
+        await video.play();
+        console.log("[VideoElement] Video force-played successfully");
+      }
+      if (audio && audio.paused && !isLocal) {
+        audio.muted = false;
+        audio.volume = 1.0;
+        await audio.play();
+        console.log("[VideoElement] Audio force-played successfully");
+      }
+      setNeedsInteraction(false);
+      setIsPlaying(true);
+    } catch (err) {
+      console.warn("[VideoElement] Force play failed:", err);
+    }
+  }, [isLocal]);
 
   // Handle video stream attachment
   useEffect(() => {
@@ -742,161 +768,275 @@ function VideoElement({ stream, muted, isLocal }: { stream: MediaStream; muted: 
     const tracks = stream.getTracks();
     console.log("[VideoElement] Attaching stream, tracks:", tracks.map(t => `${t.kind}:${t.enabled}:${t.readyState}:${t.id}`));
     
+    // Reset stream
     video.srcObject = stream;
     video.autoplay = true;
     video.playsInline = true;
-    video.muted = isLocal || muted; // Mute local to prevent echo
+    video.muted = isLocal; // CRITICAL: Only mute local video to prevent echo
     
-    // Aggressive play attempts
+    // For remote video, we need to ensure it's not muted
+    if (!isLocal) {
+      video.muted = false;
+    }
+    
+    // Aggressive play attempts with proper error handling
     const playVideo = async () => {
-      if (!video.paused) return;
+      if (!video) return;
       
       try {
+        // First attempt - try unmuted play
+        video.muted = isLocal;
         await video.play();
-        console.log("[VideoElement] Video playing successfully");
+        console.log("[VideoElement] Video playing successfully, muted:", video.muted);
+        setIsPlaying(true);
+        setNeedsInteraction(false);
       } catch (err: any) {
         console.warn("[VideoElement] Video autoplay blocked:", err.name);
         
-        // Retry on any user interaction
-        const retryPlay = () => {
-          video.play().catch(() => {});
-          document.removeEventListener('click', retryPlay);
-          document.removeEventListener('touchstart', retryPlay);
-          document.removeEventListener('keydown', retryPlay);
-        };
-        document.addEventListener('click', retryPlay, { once: true });
-        document.addEventListener('touchstart', retryPlay, { once: true });
-        document.addEventListener('keydown', retryPlay, { once: true });
+        // Second attempt - try muted play (always allowed)
+        if (!isLocal) {
+          try {
+            video.muted = true;
+            await video.play();
+            console.log("[VideoElement] Video playing muted - user interaction needed for audio");
+            setNeedsInteraction(true);
+          } catch (e) {
+            console.error("[VideoElement] Even muted play failed:", e);
+          }
+        }
       }
     };
 
-    // Play immediately and retry after short delay
+    // Play immediately
     playVideo();
-    const playTimeout = setTimeout(playVideo, 200);
+    
+    // Also retry after a short delay (helps with timing issues)
+    const playTimeout = setTimeout(playVideo, 300);
+    const playTimeout2 = setTimeout(playVideo, 1000);
 
-    // Monitor track changes
+    // Monitor track changes - re-attach when tracks are added
     const handleTrackChange = () => {
-      console.log("[VideoElement] Track changed, re-attaching");
+      console.log("[VideoElement] Track changed, re-attaching stream");
+      // Force re-attach the stream
       video.srcObject = null;
-      video.srcObject = stream;
-      setTimeout(playVideo, 100);
+      setTimeout(() => {
+        video.srcObject = stream;
+        playVideo();
+      }, 50);
     };
 
     stream.onaddtrack = handleTrackChange;
     stream.onremovetrack = handleTrackChange;
 
+    // Monitor video state
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => {
+      if (!video.ended) {
+        console.log("[VideoElement] Video paused unexpectedly, resuming");
+        playVideo();
+      }
+    };
+    
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+
     return () => {
       clearTimeout(playTimeout);
+      clearTimeout(playTimeout2);
       stream.onaddtrack = null;
       stream.onremovetrack = null;
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
-  }, [stream, isLocal, muted]);
+  }, [stream, isLocal]);
 
-  // Handle remote audio with dedicated element for reliability
+  // Handle remote audio with dedicated element for MAXIMUM reliability
   useEffect(() => {
     if (!stream || isLocal) return;
 
-    const audioTracks = stream.getAudioTracks();
-    console.log("[VideoElement] Setting up remote audio, tracks:", audioTracks.length);
-    
-    if (audioTracks.length === 0) {
-      console.log("[VideoElement] No audio tracks yet");
-      return;
+    // Create or get dedicated audio element
+    let audio = audioRef.current;
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = `remote-audio-${stream.id}-${Date.now()}`;
+      audio.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;';
+      document.body.appendChild(audio);
+      audioRef.current = audio;
     }
-
-    // Create dedicated audio element
-    const audio = document.createElement('audio');
-    audio.id = `remote-audio-${stream.id}`;
+    
+    // Configure for remote audio
     audio.autoplay = true;
     (audio as any).playsInline = true;
     audio.muted = false;
     audio.volume = 1.0;
-    audio.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;';
-    document.body.appendChild(audio);
-    audioRef.current = audio;
-
-    // Use audio-only stream
-    const audioStream = new MediaStream(audioTracks);
-    audio.srcObject = audioStream;
-
+    
+    // Create audio-only stream with current audio tracks
+    const updateAudioStream = () => {
+      const audioTracks = stream.getAudioTracks();
+      console.log("[VideoElement] Updating audio stream, tracks:", audioTracks.length, 
+        audioTracks.map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
+      
+      if (audioTracks.length === 0) {
+        console.log("[VideoElement] No audio tracks available yet");
+        return false;
+      }
+      
+      // Ensure tracks are enabled
+      audioTracks.forEach(track => {
+        if (!track.enabled) {
+          console.log("[VideoElement] Enabling disabled audio track");
+          track.enabled = true;
+        }
+      });
+      
+      // Create fresh audio stream
+      const audioStream = new MediaStream(audioTracks);
+      audio!.srcObject = audioStream;
+      return true;
+    };
+    
     const playAudio = async () => {
-      if (!audio || !audio.paused) return;
+      if (!audio) return;
+      
+      // Make sure we have the latest tracks
+      if (!updateAudioStream()) {
+        return; // No tracks yet
+      }
       
       try {
+        audio.muted = false;
+        audio.volume = 1.0;
         await audio.play();
-        console.log("[VideoElement] Remote audio playing, volume:", audio.volume);
+        console.log("[VideoElement] Remote audio playing! Volume:", audio.volume, "Muted:", audio.muted);
+        setIsPlaying(true);
+        setNeedsInteraction(false);
         playRetryRef.current = 0;
       } catch (err: any) {
         console.warn("[VideoElement] Audio autoplay blocked:", err.name);
         playRetryRef.current++;
-        
-        // Retry on user interaction
-        const resumeAudio = async () => {
-          try {
-            audio.muted = false;
-            audio.volume = 1.0;
-            await audio.play();
-            console.log("[VideoElement] Audio resumed after interaction");
-          } catch (e) {
-            console.warn("[VideoElement] Audio retry failed:", e);
-          }
-          document.removeEventListener('click', resumeAudio);
-          document.removeEventListener('touchstart', resumeAudio);
-          document.removeEventListener('keydown', resumeAudio);
-        };
-        document.addEventListener('click', resumeAudio, { once: true });
-        document.addEventListener('touchstart', resumeAudio, { once: true });
-        document.addEventListener('keydown', resumeAudio, { once: true });
+        setNeedsInteraction(true);
       }
     };
 
-    // Play with small delay
-    const audioTimeout = setTimeout(playAudio, 100);
+    // Initial setup
+    updateAudioStream();
+    
+    // Try playing with increasing delays
+    const playAttempts = [100, 500, 1000, 2000];
+    const timeouts = playAttempts.map((delay, i) => 
+      setTimeout(() => playAudio(), delay)
+    );
 
-    // Monitor track state
-    audioTracks.forEach(track => {
-      track.onunmute = () => {
-        console.log("[VideoElement] Audio track unmuted, resuming");
+    // Monitor track additions - CRITICAL for when audio arrives late
+    const handleTrackAdded = (event: MediaStreamTrackEvent) => {
+      if (event.track.kind === 'audio') {
+        console.log("[VideoElement] Audio track added to stream!");
+        updateAudioStream();
+        setTimeout(playAudio, 100);
+      }
+    };
+    
+    stream.addEventListener('addtrack', handleTrackAdded);
+
+    // Monitor individual track state changes
+    const audioTracks = stream.getAudioTracks();
+    const trackHandlers = audioTracks.map(track => {
+      const onUnmute = () => {
+        console.log("[VideoElement] Audio track unmuted, resuming playback");
         playAudio();
       };
+      const onEnded = () => {
+        console.log("[VideoElement] Audio track ended");
+      };
+      track.addEventListener('unmute', onUnmute);
+      track.addEventListener('ended', onEnded);
+      return { track, onUnmute, onEnded };
     });
 
-    // Continuous monitoring - resume if paused
+    // Continuous monitoring - check every 2 seconds
     const checkInterval = setInterval(() => {
-      if (audio && audio.paused) {
-        const hasLiveTracks = audioTracks.some(t => t.enabled && t.readyState === 'live');
-        if (hasLiveTracks) {
-          console.log("[VideoElement] Audio paused but tracks live, resuming");
-          playAudio();
-        }
+      if (!audio) return;
+      
+      const currentTracks = stream.getAudioTracks();
+      const hasLiveTracks = currentTracks.some(t => t.enabled && t.readyState === 'live');
+      
+      if (audio.paused && hasLiveTracks) {
+        console.log("[VideoElement] Audio paused but tracks live, attempting resume");
+        playAudio();
+      }
+      
+      // Check if tracks were added after initial setup
+      if (currentTracks.length > audioTracks.length) {
+        console.log("[VideoElement] New audio tracks detected, updating stream");
+        updateAudioStream();
+        playAudio();
       }
     }, 2000);
 
     return () => {
-      clearTimeout(audioTimeout);
+      timeouts.forEach(t => clearTimeout(t));
       clearInterval(checkInterval);
+      stream.removeEventListener('addtrack', handleTrackAdded);
+      trackHandlers.forEach(({ track, onUnmute, onEnded }) => {
+        track.removeEventListener('unmute', onUnmute);
+        track.removeEventListener('ended', onEnded);
+      });
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.srcObject = null;
         audioRef.current.remove();
         audioRef.current = null;
       }
-      audioTracks.forEach(track => {
-        track.onunmute = null;
-      });
     };
   }, [stream, isLocal]);
 
+  // Global click handler to resume playback on any interaction
+  useEffect(() => {
+    if (!needsInteraction) return;
+    
+    const handleInteraction = () => {
+      console.log("[VideoElement] User interaction detected, resuming playback");
+      forcePlay();
+    };
+    
+    // Add handlers for all types of user interaction
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
+    document.addEventListener('touchend', handleInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchend', handleInteraction);
+    };
+  }, [needsInteraction, forcePlay]);
+
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted={isLocal || muted}
-      className={cn(
-        "w-full h-full object-cover",
-        isLocal && "transform scale-x-[-1]"
+    <div className="relative w-full h-full">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={cn(
+          "w-full h-full object-cover",
+          isLocal && "transform scale-x-[-1]"
+        )}
+      />
+      {/* Show tap-to-unmute indicator when needed */}
+      {needsInteraction && !isLocal && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-background/30 cursor-pointer"
+          onClick={forcePlay}
+        >
+          <div className="bg-background/90 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 animate-pulse border border-border">
+            <Volume2 className="w-5 h-5 text-foreground" />
+            <span className="text-sm font-medium text-foreground">Tap to unmute</span>
+          </div>
+        </div>
       )}
-    />
+    </div>
   );
 }
