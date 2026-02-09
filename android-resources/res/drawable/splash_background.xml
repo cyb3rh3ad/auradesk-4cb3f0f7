@@ -1,68 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Deep cosmic dark premium background base -->
+    <!-- Deep cosmic dark premium base -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:type="linear"
-                android:angle="135"
+                android:angle="160"
                 android:startColor="#0c0a14"
-                android:centerColor="#0f0d18"
+                android:centerColor="#100e1a"
                 android:endColor="#0c0a14" />
         </shape>
     </item>
     
-    <!-- Central cosmic radial glow for depth -->
+    <!-- Large ambient indigo nebula -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="350dp"
+                android:gradientRadius="400dp"
                 android:centerX="0.5"
-                android:centerY="0.42"
-                android:startColor="#1e1b4b"
-                android:centerColor="#12101c"
-                android:endColor="#00000000" />
-        </shape>
-    </item>
-    
-    <!-- Primary purple aura glow - premium brand accent -->
-    <item>
-        <shape android:shape="oval">
-            <gradient
-                android:type="radial"
-                android:gradientRadius="220dp"
-                android:centerX="0.4"
                 android:centerY="0.4"
-                android:startColor="#25a855f7"
-                android:centerColor="#128b5cf6"
+                android:startColor="#1e1b4b"
+                android:centerColor="#110f1e"
                 android:endColor="#00000000" />
         </shape>
     </item>
     
-    <!-- Secondary cyan/blue accent glow -->
+    <!-- Primary purple aura — brand accent -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
-                android:gradientRadius="180dp"
-                android:centerX="0.6"
-                android:centerY="0.55"
-                android:startColor="#1806b6d4"
-                android:centerColor="#103b82f6"
+                android:gradientRadius="250dp"
+                android:centerX="0.38"
+                android:centerY="0.38"
+                android:startColor="#30a855f7"
+                android:centerColor="#158b5cf6"
                 android:endColor="#00000000" />
         </shape>
     </item>
     
-    <!-- Subtle top highlight -->
+    <!-- Cyan/teal accent aura -->
     <item>
         <shape android:shape="oval">
             <gradient
                 android:type="radial"
                 android:gradientRadius="200dp"
+                android:centerX="0.62"
+                android:centerY="0.58"
+                android:startColor="#2006b6d4"
+                android:centerColor="#1022d3ee"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+    
+    <!-- Pink cosmic accent — subtle warmth -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="160dp"
+                android:centerX="0.7"
+                android:centerY="0.35"
+                android:startColor="#10ec4899"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+    
+    <!-- Top highlight bloom -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="220dp"
                 android:centerX="0.5"
-                android:centerY="0.3"
-                android:startColor="#08c084fc"
+                android:centerY="0.28"
+                android:startColor="#0ac084fc"
                 android:endColor="#00000000" />
         </shape>
     </item>
