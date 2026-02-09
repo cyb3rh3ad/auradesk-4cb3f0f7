@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useWebRTC, ConnectionStats } from "@/hooks/useWebRTC";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioLevel } from "@/hooks/useAudioLevel";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getSupabaseFunctionsUrl } from "@/lib/supabase-config";
@@ -427,106 +428,19 @@ export function WebRTCRoom({
       )}>
         <AnimatePresence mode="popLayout">
           {visibleParticipants.map((participant) => {
-            const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
-            const displayName = participant.isLocal ? "You" : participant.name;
             const isOverlay = pipMode === 'small' && participant.isLocal && numParticipants > 1;
 
             return (
-              <motion.div
+              <ParticipantTile
                 key={participant.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                className={cn(
-                  "relative rounded-2xl overflow-hidden group",
-                  isOverlay 
-                    ? "absolute bottom-16 right-3 w-28 h-36 z-20 rounded-xl shadow-2xl shadow-black/40 border border-border/30" 
-                    : "aspect-video",
-                  !isOverlay && "bg-card/50 border border-border/20",
-                  participant.isLocal && !isOverlay && "order-last"
-                )}
-              >
-                {/* Video display */}
-                {participant.stream && hasVideo && (
-                  <VideoElement 
-                    stream={participant.stream} 
-                    muted={participant.isLocal}
-                    isLocal={participant.isLocal}
-                  />
-                )}
-
-                {/* Avatar when camera off */}
-                {(!participant.stream || !hasVideo) && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    {/* Cosmic background for avatar */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-muted" />
-                    <div className="absolute inset-0 opacity-30">
-                      <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 rounded-full bg-primary/10 blur-[40px]" />
-                    </div>
-                    
-                    <div className="relative">
-                      <motion.div
-                        className="absolute inset-[-8px] rounded-full border border-primary/20"
-                        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
-                        transition={{ duration: 3, repeat: Infinity }}
-                      />
-                      <Avatar className={cn(
-                        "ring-2 ring-primary/20 shadow-lg shadow-primary/10",
-                        pipMode === 'mini' ? "h-12 w-12" : "h-16 w-16 md:h-20 md:w-20"
-                      )}>
-                        <AvatarFallback className={cn(
-                          "bg-gradient-to-br from-primary/80 to-[hsl(var(--cosmic-purple))]/80 text-primary-foreground font-semibold",
-                          pipMode === 'mini' ? "text-lg" : "text-xl md:text-2xl"
-                        )}>
-                          {displayName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </div>
-                )}
-
-                {/* Bottom name label with glassmorphism */}
-                {!(isOverlay || pipMode === 'mini') && (
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-3 pt-6">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-white/90 truncate">{displayName}</span>
-                      {isHost && participant.isLocal && (
-                        <span className="text-[9px] bg-primary/30 text-primary-foreground px-1.5 py-0.5 rounded-full font-medium backdrop-blur-sm">
-                          Host
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Status indicators - top right */}
-                {participant.isLocal && (isMuted || isCameraOff) && !isOverlay && (
-                  <div className="absolute top-2 right-2 flex gap-1.5">
-                    {isMuted && (
-                      <div className="p-1.5 bg-red-500/90 rounded-full shadow-lg shadow-red-500/30 backdrop-blur-sm">
-                        <MicOff className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                    {isCameraOff && (
-                      <div className="p-1.5 bg-red-500/90 rounded-full shadow-lg shadow-red-500/30 backdrop-blur-sm">
-                        <VideoOff className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Screen sharing indicator */}
-                {participant.isLocal && isScreenSharing && !isOverlay && (
-                  <div className="absolute top-2 left-2">
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/80 backdrop-blur-sm text-primary-foreground text-[10px] font-medium">
-                      <ScreenShare className="w-3 h-3" />
-                      Sharing
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+                participant={participant}
+                isOverlay={isOverlay}
+                pipMode={pipMode}
+                isMuted={participant.isLocal ? isMuted : false}
+                isCameraOff={participant.isLocal ? isCameraOff : false}
+                isHost={isHost}
+                isScreenSharing={participant.isLocal ? isScreenSharing : false}
+              />
             );
           })}
         </AnimatePresence>
@@ -643,6 +557,207 @@ export function WebRTCRoom({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Participant Tile with Speaking Indicator ──
+interface ParticipantTileProps {
+  participant: { id: string; name: string; stream: MediaStream | null; isLocal: boolean };
+  isOverlay: boolean;
+  pipMode: PiPMode;
+  isMuted: boolean;
+  isCameraOff: boolean;
+  isHost: boolean;
+  isScreenSharing: boolean;
+}
+
+function ParticipantTile({ participant, isOverlay, pipMode, isMuted, isCameraOff, isHost, isScreenSharing }: ParticipantTileProps) {
+  const hasVideo = participant.stream?.getVideoTracks().some(t => t.enabled);
+  const displayName = participant.isLocal ? "You" : participant.name;
+  const { level, isSpeaking } = useAudioLevel(participant.stream, true);
+
+  // Dynamic glow intensity based on audio level
+  const glowIntensity = Math.min(1, level * 3);
+  const glowColor = `hsl(var(--primary))`;
+  const glowShadow = isSpeaking
+    ? `0 0 ${8 + glowIntensity * 20}px ${glowIntensity * 8}px hsl(var(--primary) / ${0.3 + glowIntensity * 0.4}), 0 0 ${4 + glowIntensity * 10}px ${glowIntensity * 4}px hsl(var(--cosmic-cyan) / ${0.2 + glowIntensity * 0.3})`
+    : 'none';
+
+  return (
+    <motion.div
+      key={participant.id}
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+      className={cn(
+        "relative rounded-2xl overflow-hidden group",
+        isOverlay 
+          ? "absolute bottom-16 right-3 w-28 h-36 z-20 rounded-xl shadow-2xl shadow-black/40 border border-border/30" 
+          : "aspect-video",
+        !isOverlay && "bg-card/50 border border-border/20",
+        participant.isLocal && !isOverlay && "order-last",
+        isSpeaking && !isOverlay && "border-primary/60"
+      )}
+      style={{
+        boxShadow: !isOverlay ? glowShadow : undefined,
+        transition: 'box-shadow 0.15s ease-out, border-color 0.15s ease-out',
+      }}
+    >
+      {/* Speaking glow border overlay */}
+      {isSpeaking && !isOverlay && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl pointer-events-none z-30"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            border: `2px solid hsl(var(--primary) / ${0.4 + glowIntensity * 0.5})`,
+            borderRadius: 'inherit',
+          }}
+        />
+      )}
+
+      {/* Audio level bar - bottom edge visualizer */}
+      {!isOverlay && pipMode !== 'mini' && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 z-20 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: `linear-gradient(90deg, hsl(var(--primary)), hsl(var(--cosmic-cyan)))`,
+              width: `${Math.max(0, level * 100)}%`,
+              opacity: level > 0.05 ? 0.8 : 0,
+              transition: 'width 0.08s ease-out, opacity 0.15s ease-out',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Video display */}
+      {participant.stream && hasVideo && (
+        <VideoElement 
+          stream={participant.stream} 
+          muted={participant.isLocal}
+          isLocal={participant.isLocal}
+        />
+      )}
+
+      {/* Avatar when camera off */}
+      {(!participant.stream || !hasVideo) && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-card to-muted" />
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 rounded-full bg-primary/10 blur-[40px]" />
+          </div>
+          
+          <div className="relative">
+            {/* Speaking ring animation around avatar */}
+            {isSpeaking && (
+              <>
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{
+                    inset: pipMode === 'mini' ? '-12px' : '-16px',
+                    border: `2px solid hsl(var(--primary) / ${0.3 + glowIntensity * 0.5})`,
+                    boxShadow: `0 0 ${10 + glowIntensity * 15}px hsl(var(--primary) / ${0.2 + glowIntensity * 0.3})`,
+                  }}
+                  animate={{ 
+                    scale: [1, 1.08 + glowIntensity * 0.1, 1],
+                    opacity: [0.6, 0.3 + glowIntensity * 0.4, 0.6]
+                  }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{
+                    inset: pipMode === 'mini' ? '-6px' : '-8px',
+                    border: `1.5px solid hsl(var(--cosmic-cyan) / ${0.4 + glowIntensity * 0.4})`,
+                  }}
+                  animate={{ 
+                    scale: [1, 1.05 + glowIntensity * 0.08, 1],
+                    opacity: [0.7, 0.4 + glowIntensity * 0.4, 0.7]
+                  }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0.15 }}
+                />
+              </>
+            )}
+            
+            {/* Static ring when not speaking */}
+            {!isSpeaking && (
+              <motion.div
+                className="absolute inset-[-8px] rounded-full border border-primary/20"
+                animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+            )}
+            
+            <Avatar className={cn(
+              "shadow-lg",
+              pipMode === 'mini' ? "h-12 w-12" : "h-16 w-16 md:h-20 md:w-20",
+              isSpeaking 
+                ? "ring-2 ring-primary/60 shadow-primary/30" 
+                : "ring-2 ring-primary/20 shadow-primary/10"
+            )}>
+              <AvatarFallback className={cn(
+                "bg-gradient-to-br from-primary/80 to-[hsl(var(--cosmic-purple))]/80 text-primary-foreground font-semibold",
+                pipMode === 'mini' ? "text-lg" : "text-xl md:text-2xl"
+              )}>
+                {displayName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom name label with glassmorphism */}
+      {!(isOverlay || pipMode === 'mini') && (
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-3 pt-6 z-10">
+          <div className="flex items-center gap-2">
+            {/* Speaking indicator dot */}
+            {isSpeaking && (
+              <motion.div
+                className="w-2 h-2 rounded-full bg-green-400 shrink-0"
+                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+              />
+            )}
+            <span className="text-xs font-medium text-white/90 truncate">{displayName}</span>
+            {isHost && participant.isLocal && (
+              <span className="text-[9px] bg-primary/30 text-primary-foreground px-1.5 py-0.5 rounded-full font-medium backdrop-blur-sm">
+                Host
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Status indicators - top right */}
+      {participant.isLocal && (isMuted || isCameraOff) && !isOverlay && (
+        <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+          {isMuted && (
+            <div className="p-1.5 bg-red-500/90 rounded-full shadow-lg shadow-red-500/30 backdrop-blur-sm">
+              <MicOff className="h-3 w-3 text-white" />
+            </div>
+          )}
+          {isCameraOff && (
+            <div className="p-1.5 bg-red-500/90 rounded-full shadow-lg shadow-red-500/30 backdrop-blur-sm">
+              <VideoOff className="h-3 w-3 text-white" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Screen sharing indicator */}
+      {participant.isLocal && isScreenSharing && !isOverlay && (
+        <div className="absolute top-2 left-2 z-10">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/80 backdrop-blur-sm text-primary-foreground text-[10px] font-medium">
+            <ScreenShare className="w-3 h-3" />
+            Sharing
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
