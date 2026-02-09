@@ -253,7 +253,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const [error, setError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
   const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('stun');
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('hybrid');
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -599,7 +599,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   }, []);
 
   const createPeerConnection = useCallback(
-    (remoteUserId: string, remoteName: string, mode: ConnectionMode = 'stun') => {
+    (remoteUserId: string, remoteName: string, mode: ConnectionMode = 'hybrid') => {
       if (!localStreamRef.current || !user) {
         console.error("[WebRTC] Cannot create peer connection - no local stream or user");
         return null;
@@ -784,13 +784,15 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         }
       };
 
-      // Connection state handling with relay fallback
+      // Connection state handling - simplified: hybrid handles P2P+TURN natively,
+      // only escalate to forced relay as last resort
       let connectionTimeout: NodeJS.Timeout | null = null;
+      let reconnectAttempts = 0;
+      const MAX_RECONNECT_ATTEMPTS = 2;
       
       pc.onconnectionstatechange = () => {
         console.log("[WebRTC] Connection state for", remoteUserId, ":", pc.connectionState);
         
-        // Clear any pending timeout
         if (connectionTimeout) {
           clearTimeout(connectionTimeout);
           connectionTimeout = null;
@@ -799,100 +801,49 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         if (pc.connectionState === 'connected') {
           setIsConnected(true);
           setCallStatus("IN_CALL");
-          // Clear from failed list on success
+          reconnectAttempts = 0;
           failedConnections.current.delete(remoteUserId);
-          console.log("[WebRTC] Successfully connected to:", remoteUserId);
+          console.log("[WebRTC] ✅ Successfully connected to:", remoteUserId);
         } else if (pc.connectionState === 'failed') {
           console.warn("[WebRTC] Connection failed for:", remoteUserId);
+          reconnectAttempts++;
           
-          // Escalate: direct -> stun -> hybrid -> relay
-          const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
-          let nextMode: ConnectionMode | null = null;
+          const currentMode = connectionModeRef.current.get(remoteUserId) || 'hybrid';
           
-          if (currentMode === 'direct') {
-            nextMode = 'stun';
-          } else if (currentMode === 'stun') {
-            nextMode = 'hybrid'; // Try hybrid before pure relay
-          } else if (currentMode === 'hybrid') {
-            nextMode = 'relay';
-          }
-          
-          if (nextMode) {
-            console.log(`[WebRTC] 🔄 Escalating from ${currentMode} to ${nextMode} mode...`);
+          if (currentMode !== 'relay' && reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+            // Escalate to forced relay mode
+            console.log("[WebRTC] 🔄 Escalating to forced RELAY mode");
             failedConnections.current.add(remoteUserId);
             pc.close();
             peerConnections.current.delete(remoteUserId);
             
-            // Recreate with next mode (fast retry)
             setTimeout(() => {
-              const newPc = createPeerConnection(remoteUserId, remoteName, nextMode!);
-              if (newPc && channelRef.current) {
-                // Re-initiate offer if we're polite
-                if (isPolite(remoteUserId)) {
-                  sendOfferRef.current?.(remoteUserId, remoteName);
-                }
+              const newPc = createPeerConnection(remoteUserId, remoteName, 'relay');
+              if (newPc && isPolite(remoteUserId)) {
+                sendOfferRef.current?.(remoteUserId, remoteName);
               }
-            }, 300); // Fast retry
+            }, 500);
           } else {
-            // Already at relay, do aggressive ICE restart
-            console.log("[WebRTC] Already using relay, attempting aggressive ICE restart");
+            // Already at relay or max attempts, try ICE restart
+            console.log("[WebRTC] Attempting ICE restart (attempt", reconnectAttempts, ")");
             try {
               pc.restartIce();
-              // Also try recreating after a delay if ICE restart doesn't work
-              setTimeout(() => {
-                if (pc.connectionState === 'failed') {
-                  console.log("[WebRTC] ICE restart didn't help, recreating connection");
-                  pc.close();
-                  peerConnections.current.delete(remoteUserId);
-                  const newPc = createPeerConnection(remoteUserId, remoteName, 'relay');
-                  if (newPc && isPolite(remoteUserId)) {
-                    sendOfferRef.current?.(remoteUserId, remoteName);
-                  }
-                }
-              }, 3000);
             } catch (err) {
               console.error("[WebRTC] ICE restart failed:", err);
             }
           }
         } else if (pc.connectionState === 'connecting') {
-          // Set a timeout for connection attempt
-          const currentMode = connectionModeRef.current.get(remoteUserId) || 'stun';
-          // Shorter timeouts for faster escalation
-          const timeoutMs = currentMode === 'relay' ? 12000 : currentMode === 'hybrid' ? 8000 : 6000;
+          // Simple timeout - 15s for hybrid, 20s for relay
+          const currentMode = connectionModeRef.current.get(remoteUserId) || 'hybrid';
+          const timeoutMs = currentMode === 'relay' ? 20000 : 15000;
           
           connectionTimeout = setTimeout(() => {
             if (pc.connectionState === 'connecting') {
-              const mode = connectionModeRef.current.get(remoteUserId) || 'stun';
-              let nextMode: ConnectionMode | null = null;
-              
-              if (mode === 'direct') {
-                nextMode = 'stun';
-              } else if (mode === 'stun') {
-                nextMode = 'hybrid';
-              } else if (mode === 'hybrid') {
-                nextMode = 'relay';
-              }
-              
-              if (nextMode) {
-                console.warn(`[WebRTC] ⏱️ Connection timeout after ${timeoutMs/1000}s, escalating to ${nextMode}`);
-                failedConnections.current.add(remoteUserId);
-                pc.close();
-                peerConnections.current.delete(remoteUserId);
-                
-                setTimeout(() => {
-                  const newPc = createPeerConnection(remoteUserId, remoteName, nextMode!);
-                  if (newPc && isPolite(remoteUserId)) {
-                    sendOfferRef.current?.(remoteUserId, remoteName);
-                  }
-                }, 300);
-              } else {
-                // At relay mode, try ICE restart instead of giving up
-                console.warn("[WebRTC] Relay connection timeout, attempting ICE restart");
-                try {
-                  pc.restartIce();
-                } catch (err) {
-                  console.error("[WebRTC] ICE restart failed:", err);
-                }
+              console.warn("[WebRTC] ⏱️ Connection timeout, attempting ICE restart");
+              try {
+                pc.restartIce();
+              } catch (err) {
+                console.error("[WebRTC] ICE restart failed:", err);
               }
             }
           }, timeoutMs);
@@ -1288,7 +1239,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     setParticipants(new Map());
     setCallStatus("IDLE");
     setIsConnected(false);
-    setConnectionMode('stun');
+    setConnectionMode('hybrid');
   }, []);
 
   const toggleAudio = useCallback((muted: boolean) => {
