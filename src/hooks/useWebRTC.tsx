@@ -260,6 +260,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOffer = useRef<Set<string>>(new Set());
+  const initialSetup = useRef<Set<string>>(new Set()); // Suppress onnegotiationneeded during initial addTrack
   const knownPeers = useRef<Map<string, string>>(new Map()); // peerId -> peerName
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastBytesReceived = useRef<number>(0);
@@ -641,6 +642,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       console.log("[WebRTC] Creating peer connection for:", remoteUserId, remoteName, `(${effectiveMode.toUpperCase()} MODE)`);
       const pc = new RTCPeerConnection(iceConfig);
       
+      // Suppress onnegotiationneeded during initial track setup
+      initialSetup.current.add(remoteUserId);
+      
       // Add local tracks using addTrack (compatible with perfect negotiation pattern)
       localStreamRef.current.getTracks().forEach((track) => {
         console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled, "id:", track.id);
@@ -650,6 +654,12 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         } catch (err) {
           console.error("[WebRTC] Failed to add track:", err);
         }
+      });
+      
+      // Allow onnegotiationneeded to fire again after initial setup
+      // Use microtask to ensure all synchronous addTrack calls complete first
+      queueMicrotask(() => {
+        initialSetup.current.delete(remoteUserId);
       });
 
       // Create a MediaStream to collect remote tracks
@@ -876,6 +886,11 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
 
       // Handle negotiation needed (for dynamic track changes)
       pc.onnegotiationneeded = async () => {
+        // Skip during initial addTrack setup — sendOffer handles the first offer
+        if (initialSetup.current.has(remoteUserId)) {
+          console.log("[WebRTC] Skipping negotiation during initial setup for:", remoteUserId);
+          return;
+        }
         console.log("[WebRTC] Negotiation needed for:", remoteUserId, "polite:", isPolite(remoteUserId));
         if (isPolite(remoteUserId) && !makingOffer.current.has(remoteUserId)) {
           try {
@@ -1217,6 +1232,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     knownPeers.current.clear();
     iceCandidateBuffer.current.clear();
     makingOffer.current.clear();
+    initialSetup.current.clear();
     peerIPsRef.current.clear();
     connectionModeRef.current.clear();
     localIPsRef.current = [];
