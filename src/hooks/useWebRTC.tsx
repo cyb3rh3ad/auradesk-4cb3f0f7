@@ -641,23 +641,14 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       console.log("[WebRTC] Creating peer connection for:", remoteUserId, remoteName, `(${effectiveMode.toUpperCase()} MODE)`);
       const pc = new RTCPeerConnection(iceConfig);
       
-      // Add local tracks to the connection with proper transceiver configuration
+      // Add local tracks using addTrack (compatible with perfect negotiation pattern)
       localStreamRef.current.getTracks().forEach((track) => {
         console.log("[WebRTC] Adding local track:", track.kind, "enabled:", track.enabled, "id:", track.id);
         try {
-          // Use addTransceiver for better control
-          const transceiver = pc.addTransceiver(track, {
-            direction: 'sendrecv',
-            streams: [localStreamRef.current!],
-          });
-          console.log("[WebRTC] Added transceiver for:", track.kind);
+          pc.addTrack(track, localStreamRef.current!);
+          console.log("[WebRTC] Added track:", track.kind);
         } catch (err) {
-          console.warn("[WebRTC] addTransceiver failed, falling back to addTrack:", err);
-          try {
-            pc.addTrack(track, localStreamRef.current!);
-          } catch (addErr) {
-            console.error("[WebRTC] Failed to add track:", addErr);
-          }
+          console.error("[WebRTC] Failed to add track:", err);
         }
       });
 
@@ -921,7 +912,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       knownPeers.current.set(remoteUserId, remoteName);
       return pc;
     },
-    [user, userName, isPolite],
+    [user, userName, isPolite, getICEConfig],
   );
   const sendOffer = useCallback(
     async (remoteUserId: string, remoteName: string) => {
@@ -1126,8 +1117,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
                 sendOffer(peerId, peerName);
               } else {
                 console.log("[WebRTC] We are impolite, waiting for offer from:", peerId);
-                // Still create the connection so we're ready
-                createPeerConnection(peerId, peerName);
+                // Do NOT pre-create peer connection here - let handleOffer create it
+                // Pre-creating causes transceiver conflicts with the incoming offer SDP
               }
             }
           });
@@ -1149,6 +1140,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             if (isPolite(key)) {
               console.log("[WebRTC] New peer joined, we are polite, sending offer");
               sendOffer(key, peerName);
+            } else {
+              console.log("[WebRTC] New peer joined, we are impolite, waiting for their offer");
+              // Do NOT pre-create peer connection - let handleOffer do it
             }
           }
         })
