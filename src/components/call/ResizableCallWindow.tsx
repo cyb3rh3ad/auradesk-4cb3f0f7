@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { GripHorizontal, Minimize2, Maximize2, X, ExternalLink, ArrowDownLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useElectronCallWindow } from '@/hooks/useElectronCallWindow';
 
@@ -57,12 +56,11 @@ export const ResizableCallWindow = ({
   const sizeStartRef = useRef({ width: 0, height: 0, x: 0, y: 0 });
   const resizeStartRef = useRef({ clientX: 0, clientY: 0 });
 
-  // Determine PiP mode based on size
   const calculatePipMode = useCallback((width: number, height: number): PiPMode => {
     const area = width * height;
-    if (area < 120000) return 'mini';     // < ~340x350
-    if (area < 200000) return 'small';    // < ~450x450
-    if (area < 400000) return 'medium';   // < ~630x630
+    if (area < 120000) return 'mini';
+    if (area < 200000) return 'small';
+    if (area < 400000) return 'medium';
     return 'full';
   }, []);
 
@@ -74,7 +72,6 @@ export const ResizableCallWindow = ({
       const h = isMobile ? window.innerHeight - 100 : Math.min(defaultHeight, window.innerHeight - 100);
       const x = (window.innerWidth - w) / 2;
       const y = isMobile ? 50 : (window.innerHeight - h) / 2;
-      
       setSize({ width: w, height: h });
       setPosition({ x: Math.max(8, x), y: Math.max(20, y) });
       setPipMode(calculatePipMode(w, h));
@@ -82,93 +79,70 @@ export const ResizableCallWindow = ({
     }
   }, [isInitialized, defaultWidth, defaultHeight, calculatePipMode]);
 
-  // Handle dragging
+  // Dragging
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
     setIsDragging(true);
     dragStartRef.current = { x: clientX, y: clientY };
     positionRef.current = position;
   };
 
-  // Handle resize start
+  // Resize
   const handleResizeStart = (handle: ResizeHandle) => (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
     setIsResizing(true);
     setResizeHandle(handle);
     sizeStartRef.current = { ...size, ...position };
     resizeStartRef.current = { clientX, clientY };
   };
 
-  // Mouse/touch move handler
   useEffect(() => {
     if (!isDragging && !isResizing) return;
-
     const handleMove = (e: MouseEvent | TouchEvent) => {
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
       if (isDragging) {
         const deltaX = clientX - dragStartRef.current.x;
         const deltaY = clientY - dragStartRef.current.y;
-        
-        const newX = Math.max(0, Math.min(window.innerWidth - size.width, positionRef.current.x + deltaX));
-        const newY = Math.max(0, Math.min(window.innerHeight - 60, positionRef.current.y + deltaY));
-        
-        setPosition({ x: newX, y: newY });
+        setPosition({
+          x: Math.max(0, Math.min(window.innerWidth - size.width, positionRef.current.x + deltaX)),
+          y: Math.max(0, Math.min(window.innerHeight - 60, positionRef.current.y + deltaY)),
+        });
       }
-
       if (isResizing && resizeHandle) {
         const deltaX = clientX - resizeStartRef.current.clientX;
         const deltaY = clientY - resizeStartRef.current.clientY;
-        
         let newWidth = sizeStartRef.current.width;
         let newHeight = sizeStartRef.current.height;
         let newX = sizeStartRef.current.x;
         let newY = sizeStartRef.current.y;
-
-        // Handle different resize directions
-        if (resizeHandle.includes('e')) {
-          newWidth = Math.max(minWidth, Math.min(maxWidth, sizeStartRef.current.width + deltaX));
-        }
+        if (resizeHandle.includes('e')) newWidth = Math.max(minWidth, Math.min(maxWidth, sizeStartRef.current.width + deltaX));
         if (resizeHandle.includes('w')) {
-          const widthDelta = Math.max(minWidth, Math.min(maxWidth, sizeStartRef.current.width - deltaX)) - sizeStartRef.current.width;
-          newWidth = sizeStartRef.current.width + widthDelta;
-          newX = sizeStartRef.current.x - widthDelta;
+          const wd = Math.max(minWidth, Math.min(maxWidth, sizeStartRef.current.width - deltaX)) - sizeStartRef.current.width;
+          newWidth = sizeStartRef.current.width + wd;
+          newX = sizeStartRef.current.x - wd;
         }
-        if (resizeHandle.includes('s')) {
-          newHeight = Math.max(minHeight, Math.min(maxHeight, sizeStartRef.current.height + deltaY));
-        }
+        if (resizeHandle.includes('s')) newHeight = Math.max(minHeight, Math.min(maxHeight, sizeStartRef.current.height + deltaY));
         if (resizeHandle.includes('n')) {
-          const heightDelta = Math.max(minHeight, Math.min(maxHeight, sizeStartRef.current.height - deltaY)) - sizeStartRef.current.height;
-          newHeight = sizeStartRef.current.height + heightDelta;
-          newY = sizeStartRef.current.y - heightDelta;
+          const hd = Math.max(minHeight, Math.min(maxHeight, sizeStartRef.current.height - deltaY)) - sizeStartRef.current.height;
+          newHeight = sizeStartRef.current.height + hd;
+          newY = sizeStartRef.current.y - hd;
         }
-
         setSize({ width: newWidth, height: newHeight });
         setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
         setPipMode(calculatePipMode(newWidth, newHeight));
       }
     };
-
-    const handleEnd = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-      setResizeHandle(null);
-    };
-
+    const handleEnd = () => { setIsDragging(false); setIsResizing(false); setResizeHandle(null); };
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleEnd);
     document.addEventListener('touchmove', handleMove, { passive: false });
     document.addEventListener('touchend', handleEnd);
-
     return () => {
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleEnd);
@@ -177,16 +151,8 @@ export const ResizableCallWindow = ({
     };
   }, [isDragging, isResizing, resizeHandle, size.width, minWidth, minHeight, maxWidth, maxHeight, calculatePipMode]);
 
-  // Toggle minimize
-  const toggleMinimize = () => {
-    if (isMinimized) {
-      setIsMinimized(false);
-    } else {
-      setIsMinimized(true);
-    }
-  };
+  const toggleMinimize = () => setIsMinimized(!isMinimized);
 
-  // Maximize to near full screen
   const handleMaximize = () => {
     const isMobile = window.innerWidth < 768;
     const padding = isMobile ? 8 : 32;
@@ -198,17 +164,12 @@ export const ResizableCallWindow = ({
     setPipMode('full');
   };
 
-  // Cursor style based on resize handle
   const getCursorStyle = (handle: ResizeHandle) => {
     const cursors: Record<ResizeHandle, string> = {
-      n: 'cursor-ns-resize',
-      s: 'cursor-ns-resize',
-      e: 'cursor-ew-resize',
-      w: 'cursor-ew-resize',
-      ne: 'cursor-nesw-resize',
-      nw: 'cursor-nwse-resize',
-      se: 'cursor-nwse-resize',
-      sw: 'cursor-nesw-resize',
+      n: 'cursor-ns-resize', s: 'cursor-ns-resize',
+      e: 'cursor-ew-resize', w: 'cursor-ew-resize',
+      ne: 'cursor-nesw-resize', nw: 'cursor-nwse-resize',
+      se: 'cursor-nwse-resize', sw: 'cursor-nesw-resize',
     };
     return cursors[handle];
   };
@@ -217,19 +178,18 @@ export const ResizableCallWindow = ({
     <AnimatePresence>
       <motion.div
         ref={containerRef}
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.92, y: 10 }}
         animate={{ 
-          opacity: 1, 
-          scale: 1,
+          opacity: 1, scale: 1, y: 0,
           width: isMinimized ? 280 : size.width,
-          height: isMinimized ? 60 : size.height,
+          height: isMinimized ? 56 : size.height,
         }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        exit={{ opacity: 0, scale: 0.92, y: 10 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 350 }}
         className={cn(
           "fixed z-[9999] overflow-hidden",
-          "bg-background/95 backdrop-blur-xl",
-          "border border-border/50 rounded-2xl",
+          "bg-background/95 backdrop-blur-2xl",
+          "rounded-2xl",
           "shadow-2xl shadow-black/30",
           isDragging && "cursor-grabbing select-none",
           isResizing && "select-none",
@@ -238,100 +198,73 @@ export const ResizableCallWindow = ({
         style={{
           left: position.x,
           top: position.y,
+          border: '1px solid hsl(var(--border) / 0.3)',
+          boxShadow: `
+            0 25px 50px -12px rgba(0, 0, 0, 0.4),
+            0 0 0 1px hsl(var(--border) / 0.1),
+            inset 0 1px 0 hsl(0 0% 100% / 0.03)
+          `,
         }}
       >
-        {/* Glassmorphism header */}
+        {/* Header with cosmic gradient line */}
+        <div className="absolute top-0 inset-x-0 h-[1px]" style={{
+          background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), hsl(var(--cosmic-cyan) / 0.2), transparent)'
+        }} />
+
         <div
           className={cn(
             "flex items-center justify-between px-3 h-10",
-            "bg-gradient-to-r from-muted/80 to-muted/60 backdrop-blur-sm",
-            "border-b border-border/30",
+            "bg-card/50 backdrop-blur-sm",
+            "border-b border-border/20",
             "cursor-grab active:cursor-grabbing"
           )}
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
         >
           <div className="flex items-center gap-2">
-            <GripHorizontal className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground truncate max-w-[150px]">
+            <GripHorizontal className="w-3.5 h-3.5 text-muted-foreground/50" />
+            <span className="text-xs font-medium text-foreground/80 truncate max-w-[150px]">
               {title}
             </span>
-            {pipMode !== 'full' && (
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                {pipMode}
-              </span>
-            )}
           </div>
           
-          <div className="flex items-center gap-1">
-            {/* Pop-out button - only show in Electron when not already popped out */}
+          <div className="flex items-center gap-0.5">
             {isElectron && !isPoppedOut && roomName && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-primary/20"
-                onClick={() => popOutCall({
-                  roomName,
-                  participantName: participantName || 'User',
-                  conversationName: title,
-                  isVideo,
-                  isHost,
-                })}
-                title="Pop out to separate window"
+              <button
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                onClick={() => popOutCall({ roomName, participantName: participantName || 'User', conversationName: title, isVideo, isHost })}
+                title="Pop out"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             )}
-            {/* Pop-in button - only show in Electron when popped out */}
             {isElectron && isPoppedOut && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-primary/20"
-                onClick={popInCall}
-                title="Pop back into app"
-              >
+              <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" onClick={popInCall} title="Pop in">
                 <ArrowDownLeft className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:bg-muted/80"
-              onClick={toggleMinimize}
-            >
+            <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" onClick={toggleMinimize}>
               <Minimize2 className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:bg-muted/80"
-              onClick={handleMaximize}
-            >
+            </button>
+            <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" onClick={handleMaximize}>
               <Maximize2 className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:bg-destructive/20 text-destructive"
-              onClick={onClose}
-            >
+            </button>
+            <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors" onClick={onClose}>
               <X className="w-3.5 h-3.5" />
-            </Button>
+            </button>
           </div>
         </div>
 
-        {/* Content area */}
+        {/* Content */}
         {!isMinimized && (
           <div className="h-[calc(100%-40px)] overflow-hidden">
             {React.cloneElement(children as React.ReactElement, { pipMode })}
           </div>
         )}
 
-        {/* Invisible resize handles - like Windows windows */}
+        {/* Resize handles */}
         {!isMinimized && (
           <>
-            {/* Corner handles - invisible but functional */}
             {(['nw', 'ne', 'sw', 'se'] as ResizeHandle[]).map((handle) => (
               <div
                 key={handle}
@@ -347,28 +280,10 @@ export const ResizableCallWindow = ({
                 onTouchStart={handleResizeStart(handle)}
               />
             ))}
-
-            {/* Edge handles - invisible but functional */}
-            <div
-              className="absolute top-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block"
-              onMouseDown={handleResizeStart('n')}
-              onTouchStart={handleResizeStart('n')}
-            />
-            <div
-              className="absolute bottom-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block"
-              onMouseDown={handleResizeStart('s')}
-              onTouchStart={handleResizeStart('s')}
-            />
-            <div
-              className="absolute left-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block"
-              onMouseDown={handleResizeStart('w')}
-              onTouchStart={handleResizeStart('w')}
-            />
-            <div
-              className="absolute right-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block"
-              onMouseDown={handleResizeStart('e')}
-              onTouchStart={handleResizeStart('e')}
-            />
+            <div className="absolute top-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block" onMouseDown={handleResizeStart('n')} onTouchStart={handleResizeStart('n')} />
+            <div className="absolute bottom-0 left-3 right-3 h-1 cursor-ns-resize hidden md:block" onMouseDown={handleResizeStart('s')} onTouchStart={handleResizeStart('s')} />
+            <div className="absolute left-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block" onMouseDown={handleResizeStart('w')} onTouchStart={handleResizeStart('w')} />
+            <div className="absolute right-0 top-10 bottom-3 w-1 cursor-ew-resize hidden md:block" onMouseDown={handleResizeStart('e')} onTouchStart={handleResizeStart('e')} />
           </>
         )}
       </motion.div>
