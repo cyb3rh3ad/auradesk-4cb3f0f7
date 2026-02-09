@@ -219,7 +219,7 @@ const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
         {/* Main content area - fills remaining space, nav bar is part of flex flow */}
         <main 
           className={cn(
-            "flex-1 min-h-0",
+            "flex-1 min-h-0 relative",
             // Self-managed pages handle their own scroll
             isSelfManagedPage ? "overflow-hidden" : "overflow-auto"
           )}
