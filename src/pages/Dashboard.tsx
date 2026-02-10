@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useRecentContacts } from "@/hooks/useRecentContacts";
+import { useTeams } from "@/hooks/useTeams";
+import { useConversations } from "@/hooks/useConversations";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
@@ -16,6 +19,8 @@ const Dashboard = () => {
   const isMobile = useIsMobile();
   const { meetings, refetch: refetchMeetings } = useMeetings();
   const { contacts, loading: contactsLoading, refetch: refetchContacts } = useRecentContacts(5);
+  const { teams } = useTeams();
+  const { conversations } = useConversations();
   
   const handleRefresh = async () => {
     await Promise.all([refetchMeetings(), refetchContacts()]);
@@ -26,20 +31,22 @@ const Dashboard = () => {
     ?.filter(m => new Date(m.scheduled_at) > new Date())
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0];
   
+  const upcomingMeetingsCount = meetings?.filter(m => new Date(m.scheduled_at) > new Date()).length || 0;
+
   const stats = [
     { 
       title: "Active Teams", 
-      value: "12", 
-      change: "+2 from last week", 
+      value: String(teams.length), 
+      change: `${teams.length} team${teams.length !== 1 ? 's' : ''} joined`, 
       icon: Users,
       gradientFrom: "from-gradient-blue",
       gradientTo: "to-gradient-blue-end",
       path: "/teams"
     },
     { 
-      title: "Messages", 
-      value: "2,847", 
-      change: "+573 this week", 
+      title: "Conversations", 
+      value: String(conversations.length), 
+      change: `${conversations.length} active chat${conversations.length !== 1 ? 's' : ''}`, 
       icon: MessageSquare,
       gradientFrom: "from-gradient-purple",
       gradientTo: "to-gradient-purple-end",
@@ -47,8 +54,8 @@ const Dashboard = () => {
     },
     { 
       title: "Meetings", 
-      value: "8", 
-      change: "3 upcoming today", 
+      value: String(meetings?.length || 0), 
+      change: `${upcomingMeetingsCount} upcoming`, 
       icon: Calendar,
       gradientFrom: "from-gradient-orange",
       gradientTo: "to-gradient-orange-end",

@@ -60,11 +60,13 @@ const Settings = () => {
     }
   }, [user]);
 
-  const loadMediaDevices = async () => {
+  const loadMediaDevices = async (requestPermission = false) => {
     try {
-      // Request permission to access media devices to get labels
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      stream.getTracks().forEach(track => track.stop());
+      if (requestPermission) {
+        // Only request permission when user explicitly interacts with Voice tab
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        stream.getTracks().forEach(track => track.stop());
+      }
       
       const devices = await navigator.mediaDevices.enumerateDevices();
       
@@ -73,7 +75,6 @@ const Settings = () => {
       setVideoInputDevices(devices.filter(d => d.kind === 'videoinput'));
     } catch (error) {
       console.error('Error loading media devices:', error);
-      // Try to enumerate without permission (labels will be empty)
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         setAudioInputDevices(devices.filter(d => d.kind === 'audioinput'));
@@ -382,7 +383,7 @@ const Settings = () => {
               <Lock className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="audio-video" className={cn(
+            <TabsTrigger value="audio-video" onClick={() => loadMediaDevices(true)} className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
               "data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
               "hover:text-foreground/80 text-muted-foreground",

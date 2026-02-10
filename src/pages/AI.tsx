@@ -103,7 +103,7 @@ const AI = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -395,7 +395,7 @@ const AI = () => {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyDown}
                   placeholder="Message Aura..."
                   disabled={isLoading}
                   className="pr-11 md:pr-12 py-5 md:py-6 rounded-xl bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/50 text-sm md:text-base"

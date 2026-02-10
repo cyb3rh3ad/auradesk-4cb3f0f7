@@ -1206,7 +1206,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             });
             console.log("[WebRTC] Presence tracked with local IPs:", localIPsRef.current);
             setIsConnecting(false);
-            setIsConnected(true);
+            // Don't set isConnected here - wait for actual peer connection
+            // isConnected will be set in onconnectionstatechange when pc.connectionState === 'connected'
           }
         });
         
@@ -1236,6 +1237,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     peerIPsRef.current.clear();
     connectionModeRef.current.clear();
     localIPsRef.current = [];
+    failedConnections.current.clear();
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => {

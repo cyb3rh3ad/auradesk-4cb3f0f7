@@ -39,34 +39,37 @@ export const useConversations = () => {
         .map((cm: any) => cm.conversations)
         .filter(Boolean);
       
-      // Fetch members for each conversation
-      const convosWithMembers = await Promise.all(
-        convos.map(async (convo: any) => {
-          // Get member user_ids first
-          const { data: memberData } = await supabase
-            .from('conversation_members')
-            .select('user_id')
-            .eq('conversation_id', convo.id);
+      if (convos.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
 
-          if (!memberData) return { ...convo, members: [] };
+      const convoIds = convos.map((c: any) => c.id);
 
-          const userIds = memberData.map(m => m.user_id);
-          
-          // Fetch profiles separately
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .in('id', userIds);
+      // Batch-fetch all members for all conversations in one query
+      const { data: allMembers } = await supabase
+        .from('conversation_members')
+        .select('conversation_id, user_id')
+        .in('conversation_id', convoIds);
 
-          // Map profiles back to members format
-          const members = memberData.map(m => ({
+      // Batch-fetch all unique profiles in one query
+      const uniqueUserIds = [...new Set((allMembers || []).map(m => m.user_id))];
+      const { data: profiles } = uniqueUserIds.length > 0
+        ? await supabase.from('profiles').select('id, email, full_name, avatar_url').in('id', uniqueUserIds)
+        : { data: [] };
+
+      const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
+
+      const convosWithMembers = convos.map((convo: any) => {
+        const members = (allMembers || [])
+          .filter(m => m.conversation_id === convo.id)
+          .map(m => ({
             user_id: m.user_id,
-            profiles: profiles?.find(p => p.id === m.user_id) || null
+            profiles: profilesMap.get(m.user_id) || null,
           }));
-
-          return { ...convo, members };
-        })
-      );
+        return { ...convo, members };
+      });
 
       setConversations(convosWithMembers);
     }
@@ -75,6 +78,8 @@ export const useConversations = () => {
 
   useEffect(() => {
     fetchConversations();
+
+    if (!user?.id) return;
 
     // Subscribe to new conversation members
     const channel = supabase
@@ -85,7 +90,7 @@ export const useConversations = () => {
           event: '*',
           schema: 'public',
           table: 'conversation_members',
-          filter: `user_id=eq.${user?.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchConversations();
@@ -96,7 +101,7 @@ export const useConversations = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   return { conversations, loading, refetch: fetchConversations };
 };

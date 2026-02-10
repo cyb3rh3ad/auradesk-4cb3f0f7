@@ -348,22 +348,23 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       ringIntervalRef.current = null;
     }
 
-    if (activeCall) {
-      const channelName = `call-invite:${activeCall.conversationId}`;
+    const currentCall = activeCallRef.current;
+    if (currentCall) {
+      const channelName = `call-invite:${currentCall.conversationId}`;
       const channel = channelsRef.current.get(channelName);
 
       if (channel) {
         channel.send({
           type: 'broadcast',
           event: 'call-ended',
-          payload: { conversationId: activeCall.conversationId },
+          payload: { conversationId: currentCall.conversationId },
         });
       }
     }
 
     setActiveCall(null);
     setIncomingCall(null);
-  }, [activeCall]);
+  }, []);
 
   // Accept incoming call (we only join when user clicks Accept)
   const handleAcceptCall = useCallback(() => {
