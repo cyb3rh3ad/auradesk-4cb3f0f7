@@ -98,16 +98,24 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
   }, [facingMode]);
 
   const sendPhoto = useCallback(() => {
-    if (!capturedImage || !canvasRef.current) return;
+    if (!capturedImage) return;
     
-    canvasRef.current.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], `snap_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        onCapture(file);
-        triggerHaptic('light');
-        closeCamera();
-      }
-    }, 'image/jpeg', 0.9);
+    // Convert data URL to blob directly - more reliable than canvas.toBlob()
+    const [meta, base64Data] = capturedImage.split(',');
+    const mimeMatch = meta.match(/^data:(.*?);/);
+    const mimeType = mimeMatch?.[1] || 'image/jpeg';
+    
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    const blob = new Blob([bytes], { type: mimeType });
+    const file = new File([blob], `snap_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    onCapture(file);
+    triggerHaptic('light');
+    closeCamera();
   }, [capturedImage, onCapture, closeCamera]);
 
   const retake = useCallback(async () => {
