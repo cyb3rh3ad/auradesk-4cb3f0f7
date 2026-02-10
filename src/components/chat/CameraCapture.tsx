@@ -1,13 +1,31 @@
 import { useState, useRef, useCallback } from 'react';
-import { Camera, X, Send, SwitchCamera, Loader2 } from 'lucide-react';
+import { Camera, X, SwitchCamera, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { triggerHaptic } from '@/utils/haptics';
+import { PhotoEditor } from './PhotoEditor';
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
   disabled?: boolean;
 }
+
+const dataUrlToFile = (dataUrl: string, filename: string): File => {
+  const [meta, base64Data] = dataUrl.split(',');
+  const mimeMatch = meta.match(/^data:(.*?);/);
+  const mimeType = mimeMatch?.[1] || 'image/jpeg';
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  const chunkSize = 8192;
+  for (let i = 0; i < binaryString.length; i += chunkSize) {
+    const end = Math.min(i + chunkSize, binaryString.length);
+    for (let j = i; j < end; j++) {
+      bytes[j] = binaryString.charCodeAt(j);
+    }
+  }
+  const blob = new Blob([bytes], { type: mimeType });
+  return new File([blob], filename, { type: mimeType });
+};
 
 export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,20 +36,22 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const stopStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
   const startCamera = useCallback(async (facing: 'user' | 'environment') => {
     try {
-      // Stop existing stream first
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
-      
+      stopStream();
       setLoading(true);
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
       streamRef.current = stream;
-      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -42,7 +62,7 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
       setLoading(false);
       setIsOpen(false);
     }
-  }, []);
+  }, [stopStream]);
 
   const openCamera = useCallback(async () => {
     setIsOpen(true);
@@ -52,13 +72,10 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
   }, [facingMode, startCamera]);
 
   const closeCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
+    stopStream();
     setIsOpen(false);
     setCapturedImage(null);
-  }, []);
+  }, [stopStream]);
 
   const switchCamera = useCallback(async () => {
     const newFacing = facingMode === 'user' ? 'environment' : 'user';
@@ -69,63 +86,37 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
 
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
-    
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    // Mirror if front camera
     if (facingMode === 'user') {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
-    
     ctx.drawImage(video, 0, 0);
-    
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     setCapturedImage(dataUrl);
     triggerHaptic('medium');
-    
-    // Stop camera while reviewing
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-  }, [facingMode]);
+    stopStream();
+  }, [facingMode, stopStream]);
 
-  const sendPhoto = useCallback(() => {
-    if (!capturedImage) return;
-    
-    // Convert data URL to blob directly - more reliable than canvas.toBlob()
-    const [meta, base64Data] = capturedImage.split(',');
-    const mimeMatch = meta.match(/^data:(.*?);/);
-    const mimeType = mimeMatch?.[1] || 'image/jpeg';
-    
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    const blob = new Blob([bytes], { type: mimeType });
-    const file = new File([blob], `snap_${Date.now()}.jpg`, { type: 'image/jpeg' });
+  const handleEditorSend = useCallback((editedDataUrl: string) => {
+    const file = dataUrlToFile(editedDataUrl, `snap_${Date.now()}.jpg`);
     onCapture(file);
     triggerHaptic('light');
     closeCamera();
-  }, [capturedImage, onCapture, closeCamera]);
+  }, [onCapture, closeCamera]);
 
-  const retake = useCallback(async () => {
+  const handleRetake = useCallback(async () => {
     setCapturedImage(null);
     await startCamera(facingMode);
   }, [facingMode, startCamera]);
 
   return (
     <>
-      {/* Camera button */}
       <button
         type="button"
         disabled={disabled}
@@ -139,81 +130,49 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
         <Camera className="w-5 h-5" />
       </button>
 
-      {/* Hidden canvas for capture */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Fullscreen camera overlay */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black flex flex-col"
-          >
-            {/* Camera preview or captured image */}
-            <div className="flex-1 relative overflow-hidden">
-              {capturedImage ? (
-                <img 
-                  src={capturedImage} 
-                  alt="Captured" 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={cn(
-                      "w-full h-full object-cover",
-                      facingMode === 'user' && "scale-x-[-1]"
-                    )}
-                  />
-                  {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <Loader2 className="w-8 h-8 text-white animate-spin" />
-                    </div>
+          capturedImage ? (
+            <PhotoEditor
+              imageUrl={capturedImage}
+              onSend={handleEditorSend}
+              onRetake={handleRetake}
+            />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] bg-black flex flex-col"
+            >
+              <div className="flex-1 relative overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={cn(
+                    "w-full h-full object-cover",
+                    facingMode === 'user' && "scale-x-[-1]"
                   )}
-                </>
-              )}
-            </div>
+                />
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
 
-            {/* Controls */}
-            <div className="bg-black/80 backdrop-blur-xl px-6 py-6 safe-area-pb">
-              {capturedImage ? (
+              <div className="bg-black/80 backdrop-blur-xl px-6 py-6 safe-area-pb">
                 <div className="flex items-center justify-between">
-                  {/* Retake */}
-                  <button
-                    onClick={retake}
-                    className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors touch-manipulation"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                  
-                  {/* Send */}
-                  <motion.button
-                    onClick={sendPhoto}
-                    whileTap={{ scale: 0.9 }}
-                    className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/40 touch-manipulation"
-                  >
-                    <Send className="w-7 h-7" />
-                  </motion.button>
-                  
-                  <div className="w-14" /> {/* Spacer */}
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  {/* Close */}
                   <button
                     onClick={closeCamera}
                     className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors touch-manipulation"
                   >
                     <X className="w-6 h-6" />
                   </button>
-                  
-                  {/* Shutter */}
                   <motion.button
                     onClick={takePhoto}
                     whileTap={{ scale: 0.85 }}
@@ -221,8 +180,6 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
                   >
                     <div className="w-[60px] h-[60px] rounded-full bg-white" />
                   </motion.button>
-                  
-                  {/* Switch camera */}
                   <button
                     onClick={switchCamera}
                     className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors touch-manipulation"
@@ -230,9 +187,9 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
                     <SwitchCamera className="w-6 h-6" />
                   </button>
                 </div>
-              )}
-            </div>
-          </motion.div>
+              </div>
+            </motion.div>
+          )
         )}
       </AnimatePresence>
     </>
