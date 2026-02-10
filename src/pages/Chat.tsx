@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
 import { MessageSquare, ArrowLeft, Users } from 'lucide-react';
+import { usePresenceContext } from '@/contexts/PresenceContext';
+import { PresenceIndicator } from '@/components/PresenceIndicator';
+import { getPresenceLabel } from '@/components/PresenceIndicator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -17,6 +21,8 @@ const Chat = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { conversations, loading: convoLoading, refetch } = useConversations();
+  const { getUnreadCount, markAsRead } = useUnreadMessages();
+  const { getStatus } = usePresenceContext();
   
   const initialConversation = searchParams.get('conversation');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
@@ -50,6 +56,7 @@ const Chat = () => {
 
   const handleSelectConversation = (id: string) => {
     setSelectedConversationId(id);
+    markAsRead(id);
   };
 
   const handleBackToList = () => {
@@ -95,10 +102,16 @@ const Chat = () => {
                       {getConversationName()}
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-primary shadow-sm shadow-primary/50" />
-                      <p className="text-xs text-muted-foreground">
-                        {selectedConversation?.is_group ? 'Group' : 'Active now'}
-                      </p>
+                      {selectedConversation?.is_group ? (
+                        <p className="text-xs text-muted-foreground">Group</p>
+                      ) : (
+                        <>
+                          <PresenceIndicator status={getStatus(getOtherUserId() || '')} size="sm" />
+                          <p className="text-xs text-muted-foreground">
+                            {getPresenceLabel(getStatus(getOtherUserId() || ''))}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -138,6 +151,7 @@ const Chat = () => {
                   onSelectConversation={handleSelectConversation}
                   selectedConversationId={selectedConversationId}
                   conversations={conversations}
+                  getUnreadCount={getUnreadCount}
                 />
               </div>
             </motion.div>
@@ -164,6 +178,7 @@ const Chat = () => {
             onSelectConversation={handleSelectConversation}
             selectedConversationId={selectedConversationId}
             conversations={conversations}
+            getUnreadCount={getUnreadCount}
           />
         </div>
       </div>

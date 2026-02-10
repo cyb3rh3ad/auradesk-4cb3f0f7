@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video } from "lucide-react";
+import { Calendar, Users, MessageSquare, Zap, ArrowUpRight, Clock, Video, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useRecentContacts } from "@/hooks/useRecentContacts";
 import { useTeams } from "@/hooks/useTeams";
 import { useConversations } from "@/hooks/useConversations";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { usePresenceContext } from "@/contexts/PresenceContext";
+import { PresenceIndicator } from "@/components/PresenceIndicator";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
@@ -21,6 +24,8 @@ const Dashboard = () => {
   const { contacts, loading: contactsLoading, refetch: refetchContacts } = useRecentContacts(5);
   const { teams } = useTeams();
   const { conversations } = useConversations();
+  const { totalUnread } = useUnreadMessages();
+  const { getStatus } = usePresenceContext();
   
   const handleRefresh = async () => {
     await Promise.all([refetchMeetings(), refetchContacts()]);
@@ -61,6 +66,15 @@ const Dashboard = () => {
       gradientTo: "to-gradient-orange-end",
       path: "/meetings"
     },
+    { 
+      title: "Unread Messages", 
+      value: String(totalUnread), 
+      change: totalUnread > 0 ? `${totalUnread} waiting` : 'All caught up', 
+      icon: Mail,
+      gradientFrom: "from-gradient-indigo",
+      gradientTo: "to-gradient-indigo-end",
+      path: "/chat"
+    },
   ];
 
   const content = (
@@ -72,7 +86,7 @@ const Dashboard = () => {
         subtitle="Your intelligent collaboration workspace"
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
         {stats.map((stat, i) => (
           <AnimatedCard
             key={i}
@@ -174,11 +188,6 @@ const Dashboard = () => {
           <CardHeader className="border-b border-border/50">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl">Recent Contacts</CardTitle>
-              <motion.div 
-                className="w-2 h-2 bg-green-500 rounded-full shadow-lg shadow-green-500/50"
-                animate={{ scale: [1, 1.2, 1], opacity: [1, 0.8, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -218,6 +227,7 @@ const Dashboard = () => {
                         <motion.div
                           whileHover={{ scale: 1.1 }}
                           transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                          className="relative"
                         >
                           <Avatar className="w-12 h-12 rounded-2xl shadow-lg">
                             <AvatarImage src={contact.avatar_url || undefined} />
@@ -225,6 +235,9 @@ const Dashboard = () => {
                               {initials}
                             </AvatarFallback>
                           </Avatar>
+                          <span className="absolute -bottom-0.5 -right-0.5">
+                            <PresenceIndicator status={getStatus(contact.id)} size="md" />
+                          </span>
                         </motion.div>
                         <div>
                           <p className="text-sm font-semibold">{contact.full_name || contact.username || contact.email}</p>

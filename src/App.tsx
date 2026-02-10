@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SplashScreen } from "@/components/SplashScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 import { GlobalCallOverlay } from "@/components/call/GlobalCallOverlay";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Sidebar } from "@/components/Sidebar";
@@ -327,6 +328,7 @@ const App = () => {
                   <ProtectedRoute>
                       <OnboardingCheck />
                       <PushNotificationInit />
+                      <PresenceProvider>
                       <CallProvider>
                         {/* Global PiP call overlay - persists across all navigation */}
                         <GlobalCallOverlay />
@@ -346,6 +348,7 @@ const App = () => {
                           </Routes>
                         </AppLayout>
                       </CallProvider>
+                      </PresenceProvider>
                     </ProtectedRoute>
                   }
                 />
