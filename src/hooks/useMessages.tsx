@@ -81,6 +81,38 @@ export const useMessages = (conversationId: string | null) => {
         description: 'Could not send your message. Please try again.',
         variant: 'destructive',
       });
+      return;
+    }
+
+    // Send push notification to other members (fire-and-forget)
+    try {
+      const { data: members } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', user.id);
+
+      if (members && members.length > 0) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const senderName = profile?.full_name || profile?.email || 'Someone';
+        const recipientIds = members.map(m => m.user_id);
+
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: recipientIds,
+            title: senderName,
+            body: content.length > 100 ? content.substring(0, 100) + '…' : content,
+            data: { type: 'message', conversationId },
+          },
+        }).catch(err => console.log('Push notification skipped:', err));
+      }
+    } catch (e) {
+      // Non-critical, don't block
     }
   };
 
