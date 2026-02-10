@@ -131,9 +131,9 @@ const Teams = () => {
 
   // Show team view with Discord-like channels when a team is selected
   if (selectedTeam) {
-    return (
+    const teamViewContent = (
       <>
-        <div className="flex h-full">
+        <div className={cn("flex", isMobile ? "absolute inset-0 flex-col bg-background z-10" : "h-full")}>
           {/* Channels Sidebar */}
           <div className="w-60 lg:w-64 border-r flex-col hidden md:flex bg-muted/30">
             <TeamChannelsSidebar
@@ -160,9 +160,9 @@ const Teams = () => {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             {/* Mobile header with back button */}
-            <div className="md:hidden flex items-center gap-2 p-3 border-b">
+            <div className="md:hidden flex items-center gap-2 p-3 border-b shrink-0">
               <Button variant="ghost" size="icon" onClick={() => {
                 if (selectedChannel) {
                   setSelectedChannel(null);
@@ -204,7 +204,7 @@ const Teams = () => {
               )
             ) : (
               /* Mobile: show channel list, Desktop: show TeamChat as default */
-              <div className="md:hidden flex-1">
+              <div className="md:hidden flex-1 overflow-auto">
                 <TeamChannelsSidebar
                   team={selectedTeam}
                   selectedChannel={selectedChannel}
@@ -247,6 +247,16 @@ const Teams = () => {
             onClose={() => setJoiningCallTeam(null)}
           />
         )}
+      </>
+    );
+
+    return (
+      <>
+        {isMobile ? (
+          <div className="relative h-full">
+            {teamViewContent}
+          </div>
+        ) : teamViewContent}
       </>
     );
   }

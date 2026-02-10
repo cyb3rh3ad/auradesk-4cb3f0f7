@@ -38,11 +38,11 @@ export const useTypingIndicator = (conversationId: string | null) => {
           }
         });
 
-        // Auto-remove after 3 seconds if no stop event received
+        // Auto-remove after 10 seconds if no stop event received
         if (isTyping) {
           setTimeout(() => {
             setTypingUsers(prev => prev.filter(u => u.userId !== userId));
-          }, 3000);
+          }, 10000);
         }
       })
       .subscribe();
@@ -72,7 +72,7 @@ export const useTypingIndicator = (conversationId: string | null) => {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Set timeout to stop typing after 2 seconds of inactivity
+    // Set timeout to stop typing after 7 seconds of inactivity
     typingTimeoutRef.current = setTimeout(async () => {
       isTypingRef.current = false;
       if (channelRef.current) {
@@ -82,7 +82,7 @@ export const useTypingIndicator = (conversationId: string | null) => {
           payload: { userId: user.id, username, isTyping: false }
         });
       }
-    }, 2000);
+    }, 7000);
   }, [user, conversationId]);
 
   const stopTyping = useCallback(async (username: string) => {

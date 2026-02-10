@@ -206,6 +206,30 @@ export const useCallInvitations = (): UseCallInvitationsReturn => {
     // Send immediately
     await sendInvite();
 
+    // Also send a push notification for background delivery
+    try {
+      const { data: members } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', user.id);
+
+      if (members && members.length > 0) {
+        const recipientIds = members.map(m => m.user_id);
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            userIds: recipientIds,
+            title: `${callerName} is calling`,
+            body: isVideo ? 'Incoming video call' : 'Incoming voice call',
+            type: 'call',
+            data: { type: 'call', conversationId, callerName, isVideo: String(isVideo) },
+          },
+        }).catch(err => console.log('Push call notification skipped:', err));
+      }
+    } catch (e) {
+      // Non-critical
+    }
+
     // Clear any existing interval
     if (inviteIntervalRef.current) {
       clearInterval(inviteIntervalRef.current);
