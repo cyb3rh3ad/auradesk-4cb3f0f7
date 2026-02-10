@@ -531,12 +531,10 @@ const Landing = () => {
             ))}
           </div>
 
-          {/* Interactive App Preview - hidden on mobile for performance */}
-          {!isMobile && (
-            <div className="mt-12 md:mt-16 animate-fade-in" style={{ animationDelay: '200ms' }}>
-              <AppPreview />
-            </div>
-          )}
+          {/* Interactive App Preview */}
+          <div className="mt-12 md:mt-16 animate-fade-in" style={{ animationDelay: '200ms' }}>
+            <AppPreview />
+          </div>
         </div>
       </section>
 
