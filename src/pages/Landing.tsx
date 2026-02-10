@@ -201,7 +201,7 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-background">
       {/* Navigation - cosmic glassmorphism */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-cosmic">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
