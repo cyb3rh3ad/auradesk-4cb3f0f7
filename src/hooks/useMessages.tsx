@@ -75,6 +75,12 @@ export const useMessages = (conversationId: string | null) => {
 
     if (error) {
       console.error('Error sending message:', error);
+      const { toast } = await import('@/hooks/use-toast').then(m => ({ toast: m.toast }));
+      toast({
+        title: 'Message failed',
+        description: 'Could not send your message. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 

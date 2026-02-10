@@ -39,26 +39,32 @@ export const useTeams = () => {
 
       if (error) throw error;
 
-      const teamsWithCounts = await Promise.all(
-        (data || []).map(async (team: any) => {
-          const { count } = await supabase
-            .from('team_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('team_id', team.id);
+      const teamIds = (data || []).map((t: any) => t.id);
 
-          return {
-            id: team.id,
-            name: team.name,
-            description: team.description,
-            avatar_url: team.avatar_url,
-            created_by: team.created_by,
-            created_at: team.created_at,
-            updated_at: team.updated_at,
-            member_count: count || 0,
-            user_role: team.team_members[0]?.role,
-          };
-        })
-      );
+      // Batch-fetch all member counts in one query
+      const { data: memberCounts } = teamIds.length > 0
+        ? await supabase
+            .from('team_members')
+            .select('team_id')
+            .in('team_id', teamIds)
+        : { data: [] };
+
+      const countMap = new Map<string, number>();
+      (memberCounts || []).forEach(m => {
+        countMap.set(m.team_id, (countMap.get(m.team_id) || 0) + 1);
+      });
+
+      const teamsWithCounts = (data || []).map((team: any) => ({
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        avatar_url: team.avatar_url,
+        created_by: team.created_by,
+        created_at: team.created_at,
+        updated_at: team.updated_at,
+        member_count: countMap.get(team.id) || 0,
+        user_role: team.team_members[0]?.role,
+      }));
 
       setTeams(teamsWithCounts);
     } catch (error: any) {
