@@ -6,15 +6,15 @@ import { toast } from 'sonner';
 
 // Max single file size per plan (in bytes)
 const MAX_FILE_SIZE: Record<SubscriptionPlan, number> = {
-  free: 25 * 1024 * 1024,        // 25 MB
-  advanced: 500 * 1024 * 1024,    // 500 MB
-  professional: 2 * 1024 * 1024 * 1024, // 2 GB
+  free: 1 * 1024 * 1024 * 1024,        // 1 GB
+  advanced: 5 * 1024 * 1024 * 1024,    // 5 GB
+  professional: Number.MAX_SAFE_INTEGER, // Unlimited
 };
 
 const MAX_FILE_SIZE_LABEL: Record<SubscriptionPlan, string> = {
-  free: '25 MB',
-  advanced: '500 MB',
-  professional: '2 GB',
+  free: '1 GB',
+  advanced: '5 GB',
+  professional: 'Unlimited',
 };
 
 export const useChatFileUpload = (conversationId: string | null) => {
