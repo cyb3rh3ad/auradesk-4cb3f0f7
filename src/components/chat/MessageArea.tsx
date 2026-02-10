@@ -12,6 +12,9 @@ import { useChatFileUpload } from '@/hooks/useChatFileUpload';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ChatOptionsMenu } from './ChatOptionsMenu';
+import { VoiceRecorder } from './VoiceRecorder';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { CameraCapture } from './CameraCapture';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -29,6 +32,14 @@ const parseFileMessage = (content: string) => {
   const match = content.match(FILE_MESSAGE_REGEX);
   if (!match) return null;
   return { name: match[1], url: match[2] };
+};
+
+// Detect voice message
+const VOICE_MESSAGE_REGEX = /^\[voice:(\d+)\]\((.+?)\)$/;
+const parseVoiceMessage = (content: string) => {
+  const match = content.match(VOICE_MESSAGE_REGEX);
+  if (!match) return null;
+  return { durationMs: parseInt(match[1]), url: match[2] };
 };
 
 const getFileIcon = (name: string) => {
@@ -59,7 +70,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
 
@@ -116,6 +126,22 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     e.target.value = '';
   };
 
+  const handleCameraCapture = async (file: File) => {
+    const url = await uploadFile(file);
+    if (url) {
+      onSendMessage(`[file:${file.name}](${url})`);
+    }
+  };
+
+  const handleVoiceRecording = async (blob: Blob, durationMs: number) => {
+    if (!conversationId || !user) return;
+    const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
+    const url = await uploadFile(file);
+    if (url) {
+      onSendMessage(`[voice:${durationMs}](${url})`);
+    }
+  };
+
   const removePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -152,6 +178,18 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   }, []);
 
   const renderMessageContent = (message: Message, isOwn: boolean) => {
+    // Check for voice message
+    const voiceInfo = parseVoiceMessage(message.content);
+    if (voiceInfo) {
+      return (
+        <VoiceMessagePlayer
+          url={voiceInfo.url}
+          duration={voiceInfo.durationMs / 1000}
+          isOwn={isOwn}
+        />
+      );
+    }
+
     const fileInfo = parseFileMessage(message.content);
     
     if (fileInfo) {
@@ -291,7 +329,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         </div>
       </ScrollArea>
 
-      {/* Hidden file inputs */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -299,19 +337,9 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         className="hidden"
         onChange={handleFileSelect}
       />
-      <input
-        ref={folderInputRef}
-        type="file"
-        multiple
-        // @ts-ignore - webkitdirectory is not in types
-        webkitdirectory=""
-        directory=""
-        className="hidden"
-        onChange={handleFileSelect}
-      />
 
       {/* Typing Indicator & Input */}
-      <div className="border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 chat-input-container">
+      <div className="relative border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 chat-input-container">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -348,38 +376,46 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="p-3 md:p-4 pb-4 flex gap-2 md:gap-3 items-center safe-area-pb">
-          {/* Attachment button with dropdown */}
-          <div className="relative shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground touch-manipulation"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Paperclip className="w-5 h-5" />
-              )}
-            </Button>
-          </div>
+        <form onSubmit={handleSubmit} className="p-2 md:p-4 pb-3 md:pb-4 flex gap-1.5 md:gap-3 items-center safe-area-pb">
+          {/* Attachment button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 md:h-11 md:w-11 text-muted-foreground hover:text-foreground touch-manipulation shrink-0 rounded-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Paperclip className="w-5 h-5" />
+            )}
+          </Button>
+
+          {/* Camera button */}
+          <CameraCapture onCapture={handleCameraCapture} disabled={uploading} />
+
           <Input
             value={input}
             onChange={handleInputChange}
             placeholder="Message..."
-            className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30 h-11 text-base"
+            className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30 h-10 md:h-11 text-base rounded-full px-4"
           />
-          <Button 
-            type="submit" 
-            size="icon" 
-            disabled={!input.trim() && pendingFiles.length === 0}
-            className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-11 w-11 touch-manipulation"
-          >
-            <Send className="w-5 h-5" />
-          </Button>
+
+          {/* Voice recorder or Send button */}
+          {input.trim() || pendingFiles.length > 0 ? (
+            <Button 
+              type="submit" 
+              size="icon" 
+              disabled={!input.trim() && pendingFiles.length === 0}
+              className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-10 w-10 md:h-11 md:w-11 touch-manipulation rounded-full"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          ) : (
+            <VoiceRecorder onRecordingComplete={handleVoiceRecording} disabled={uploading} />
+          )}
         </form>
       </div>
     </div>
