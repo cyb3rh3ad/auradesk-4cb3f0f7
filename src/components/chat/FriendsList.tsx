@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { Users } from 'lucide-react';
 import { Conversation } from '@/hooks/useConversations';
 import { triggerHaptic } from '@/utils/haptics';
+import { PresenceIndicator } from '@/components/PresenceIndicator';
+import { usePresenceContext } from '@/contexts/PresenceContext';
 
 interface Friend {
   id: string;
@@ -15,34 +17,25 @@ interface Friend {
   email: string;
   avatar_url: string | null;
   conversation_id?: string;
-  hasUnread?: boolean;
-  lastMessage?: string;
 }
 
 interface FriendsListProps {
   onSelectConversation: (conversationId: string) => void;
   selectedConversationId: string | null;
   conversations: Conversation[];
+  getUnreadCount?: (conversationId: string) => number;
 }
 
-export const FriendsList = ({ onSelectConversation, selectedConversationId, conversations }: FriendsListProps) => {
+export const FriendsList = ({ onSelectConversation, selectedConversationId, conversations, getUnreadCount }: FriendsListProps) => {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [readConversations, setReadConversations] = useState<Set<string>>(new Set());
-
-  // Mark conversation as read when selected
-  useEffect(() => {
-    if (selectedConversationId) {
-      setReadConversations(prev => new Set([...prev, selectedConversationId]));
-    }
-  }, [selectedConversationId]);
+  const { getStatus } = usePresenceContext();
 
   useEffect(() => {
     if (!user) return;
 
     const fetchFriends = async () => {
-      // Get accepted friendships
       const { data: friendships } = await supabase
         .from('friendships')
         .select('user_id, friend_id')
@@ -55,12 +48,10 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         return;
       }
 
-      // Get friend IDs (the other person in each friendship)
       const friendIds = friendships.map(f => 
         f.user_id === user.id ? f.friend_id : f.user_id
       );
 
-      // Get profiles for friends
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name, username, email, avatar_url')
@@ -72,7 +63,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         return;
       }
 
-      // Get all private conversations between you and ALL your friends in one query
       const { data: allConvoMembers, error: convoError } = await supabase
         .from('conversation_members')
         .select(`
@@ -87,7 +77,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         console.error("Error fetching conversations:", convoError);
       }
 
-      // Map conversation IDs to friend IDs for quick lookup
       const friendConvoMap = new Map<string, string>();
 
       if (allConvoMembers) {
@@ -120,23 +109,16 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
     fetchFriends();
 
-    // Subscribe to friendship changes
     const channel = supabase
       .channel('friends-list')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friendships',
-        },
-        () => fetchFriends()
-      )
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'friendships',
+      }, () => fetchFriends())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const handleFriendClick = async (friend: Friend) => {
@@ -150,7 +132,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return;
 
-    // Check if a conversation already exists between these two users
     const { data: existingConvos } = await supabase
       .from('conversation_members')
       .select('conversation_id')
@@ -175,7 +156,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       }
     }
 
-    // Create new conversation if none exists
     const { data: conversation, error } = await supabase
       .from('conversations')
       .insert({ is_group: false, created_by: authData.user.id })
@@ -187,7 +167,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       return;
     }
 
-    // Add both users as members
     await supabase.from('conversation_members').insert({ 
       conversation_id: conversation.id, 
       user_id: authData.user.id 
@@ -210,19 +189,6 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
     return friend.email.slice(0, 2).toUpperCase();
   };
 
-  // Check if friend has unread messages
-  const hasUnreadMessages = (friend: Friend) => {
-    if (!friend.conversation_id) return false;
-    // If conversation hasn't been opened in this session, check if there are any messages
-    if (!readConversations.has(friend.conversation_id)) {
-      const convo = conversations.find(c => c.id === friend.conversation_id);
-      // Has messages and not yet read in this session
-      return !!convo;
-    }
-    return false;
-  };
-
-  // Get group conversations
   const groupConversations = conversations.filter(c => c.is_group);
 
   if (loading) {
@@ -251,7 +217,9 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
           <div className="space-y-1">
             {friends.map((friend) => {
               const isSelected = friend.conversation_id === selectedConversationId;
-              const unread = hasUnreadMessages(friend);
+              const unreadCount = friend.conversation_id && getUnreadCount 
+                ? getUnreadCount(friend.conversation_id) : 0;
+              const presenceStatus = getStatus(friend.id);
               
               return (
                 <button
@@ -275,15 +243,15 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                         {getInitials(friend)}
                       </AvatarFallback>
                     </Avatar>
-                    {unread && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full border-2 border-background animate-pulse" />
-                    )}
+                    <span className="absolute -bottom-0.5 -right-0.5">
+                      <PresenceIndicator status={presenceStatus} size="md" />
+                    </span>
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <p className={cn(
                       'text-base truncate transition-colors',
                       isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
-                      unread && 'font-semibold'
+                      unreadCount > 0 && 'font-semibold'
                     )}>
                       {friend.full_name || friend.username || friend.email}
                     </p>
@@ -291,6 +259,11 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                       <p className="text-sm text-muted-foreground truncate">@{friend.username}</p>
                     )}
                   </div>
+                  {unreadCount > 0 && (
+                    <span className="flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -306,7 +279,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
             <div className="space-y-1">
               {groupConversations.map((group) => {
                 const isSelected = group.id === selectedConversationId;
-                const unread = !readConversations.has(group.id);
+                const unreadCount = getUnreadCount ? getUnreadCount(group.id) : 0;
                 
                 return (
                   <button
@@ -333,15 +306,12 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                           isSelected ? "text-primary-foreground" : "text-muted-foreground"
                         )} />
                       </div>
-                      {unread && (
-                        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full border-2 border-background animate-pulse" />
-                      )}
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className={cn(
                         'text-base truncate transition-colors',
                         isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
-                        unread && 'font-semibold'
+                        unreadCount > 0 && 'font-semibold'
                       )}>
                         {group.name || 'Unnamed Group'}
                       </p>
@@ -349,6 +319,11 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                         {group.members?.length || 0} members
                       </p>
                     </div>
+                    {unreadCount > 0 && (
+                      <span className="flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
