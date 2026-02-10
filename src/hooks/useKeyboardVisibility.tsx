@@ -1,66 +1,78 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
+/**
+ * Detects the virtual keyboard on mobile devices.
+ * 
+ * Strategy: Only report keyboard as visible when BOTH conditions are true:
+ * 1. An input/textarea is currently focused
+ * 2. The visual viewport has shrunk significantly (>200px) compared to window.innerHeight
+ * 
+ * This prevents false positives from the system navigation bar hiding/showing
+ * (which only changes the viewport by ~50-80px).
+ */
 export const useKeyboardVisibility = () => {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  const checkKeyboard = useCallback(() => {
-    const viewport = window.visualViewport;
-    if (viewport) {
-      const heightDiff = window.innerHeight - viewport.height;
-      return heightDiff > 100;
-    }
-    return false;
-  }, []);
+  const inputFocused = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let focusedInput = false;
+    const KEYBOARD_THRESHOLD = 200; // Keyboards are typically 250-400px tall
+
+    const isInputElement = (el: EventTarget | null): boolean => {
+      if (!el || !(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+    };
+
+    const checkKeyboard = () => {
+      const vp = window.visualViewport;
+      if (!vp || !inputFocused.current) {
+        setIsKeyboardVisible(false);
+        return;
+      }
+      const shrink = window.innerHeight - vp.height;
+      setIsKeyboardVisible(shrink > KEYBOARD_THRESHOLD);
+    };
 
     const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        focusedInput = true;
-        // Small delay to let the keyboard animate open
-        setTimeout(() => {
-          if (focusedInput) setIsKeyboardVisible(true);
-        }, 300);
+      if (isInputElement(e.target)) {
+        inputFocused.current = true;
+        // Delay to let keyboard animate open before measuring
+        setTimeout(checkKeyboard, 350);
       }
     };
 
-    const handleFocusOut = (e: FocusEvent) => {
-      focusedInput = false;
-      // Small delay to prevent flicker when switching between inputs
+    const handleFocusOut = () => {
+      inputFocused.current = false;
+      // Small delay to handle switching between inputs
       setTimeout(() => {
-        if (!focusedInput) setIsKeyboardVisible(false);
+        if (!inputFocused.current) {
+          setIsKeyboardVisible(false);
+        }
       }, 100);
     };
 
     const handleViewportResize = () => {
-      const isOpen = checkKeyboard();
-      if (isOpen) {
-        setIsKeyboardVisible(true);
-      } else if (!focusedInput) {
-        setIsKeyboardVisible(false);
-      }
+      checkKeyboard();
     };
 
     document.addEventListener('focusin', handleFocusIn);
     document.addEventListener('focusout', handleFocusOut);
 
-    const viewport = window.visualViewport;
-    if (viewport) {
-      viewport.addEventListener('resize', handleViewportResize);
+    const vp = window.visualViewport;
+    if (vp) {
+      vp.addEventListener('resize', handleViewportResize);
     }
 
     return () => {
       document.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('focusout', handleFocusOut);
-      if (viewport) {
-        viewport.removeEventListener('resize', handleViewportResize);
+      if (vp) {
+        vp.removeEventListener('resize', handleViewportResize);
       }
     };
-  }, [checkKeyboard]);
+  }, []);
 
   return isKeyboardVisible;
 };
