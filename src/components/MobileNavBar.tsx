@@ -4,6 +4,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { triggerHaptic } from "@/utils/haptics";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useKeyboardVisibility } from "@/hooks/useKeyboardVisibility";
 import {
   HomeIcon,
   ChatIcon,
@@ -84,6 +85,7 @@ export const MobileNavBar = () => {
   const { isOwner } = useUserRole();
   const [showMore, setShowMore] = useState(false);
   const location = useLocation();
+  const isKeyboardOpen = useKeyboardVisibility();
 
   // Close more menu on route change
   useEffect(() => {
@@ -111,6 +113,9 @@ export const MobileNavBar = () => {
     triggerHaptic('selection');
     setShowMore(!showMore);
   };
+
+  // Hide nav bar entirely when keyboard is open
+  if (isKeyboardOpen) return null;
 
   return (
     <>
