@@ -349,6 +349,14 @@ html, body {
     flex-shrink: 0;
   }
 
+  /* Ensure chat input stays visible when virtual keyboard is open */
+  @supports (interactive-widget: resizes-content) {
+    .chat-input-container {
+      /* The viewport auto-resizes with interactive-widget=resizes-content */
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+
   /* Full height minus adaptive nav */
   .mobile-chat-height {
     height: calc(100% - var(--mobile-nav-height));

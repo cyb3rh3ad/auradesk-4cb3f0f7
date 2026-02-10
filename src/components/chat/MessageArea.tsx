@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Users, Phone, Video, MoreVertical } from 'lucide-react';
+import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +8,7 @@ import { Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useCall } from '@/contexts/CallContext';
+import { useChatFileUpload } from '@/hooks/useChatFileUpload';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ChatOptionsMenu } from './ChatOptionsMenu';
@@ -21,14 +22,47 @@ interface MessageAreaProps {
   otherUserId?: string | null;
 }
 
+// Detect if a message content is a file attachment
+const FILE_MESSAGE_REGEX = /^\[file:(.+?)\]\((.+?)\)$/;
+const isFileMessage = (content: string) => FILE_MESSAGE_REGEX.test(content);
+const parseFileMessage = (content: string) => {
+  const match = content.match(FILE_MESSAGE_REGEX);
+  if (!match) return null;
+  return { name: match[1], url: match[2] };
+};
+
+const getFileIcon = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) return ImageIcon;
+  if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)) return Film;
+  if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext)) return Music;
+  if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return FileText;
+  return FileIcon;
+};
+
+const isImageFile = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
 export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
   const { user } = useAuth();
   const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
+  const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
 
-  // Get current user's display name for typing events
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
   const handleStartCall = (withVideo: boolean) => {
@@ -52,12 +86,38 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    stopTyping(currentUserName);
-    onSendMessage(input);
-    setInput('');
+    
+    // Upload pending files first
+    if (pendingFiles.length > 0) {
+      for (const file of pendingFiles) {
+        const url = await uploadFile(file);
+        if (url) {
+          onSendMessage(`[file:${file.name}](${url})`);
+        }
+      }
+      setPendingFiles([]);
+    }
+    
+    // Send text message if any
+    if (input.trim()) {
+      stopTyping(currentUserName);
+      onSendMessage(input);
+      setInput('');
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setPendingFiles(prev => [...prev, ...files]);
+    }
+    e.target.value = '';
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const getInitials = (name: string) => {
@@ -73,12 +133,11 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     return format(date, 'MMM d, HH:mm');
   };
 
-  // Group consecutive messages from the same sender
   const groupedMessages = messages.reduce((acc: any[], message, index) => {
     const prevMessage = messages[index - 1];
     const isSameSender = prevMessage && prevMessage.sender_id === message.sender_id;
     const isWithinTimeframe = prevMessage && 
-      (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) < 60000; // 1 minute
+      (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) < 60000;
 
     if (isSameSender && isWithinTimeframe) {
       acc[acc.length - 1].messages.push(message);
@@ -91,6 +150,45 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     }
     return acc;
   }, []);
+
+  const renderMessageContent = (message: Message, isOwn: boolean) => {
+    const fileInfo = parseFileMessage(message.content);
+    
+    if (fileInfo) {
+      const Icon = getFileIcon(fileInfo.name);
+      
+      if (isImageFile(fileInfo.name)) {
+        return (
+          <a href={fileInfo.url} target="_blank" rel="noopener noreferrer" className="block">
+            <img 
+              src={fileInfo.url} 
+              alt={fileInfo.name}
+              className="max-w-[240px] md:max-w-[320px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              loading="lazy"
+            />
+            <p className="text-[11px] mt-1 opacity-70 truncate">{fileInfo.name}</p>
+          </a>
+        );
+      }
+      
+      return (
+        <a 
+          href={fileInfo.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={cn(
+            "flex items-center gap-2 p-2 rounded-lg transition-colors",
+            isOwn ? "hover:bg-white/10" : "hover:bg-muted/50"
+          )}
+        >
+          <Icon className="w-5 h-5 shrink-0" />
+          <span className="text-sm truncate underline underline-offset-2">{fileInfo.name}</span>
+        </a>
+      );
+    }
+    
+    return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>;
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -115,27 +213,14 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => handleStartCall(false)}
-          >
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => handleStartCall(false)}>
             <Phone className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => handleStartCall(true)}
-          >
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => handleStartCall(true)}>
             <Video className="w-4 h-4" />
           </Button>
           {!isGroup && otherUserId && (
-            <ChatOptionsMenu 
-              targetUserId={otherUserId} 
-              targetUserName={conversationName}
-            >
+            <ChatOptionsMenu targetUserId={otherUserId} targetUserName={conversationName}>
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                 <MoreVertical className="w-4 h-4" />
               </Button>
@@ -166,10 +251,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
               const firstMessage = group.messages[0];
 
               return (
-                <div
-                  key={`group-${groupIndex}`}
-                  className={cn('flex gap-2 md:gap-3', isOwn && 'flex-row-reverse')}
-                >
+                <div key={`group-${groupIndex}`} className={cn('flex gap-2 md:gap-3', isOwn && 'flex-row-reverse')}>
                   <Avatar className="w-7 h-7 md:w-8 md:h-8 mt-1 shrink-0">
                     <AvatarImage src={group.sender?.avatar_url} />
                     <AvatarFallback className={cn(
@@ -198,7 +280,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                             : 'bg-card border border-border/50 rounded-tl-md'
                         )}
                       >
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
+                        {renderMessageContent(message, isOwn)}
                       </div>
                     ))}
                   </div>
@@ -209,7 +291,26 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         </div>
       </ScrollArea>
 
-      {/* Typing Indicator & Input - Adaptive positioning using CSS variables */}
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        // @ts-ignore - webkitdirectory is not in types
+        webkitdirectory=""
+        directory=""
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
+      {/* Typing Indicator & Input */}
       <div className="border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 chat-input-container">
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
@@ -227,8 +328,44 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             </div>
           </div>
         )}
+
+        {/* Pending files preview */}
+        {pendingFiles.length > 0 && (
+          <div className="px-3 md:px-4 pt-2 flex gap-2 flex-wrap">
+            {pendingFiles.map((file, i) => {
+              const Icon = getFileIcon(file.name);
+              return (
+                <div key={i} className="flex items-center gap-1.5 bg-muted/60 rounded-lg px-2.5 py-1.5 text-xs max-w-[200px]">
+                  <Icon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{file.name}</span>
+                  <span className="text-muted-foreground shrink-0">({formatFileSize(file.size)})</span>
+                  <button onClick={() => removePendingFile(i)} className="shrink-0 hover:text-destructive ml-0.5">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="p-3 md:p-4 pb-4 flex gap-2 md:gap-3 items-center safe-area-pb">
+          {/* Attachment button with dropdown */}
+          <div className="relative shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 text-muted-foreground hover:text-foreground touch-manipulation"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Paperclip className="w-5 h-5" />
+              )}
+            </Button>
+          </div>
           <Input
             value={input}
             onChange={handleInputChange}
@@ -238,7 +375,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           <Button 
             type="submit" 
             size="icon" 
-            disabled={!input.trim()}
+            disabled={!input.trim() && pendingFiles.length === 0}
             className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-11 w-11 touch-manipulation"
           >
             <Send className="w-5 h-5" />
