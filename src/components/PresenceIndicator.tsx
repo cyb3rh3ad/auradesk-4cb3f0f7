@@ -16,9 +16,9 @@ const statusConfig: Record<PresenceStatus, { color: string; label: string }> = {
 };
 
 const sizeClasses = {
-  sm: 'w-2.5 h-2.5',
-  md: 'w-3 h-3',
-  lg: 'w-3.5 h-3.5',
+  sm: 'w-3 h-3',
+  md: 'w-3.5 h-3.5',
+  lg: 'w-4 h-4',
 };
 
 export const PresenceIndicator = ({ status, size = 'md', className }: PresenceIndicatorProps) => {

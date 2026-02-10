@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Command, LogOut, Settings, User } from "lucide-react";
+import { Command, LogOut, Settings, User, Circle, Moon, MinusCircle, CheckCircle2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -12,16 +12,26 @@ import { NotificationsDropdown } from "./NotificationsDropdown";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePresenceContext } from "@/contexts/PresenceContext";
+import { PresenceIndicator } from "./PresenceIndicator";
+import { PresenceStatus } from "@/hooks/usePresence";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
+  const { myStatus, setManualStatus } = usePresenceContext();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
+
+  const statusOptions: { status: 'online' | 'dnd'; icon: React.ReactNode; label: string; color: string }[] = [
+    { status: 'online', icon: <CheckCircle2 className="w-4 h-4 text-green-500" />, label: 'Available', color: 'text-green-500' },
+    { status: 'dnd', icon: <MinusCircle className="w-4 h-4 text-red-500" />, label: 'Do Not Disturb', color: 'text-red-500' },
+  ];
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -136,6 +146,9 @@ export const Header = () => {
                 {user?.email ? getInitials(user.email) : "AD"}
               </AvatarFallback>
             </Avatar>
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <PresenceIndicator status={myStatus} size="sm" />
+            </span>
           </button>
 
           {/* Portal dropdown to body */}
@@ -171,6 +184,52 @@ export const Header = () => {
                       <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                     </div>
                   </div>
+                </div>
+                
+                {/* Status picker */}
+                <div className="p-2 border-t border-border/50">
+                  <button
+                    onClick={() => setStatusPickerOpen(!statusPickerOpen)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                      <PresenceIndicator status={myStatus} size="sm" />
+                    </div>
+                    <span className="flex-1 text-left">
+                      {myStatus === 'dnd' ? 'Do Not Disturb' : myStatus === 'idle' ? 'Idle' : myStatus === 'in_call' ? 'In a Call' : 'Available'}
+                    </span>
+                    <Circle className={cn("w-3 h-3 text-muted-foreground transition-transform", statusPickerOpen && "rotate-90")} />
+                  </button>
+                  <AnimatePresence>
+                    {statusPickerOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pl-4 py-1 space-y-0.5">
+                          {statusOptions.map((opt) => (
+                            <button
+                              key={opt.status}
+                              onClick={() => {
+                                setManualStatus(opt.status);
+                                setStatusPickerOpen(false);
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors",
+                                ((myStatus === 'online' && opt.status === 'online') || (myStatus === 'dnd' && opt.status === 'dnd')) && "bg-muted/60"
+                              )}
+                            >
+                              {opt.icon}
+                              <span>{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 
                 {/* Menu items */}
