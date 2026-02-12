@@ -18,7 +18,7 @@ import { TranscriptViewer } from '@/components/meetings/TranscriptViewer';
 import { AIAssistant } from '@/components/meetings/AIAssistant';
 import { MeetingRoom } from '@/components/meetings/MeetingRoom';
 import { cn } from '@/lib/utils';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Meetings = () => {
@@ -482,14 +482,6 @@ const Meetings = () => {
       </Dialog>
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
-        {content}
-      </PullToRefresh>
-    );
-  }
 
   return content;
 };

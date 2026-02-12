@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Files = () => {
@@ -198,14 +198,6 @@ const Files = () => {
       </AlertDialog>
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
-        {content}
-      </PullToRefresh>
-    );
-  }
 
   return content;
 };
