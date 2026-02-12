@@ -11,7 +11,7 @@ import { usePresenceContext } from "@/contexts/PresenceContext";
 import { PresenceIndicator } from "@/components/PresenceIndicator";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -257,14 +257,6 @@ const Dashboard = () => {
       </motion.div>
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
-        {content}
-      </PullToRefresh>
-    );
-  }
 
   return content;
 };

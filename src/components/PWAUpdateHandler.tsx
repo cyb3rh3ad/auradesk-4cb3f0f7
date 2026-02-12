@@ -1,36 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { toast } from 'sonner';
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { RefreshCw, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * PWA Update Handler - Manages automatic updates for the installed PWA
- * 
- * This component:
- * 1. Checks for updates periodically (every 60 seconds when online)
- * 2. Auto-updates in the background when a new version is available
- * 3. Shows a toast notification when an update is ready
- * 4. Reloads the app to apply the update
+ * PWA Update Handler - Shows a simple popup banner when an update is ready.
+ * The user must tap it to apply the update. No auto-refresh.
  */
 export const PWAUpdateHandler = () => {
-  const [showReload, setShowReload] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    // Check for updates every 60 seconds when the app is focused
-    onRegisteredSW(swUrl, registration) {
+    onRegisteredSW(_swUrl, registration) {
       if (registration) {
-        // Check for updates periodically
+        // Check for updates every 60 seconds when visible & online
         setInterval(() => {
           if (document.visibilityState === 'visible' && navigator.onLine) {
             registration.update();
           }
-        }, 20 * 1000); // Every 20 seconds
-        
-        console.log('PWA: Service worker registered');
+        }, 60 * 1000);
       }
     },
     onRegisterError(error) {
@@ -38,47 +29,49 @@ export const PWAUpdateHandler = () => {
     },
   });
 
-  // When a new version is available
+  const showBanner = needRefresh && !dismissed;
+
+  const handleUpdate = () => {
+    updateServiceWorker(true);
+  };
+
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissed(true);
+  };
+
+  // Reset dismissed state if a NEW update comes in after dismissal
   useEffect(() => {
-    if (needRefresh) {
-      setShowReload(true);
-      
-      // Show toast with update option
-      toast('Update Available', {
-        description: 'A new version is ready. Tap to update now.',
-        duration: 10000,
-        icon: <RefreshCw className="w-4 h-4 text-primary animate-spin" />,
-        action: {
-          label: 'Update',
-          onClick: () => {
-            updateServiceWorker(true);
-          },
-        },
-      });
-      
-      // Auto-update after 5 seconds if user doesn't interact
-      const autoUpdateTimer = setTimeout(() => {
-        updateServiceWorker(true);
-      }, 5000);
-      
-      return () => clearTimeout(autoUpdateTimer);
-    }
-  }, [needRefresh, updateServiceWorker]);
+    if (needRefresh) setDismissed(false);
+  }, [needRefresh]);
 
-  // Also handle visibility change - refresh when app comes back to focus if update pending
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && showReload) {
-        // App came back to foreground with pending update - apply it
-        updateServiceWorker(true);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [showReload, updateServiceWorker]);
-
-  // This component doesn't render anything visible
-  // Updates are handled via toast notifications
-  return null;
+  return (
+    <AnimatePresence>
+      {showBanner && (
+        <motion.div
+          initial={{ y: -80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -80, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          onClick={handleUpdate}
+          className="fixed top-[env(safe-area-inset-top,0px)] left-0 right-0 z-[9999] flex items-center justify-center px-4 pt-2 cursor-pointer"
+          style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 backdrop-blur-xl max-w-sm w-full">
+            <RefreshCw className="w-4 h-4 flex-shrink-0 animate-spin" />
+            <span className="text-sm font-medium flex-1">
+              New update available — tap to refresh
+            </span>
+            <button
+              onClick={handleDismiss}
+              className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 };

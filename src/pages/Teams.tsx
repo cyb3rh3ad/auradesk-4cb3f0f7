@@ -19,7 +19,7 @@ import { IncomingTeamCallDialog } from '@/components/teams/IncomingTeamCallDialo
 import { TeamChannelsSidebar } from '@/components/teams/TeamChannelsSidebar';
 import { ChannelChat } from '@/components/teams/ChannelChat';
 import { VoiceChannelRoom } from '@/components/teams/VoiceChannelRoom';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Teams = () => {
@@ -498,14 +498,6 @@ const Teams = () => {
       )}
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-full overflow-auto">
-        {teamsListContent}
-      </PullToRefresh>
-    );
-  }
 
   return teamsListContent;
 };
