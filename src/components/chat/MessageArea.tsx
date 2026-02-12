@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2 } from 'lucide-react';
+import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -72,22 +73,37 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
+  const isKeyboardOpen = useKeyboardVisibility();
 
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
-  const handleStartCall = (withVideo: boolean) => {
-    if (!conversationId) return;
-    initiateCall(conversationId, conversationName, withVideo);
-  };
-
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollContainer) {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages]);
+  }, []);
+
+  const handleStartCall = (withVideo: boolean) => {
+    if (!conversationId) return;
+    initiateCall(conversationId, conversationName, withVideo);
+  };
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Scroll to bottom when keyboard opens so latest messages stay visible
+  useEffect(() => {
+    if (isKeyboardOpen) {
+      // Small delay to let the viewport finish resizing
+      const timer = setTimeout(scrollToBottom, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isKeyboardOpen, scrollToBottom]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
