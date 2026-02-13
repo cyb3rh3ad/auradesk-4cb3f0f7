@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical, Palette } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { getPresenceLabel } from '@/components/PresenceIndicator';
@@ -17,6 +17,8 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCall } from '@/contexts/CallContext';
 import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { WallpaperPicker, getWallpaper, type WallpaperId } from '@/components/chat/ChatWallpaper';
 
 const Chat = () => {
   const isMobile = useIsMobile();
@@ -120,6 +122,24 @@ const Chat = () => {
                 </div>
                 {/* Call & Options buttons */}
                 <div className="flex items-center gap-0.5 shrink-0">
+                  {/* Wallpaper picker */}
+                  {selectedConversationId && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground">
+                          <Palette className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto" align="end">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Chat Wallpaper</p>
+                        <WallpaperPicker
+                          conversationId={selectedConversationId}
+                          currentWallpaper={getWallpaper(selectedConversationId)}
+                          onSelect={() => {}}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

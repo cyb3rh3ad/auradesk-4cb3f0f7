@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon } from 'lucide-react';
+import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,11 @@ import { VoiceRecorder } from './VoiceRecorder';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { CameraCapture } from './CameraCapture';
 import { MessageReactionMenu } from './MessageReactionMenu';
+import { ScrollToBottomFAB } from './ScrollToBottomFAB';
+import { WallpaperPicker, getWallpaper, getWallpaperClass, type WallpaperId } from './ChatWallpaper';
+import { playSendSound, playReceiveSound } from '@/utils/chatSounds';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -73,53 +77,91 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<{ id: string; content: string; senderName: string } | null>(null);
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
+  const [showScrollFAB, setShowScrollFAB] = useState(false);
+  const [wallpaper, setWallpaper] = useState<WallpaperId>('none');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevMessageCountRef = useRef(0);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
   const isKeyboardOpen = useKeyboardVisibility();
 
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
-  const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
+  // Load wallpaper for this conversation
+  useEffect(() => {
+    if (conversationId) {
+      setWallpaper(getWallpaper(conversationId));
     }
+  }, [conversationId]);
+
+  const getScrollContainer = useCallback(() => {
+    return scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
   }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = getScrollContainer();
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [getScrollContainer]);
+
+  const isNearBottom = useCallback(() => {
+    const el = getScrollContainer();
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+  }, [getScrollContainer]);
 
   const handleStartCall = (withVideo: boolean) => {
     if (!conversationId) return;
     initiateCall(conversationId, conversationName, withVideo);
   };
 
-  // Scroll to bottom on new messages
+  // Track scroll position for FAB
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    const el = getScrollContainer();
+    if (!el) return;
+    const handleScroll = () => {
+      setShowScrollFAB(!isNearBottom());
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [getScrollContainer, isNearBottom]);
+
+  // Scroll to bottom on new messages + play sounds
+  useEffect(() => {
+    const prevCount = prevMessageCountRef.current;
+    const newCount = messages.length;
+    prevMessageCountRef.current = newCount;
+
+    if (newCount > prevCount && prevCount > 0) {
+      const lastMsg = messages[newCount - 1];
+      if (lastMsg?.sender_id === user?.id) {
+        playSendSound();
+      } else {
+        playReceiveSound();
+      }
+    }
+
+    if (isNearBottom()) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom, isNearBottom, user?.id]);
 
   // Scroll to bottom when chat input is focused (keyboard opens)
-  // Multiple retries to catch the keyboard open animation at different stages
   useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
+    const inputEl = inputRef.current;
+    if (!inputEl) return;
 
     const handleFocus = () => {
-      // Scroll immediately, then again at intervals to catch keyboard resize
       scrollToBottom();
       const t1 = setTimeout(scrollToBottom, 150);
       const t2 = setTimeout(scrollToBottom, 350);
       const t3 = setTimeout(scrollToBottom, 600);
       
-      // Also listen to viewport resize for the duration of the keyboard animation
       const vp = window.visualViewport;
       const onResize = () => scrollToBottom();
       if (vp) {
         vp.addEventListener('resize', onResize);
-        // Clean up viewport listener after keyboard is fully open
         setTimeout(() => vp.removeEventListener('resize', onResize), 1000);
       }
 
@@ -131,8 +173,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       };
     };
 
-    input.addEventListener('focus', handleFocus);
-    return () => input.removeEventListener('focus', handleFocus);
+    inputEl.addEventListener('focus', handleFocus);
+    return () => inputEl.removeEventListener('focus', handleFocus);
   }, [scrollToBottom]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +187,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Upload pending files first
     if (pendingFiles.length > 0) {
       for (const file of pendingFiles) {
         const url = await uploadFile(file);
@@ -156,7 +197,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       setPendingFiles([]);
     }
     
-    // Send text message if any
     if (input.trim()) {
       stopTyping(currentUserName);
       const messageText = replyTo
@@ -248,7 +288,6 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   }, []);
 
   const renderMessageContent = (message: Message, isOwn: boolean) => {
-    // Check for voice message
     const voiceInfo = parseVoiceMessage(message.content);
     if (voiceInfo) {
       return (
@@ -298,6 +337,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>;
   };
 
+  const wallpaperClass = getWallpaperClass(wallpaper);
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Conversation Header - Hidden on mobile since Chat.tsx shows its own */}
@@ -321,6 +362,24 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Wallpaper picker */}
+          {conversationId && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <Palette className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto" align="end">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Chat Wallpaper</p>
+                <WallpaperPicker
+                  conversationId={conversationId}
+                  currentWallpaper={wallpaper}
+                  onSelect={setWallpaper}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => handleStartCall(false)}>
             <Phone className="w-4 h-4" />
           </Button>
@@ -342,108 +401,113 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-        <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-          {groupedMessages.length === 0 ? (
-            <div className="flex items-center justify-center h-full min-h-[200px]">
-              <div className="text-center space-y-2">
-                <p className="text-muted-foreground text-sm">No messages yet</p>
-                <p className="text-muted-foreground/60 text-xs">Send a message to start the conversation</p>
+      {/* Messages with wallpaper */}
+      <div className={cn('flex-1 min-h-0 relative', wallpaperClass)}>
+        <ScrollArea className="h-full" ref={scrollRef}>
+          <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+            {groupedMessages.length === 0 ? (
+              <div className="flex items-center justify-center h-full min-h-[200px]">
+                <div className="text-center space-y-2">
+                  <p className="text-muted-foreground text-sm">No messages yet</p>
+                  <p className="text-muted-foreground/60 text-xs">Send a message to start the conversation</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            groupedMessages.map((group, groupIndex) => {
-              const isOwn = group.sender_id === user?.id;
-              const senderName = group.sender?.full_name || group.sender?.email || 'Unknown';
-              const firstMessage = group.messages[0];
+            ) : (
+              groupedMessages.map((group, groupIndex) => {
+                const isOwn = group.sender_id === user?.id;
+                const senderName = group.sender?.full_name || group.sender?.email || 'Unknown';
+                const firstMessage = group.messages[0];
 
-              return (
-                <div key={`group-${groupIndex}`} className={cn('flex gap-2 md:gap-3', isOwn && 'flex-row-reverse')}>
-                  <Avatar className="w-7 h-7 md:w-8 md:h-8 mt-1 shrink-0">
-                    <AvatarImage src={group.sender?.avatar_url} />
-                    <AvatarFallback className={cn(
-                      "text-xs font-medium",
-                      isOwn 
-                        ? "bg-gradient-to-br from-primary to-accent text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    )}>
-                      {getInitials(senderName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className={cn('flex flex-col max-w-[80%] md:max-w-[75%] gap-0.5', isOwn && 'items-end')}>
-                    <div className={cn('flex items-center gap-2', isOwn && 'flex-row-reverse')}>
-                      <span className="text-xs font-medium text-foreground/80">{isOwn ? 'You' : senderName}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatMessageDate(new Date(firstMessage.created_at))}
-                      </span>
-                    </div>
-                    {group.messages.map((message: Message) => {
-                      const messageReactions = reactions[message.id] || [];
-                      // Parse reply quote if present
-                      const hasQuote = message.content.startsWith('> ');
-                      const quoteMatch = hasQuote ? message.content.match(/^> (.+?): (.+?)\n\n([\s\S]*)$/) : null;
-                      
-                      return (
-                        <MessageReactionMenu
-                          key={message.id}
-                          messageId={message.id}
-                          messageContent={message.content}
-                          senderId={message.sender_id}
-                          isOwn={isOwn}
-                          onReact={handleReact}
-                          onReply={handleReply}
-                          onCopy={handleCopy}
-                          senderName={senderName}
-                        >
-                          <div
-                            className={cn(
-                              'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm select-none',
-                              isOwn
-                                ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
-                                : 'bg-card border border-border/50 rounded-tl-md'
-                            )}
+                return (
+                  <div key={`group-${groupIndex}`} className={cn('flex gap-2 md:gap-3', isOwn && 'flex-row-reverse')}>
+                    <Avatar className="w-7 h-7 md:w-8 md:h-8 mt-1 shrink-0">
+                      <AvatarImage src={group.sender?.avatar_url} />
+                      <AvatarFallback className={cn(
+                        "text-xs font-medium",
+                        isOwn 
+                          ? "bg-gradient-to-br from-primary to-accent text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      )}>
+                        {getInitials(senderName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className={cn('flex flex-col max-w-[80%] md:max-w-[75%] gap-0.5', isOwn && 'items-end')}>
+                      <div className={cn('flex items-center gap-2', isOwn && 'flex-row-reverse')}>
+                        <span className="text-xs font-medium text-foreground/80">{isOwn ? 'You' : senderName}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatMessageDate(new Date(firstMessage.created_at))}
+                        </span>
+                      </div>
+                      {group.messages.map((message: Message) => {
+                        const messageReactions = reactions[message.id] || [];
+                        const hasQuote = message.content.startsWith('> ');
+                        const quoteMatch = hasQuote ? message.content.match(/^> (.+?): (.+?)\n\n([\s\S]*)$/) : null;
+                        
+                        return (
+                          <MessageReactionMenu
+                            key={message.id}
+                            messageId={message.id}
+                            messageContent={message.content}
+                            senderId={message.sender_id}
+                            isOwn={isOwn}
+                            onReact={handleReact}
+                            onReply={handleReply}
+                            onCopy={handleCopy}
+                            senderName={senderName}
                           >
-                            {/* Quoted reply */}
-                            {quoteMatch && (
-                              <div className={cn(
-                                'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
-                                isOwn 
-                                  ? 'bg-white/10 border-white/40 text-primary-foreground/80'
-                                  : 'bg-muted/50 border-primary/40 text-muted-foreground'
-                              )}>
-                                <span className="font-semibold">{quoteMatch[1]}</span>
-                                <p className="truncate">{quoteMatch[2]}</p>
+                            <div
+                              className={cn(
+                                'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm select-none',
+                                isOwn
+                                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
+                                  : 'bg-card border border-border/50 rounded-tl-md'
+                              )}
+                            >
+                              {quoteMatch && (
+                                <div className={cn(
+                                  'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
+                                  isOwn 
+                                    ? 'bg-white/10 border-white/40 text-primary-foreground/80'
+                                    : 'bg-muted/50 border-primary/40 text-muted-foreground'
+                                )}>
+                                  <span className="font-semibold">{quoteMatch[1]}</span>
+                                  <p className="truncate">{quoteMatch[2]}</p>
+                                </div>
+                              )}
+                              {quoteMatch 
+                                ? <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{quoteMatch[3]}</p>
+                                : renderMessageContent(message, isOwn)
+                              }
+                            </div>
+                            {messageReactions.length > 0 && (
+                              <div className={cn('flex gap-0.5 mt-0.5', isOwn ? 'justify-end' : 'justify-start')}>
+                                {messageReactions.map((emoji, i) => (
+                                  <span
+                                    key={i}
+                                    className="text-sm bg-card border border-border/50 rounded-full px-1.5 py-0.5 shadow-sm"
+                                  >
+                                    {emoji}
+                                  </span>
+                                ))}
                               </div>
                             )}
-                            {quoteMatch 
-                              ? <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{quoteMatch[3]}</p>
-                              : renderMessageContent(message, isOwn)
-                            }
-                          </div>
-                          {/* Reaction bubbles */}
-                          {messageReactions.length > 0 && (
-                            <div className={cn('flex gap-0.5 mt-0.5', isOwn ? 'justify-end' : 'justify-start')}>
-                              {messageReactions.map((emoji, i) => (
-                                <span
-                                  key={i}
-                                  className="text-sm bg-card border border-border/50 rounded-full px-1.5 py-0.5 shadow-sm"
-                                >
-                                  {emoji}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </MessageReactionMenu>
-                      );
-                    })}
+                          </MessageReactionMenu>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </ScrollArea>
+                );
+              })
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Scroll to bottom FAB */}
+        <ScrollToBottomFAB
+          visible={showScrollFAB}
+          onClick={scrollToBottom}
+        />
+      </div>
 
       {/* Hidden file input */}
       <input

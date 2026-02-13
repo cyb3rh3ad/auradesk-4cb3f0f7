@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,7 @@ import { Conversation } from '@/hooks/useConversations';
 import { triggerHaptic } from '@/utils/haptics';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { usePresenceContext } from '@/contexts/PresenceContext';
+import { ChatSearchBar } from './ChatSearchBar';
 
 interface Friend {
   id: string;
@@ -30,6 +31,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const { getStatus } = usePresenceContext();
 
   useEffect(() => {
@@ -191,6 +193,24 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
   const groupConversations = conversations.filter(c => c.is_group);
 
+  // Filter friends and groups by search query
+  const query = searchQuery.toLowerCase().trim();
+  const filteredFriends = useMemo(() => {
+    if (!query) return friends;
+    return friends.filter(f => 
+      (f.full_name?.toLowerCase().includes(query)) ||
+      (f.username?.toLowerCase().includes(query)) ||
+      f.email.toLowerCase().includes(query)
+    );
+  }, [friends, query]);
+
+  const filteredGroups = useMemo(() => {
+    if (!query) return groupConversations;
+    return groupConversations.filter(g => 
+      g.name?.toLowerCase().includes(query)
+    );
+  }, [groupConversations, query]);
+
   if (loading) {
     return (
       <div className="p-3">
@@ -211,11 +231,13 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
   return (
     <ScrollArea className="flex-1">
+      {/* Search bar */}
+      <ChatSearchBar value={searchQuery} onChange={setSearchQuery} />
       <div className="py-2 px-2">
         {/* Friends Section */}
-        {friends.length > 0 && (
+        {filteredFriends.length > 0 && (
           <div className="space-y-1">
-            {friends.map((friend) => {
+            {filteredFriends.map((friend) => {
               const isSelected = friend.conversation_id === selectedConversationId;
               const unreadCount = friend.conversation_id && getUnreadCount 
                 ? getUnreadCount(friend.conversation_id) : 0;
@@ -271,13 +293,13 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         )}
 
         {/* Groups Section */}
-        {groupConversations.length > 0 && (
+        {filteredGroups.length > 0 && (
           <>
             <div className="px-3 pt-5 pb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Groups</span>
             </div>
             <div className="space-y-1">
-              {groupConversations.map((group) => {
+              {filteredGroups.map((group) => {
                 const isSelected = group.id === selectedConversationId;
                 const unreadCount = getUnreadCount ? getUnreadCount(group.id) : 0;
                 
@@ -332,7 +354,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         )}
 
         {/* Empty State */}
-        {friends.length === 0 && groupConversations.length === 0 && (
+        {filteredFriends.length === 0 && filteredGroups.length === 0 && !query && (
           <div className="px-4 py-16 text-center">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
               <Users className="w-10 h-10 text-muted-foreground/50" />

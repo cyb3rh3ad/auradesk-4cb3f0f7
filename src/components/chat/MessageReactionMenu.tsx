@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Reply, Copy, Trash2 } from 'lucide-react';
+import { Reply, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 import { triggerHaptic } from '@/utils/haptics';
+import { playReactSound } from '@/utils/chatSounds';
+import { HeartBurstAnimation } from './HeartBurstAnimation';
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '👍', '😢', '🔥'];
 
@@ -31,9 +32,27 @@ export const MessageReactionMenu = ({
   children,
 }: MessageReactionMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [heartBurst, setHeartBurst] = useState(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartPos = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastTapRef = useRef(0);
+
+  // Double-tap to heart react
+  const handleDoubleTap = useCallback(() => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected!
+      triggerHaptic('medium');
+      playReactSound();
+      onReact(messageId, '❤️');
+      setHeartBurst(prev => prev + 1);
+      lastTapRef.current = 0; // reset
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [messageId, onReact]);
 
   const handleLongPressStart = useCallback((clientX: number, clientY: number) => {
     touchStartPos.current = { x: clientX, y: clientY };
@@ -59,6 +78,11 @@ export const MessageReactionMenu = ({
     }
   }, [handleLongPressEnd]);
 
+  const handleTouchEnd = useCallback(() => {
+    handleLongPressEnd();
+    handleDoubleTap();
+  }, [handleLongPressEnd, handleDoubleTap]);
+
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
@@ -76,6 +100,7 @@ export const MessageReactionMenu = ({
   }, [isOpen]);
 
   const handleReact = (emoji: string) => {
+    playReactSound();
     onReact(messageId, emoji);
     setIsOpen(false);
   };
@@ -95,8 +120,14 @@ export const MessageReactionMenu = ({
       ref={containerRef}
       className="relative"
       onTouchStart={(e) => handleLongPressStart(e.touches[0].clientX, e.touches[0].clientY)}
-      onTouchEnd={handleLongPressEnd}
+      onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
+      onDoubleClick={() => {
+        triggerHaptic('medium');
+        playReactSound();
+        onReact(messageId, '❤️');
+        setHeartBurst(prev => prev + 1);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         triggerHaptic('medium');
@@ -104,6 +135,7 @@ export const MessageReactionMenu = ({
       }}
     >
       {children}
+      <HeartBurstAnimation trigger={heartBurst} />
 
       <AnimatePresence>
         {isOpen && (
