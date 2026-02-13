@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2 } from 'lucide-react';
+import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import { ChatOptionsMenu } from './ChatOptionsMenu';
 import { VoiceRecorder } from './VoiceRecorder';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { CameraCapture } from './CameraCapture';
+import { MessageReactionMenu } from './MessageReactionMenu';
+import { toast } from 'sonner';
 
 interface MessageAreaProps {
   messages: Message[];
@@ -69,8 +71,11 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string; senderName: string } | null>(null);
+  const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
   const isKeyboardOpen = useKeyboardVisibility();
@@ -129,9 +134,33 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     // Send text message if any
     if (input.trim()) {
       stopTyping(currentUserName);
-      onSendMessage(input);
+      const messageText = replyTo
+        ? `> ${replyTo.senderName}: ${replyTo.content.slice(0, 80)}${replyTo.content.length > 80 ? '…' : ''}\n\n${input}`
+        : input;
+      onSendMessage(messageText);
       setInput('');
+      setReplyTo(null);
     }
+  };
+
+  const handleReact = (messageId: string, emoji: string) => {
+    setReactions(prev => {
+      const existing = prev[messageId] || [];
+      if (existing.includes(emoji)) {
+        return { ...prev, [messageId]: existing.filter(e => e !== emoji) };
+      }
+      return { ...prev, [messageId]: [...existing, emoji] };
+    });
+  };
+
+  const handleReply = (messageId: string, content: string, senderName: string) => {
+    setReplyTo({ id: messageId, content, senderName });
+    inputRef.current?.focus();
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success('Copied to clipboard');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -324,19 +353,65 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                         {formatMessageDate(new Date(firstMessage.created_at))}
                       </span>
                     </div>
-                    {group.messages.map((message: Message) => (
-                      <div
-                        key={message.id}
-                        className={cn(
-                          'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm',
-                          isOwn
-                            ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
-                            : 'bg-card border border-border/50 rounded-tl-md'
-                        )}
-                      >
-                        {renderMessageContent(message, isOwn)}
-                      </div>
-                    ))}
+                    {group.messages.map((message: Message) => {
+                      const messageReactions = reactions[message.id] || [];
+                      // Parse reply quote if present
+                      const hasQuote = message.content.startsWith('> ');
+                      const quoteMatch = hasQuote ? message.content.match(/^> (.+?): (.+?)\n\n([\s\S]*)$/) : null;
+                      
+                      return (
+                        <MessageReactionMenu
+                          key={message.id}
+                          messageId={message.id}
+                          messageContent={message.content}
+                          senderId={message.sender_id}
+                          isOwn={isOwn}
+                          onReact={handleReact}
+                          onReply={handleReply}
+                          onCopy={handleCopy}
+                          senderName={senderName}
+                        >
+                          <div
+                            className={cn(
+                              'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm select-none',
+                              isOwn
+                                ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
+                                : 'bg-card border border-border/50 rounded-tl-md'
+                            )}
+                          >
+                            {/* Quoted reply */}
+                            {quoteMatch && (
+                              <div className={cn(
+                                'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
+                                isOwn 
+                                  ? 'bg-white/10 border-white/40 text-primary-foreground/80'
+                                  : 'bg-muted/50 border-primary/40 text-muted-foreground'
+                              )}>
+                                <span className="font-semibold">{quoteMatch[1]}</span>
+                                <p className="truncate">{quoteMatch[2]}</p>
+                              </div>
+                            )}
+                            {quoteMatch 
+                              ? <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{quoteMatch[3]}</p>
+                              : renderMessageContent(message, isOwn)
+                            }
+                          </div>
+                          {/* Reaction bubbles */}
+                          {messageReactions.length > 0 && (
+                            <div className={cn('flex gap-0.5 mt-0.5', isOwn ? 'justify-end' : 'justify-start')}>
+                              {messageReactions.map((emoji, i) => (
+                                <span
+                                  key={i}
+                                  className="text-sm bg-card border border-border/50 rounded-full px-1.5 py-0.5 shadow-sm"
+                                >
+                                  {emoji}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </MessageReactionMenu>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -356,6 +431,22 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
 
       {/* Typing Indicator & Input */}
       <div className="relative border-t border-border/40 bg-card/80 backdrop-blur-xl shrink-0 chat-input-container">
+        {/* Reply banner */}
+        {replyTo && (
+          <div className="px-3 md:px-4 pt-2 flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border-l-2 border-primary">
+              <ReplyIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-primary">{replyTo.senderName}</p>
+                <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
+              </div>
+              <button onClick={() => setReplyTo(null)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <div className="px-3 md:px-4 pt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -413,9 +504,10 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           <CameraCapture onCapture={handleCameraCapture} disabled={uploading} />
 
           <Input
+            ref={inputRef}
             value={input}
             onChange={handleInputChange}
-            placeholder="Message..."
+            placeholder={replyTo ? 'Type a reply...' : 'Message...'}
             className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30 h-10 md:h-11 text-base rounded-full px-4"
           />
 
