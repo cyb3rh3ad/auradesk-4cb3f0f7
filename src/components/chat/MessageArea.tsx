@@ -101,14 +101,39 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Scroll to bottom when keyboard opens so latest messages stay visible
+  // Scroll to bottom when chat input is focused (keyboard opens)
+  // Multiple retries to catch the keyboard open animation at different stages
   useEffect(() => {
-    if (isKeyboardOpen) {
-      // Small delay to let the viewport finish resizing
-      const timer = setTimeout(scrollToBottom, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [isKeyboardOpen, scrollToBottom]);
+    const input = inputRef.current;
+    if (!input) return;
+
+    const handleFocus = () => {
+      // Scroll immediately, then again at intervals to catch keyboard resize
+      scrollToBottom();
+      const t1 = setTimeout(scrollToBottom, 150);
+      const t2 = setTimeout(scrollToBottom, 350);
+      const t3 = setTimeout(scrollToBottom, 600);
+      
+      // Also listen to viewport resize for the duration of the keyboard animation
+      const vp = window.visualViewport;
+      const onResize = () => scrollToBottom();
+      if (vp) {
+        vp.addEventListener('resize', onResize);
+        // Clean up viewport listener after keyboard is fully open
+        setTimeout(() => vp.removeEventListener('resize', onResize), 1000);
+      }
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        if (vp) vp.removeEventListener('resize', onResize);
+      };
+    };
+
+    input.addEventListener('focus', handleFocus);
+    return () => input.removeEventListener('focus', handleFocus);
+  }, [scrollToBottom]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
