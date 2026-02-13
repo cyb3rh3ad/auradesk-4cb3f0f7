@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { getPresenceLabel } from '@/components/PresenceIndicator';
@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCall } from '@/contexts/CallContext';
+import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
 
 const Chat = () => {
   const isMobile = useIsMobile();
@@ -23,6 +25,7 @@ const Chat = () => {
   const { conversations, loading: convoLoading, refetch } = useConversations();
   const { getUnreadCount, markAsRead } = useUnreadMessages();
   const { getStatus } = usePresenceContext();
+  const { startCall } = useCall();
   
   const initialConversation = searchParams.get('conversation');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
@@ -114,6 +117,32 @@ const Chat = () => {
                       )}
                     </div>
                   </div>
+                </div>
+                {/* Call & Options buttons */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl text-muted-foreground"
+                    onClick={() => selectedConversationId && startCall(selectedConversationId, getConversationName(), false)}
+                  >
+                    <Phone className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl text-muted-foreground"
+                    onClick={() => selectedConversationId && startCall(selectedConversationId, getConversationName(), true)}
+                  >
+                    <Video className="w-4 h-4" />
+                  </Button>
+                  {!selectedConversation?.is_group && getOtherUserId() && (
+                    <ChatOptionsMenu targetUserId={getOtherUserId()!} targetUserName={getConversationName()}>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </ChatOptionsMenu>
+                  )}
                 </div>
               </div>
               {/* Message area fills remaining space */}
