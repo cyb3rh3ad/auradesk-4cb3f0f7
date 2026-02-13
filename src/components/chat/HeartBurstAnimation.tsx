@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 interface HeartBurstAnimationProps {
-  trigger: number; // increment to trigger
+  trigger: number;
 }
 
 export const HeartBurstAnimation = ({ trigger }: HeartBurstAnimationProps) => {
@@ -10,37 +10,37 @@ export const HeartBurstAnimation = ({ trigger }: HeartBurstAnimationProps) => {
 
   useEffect(() => {
     if (trigger === 0) return;
-    const newParticles = Array.from({ length: 12 }, (_, i) => ({
+    const newParticles = Array.from({ length: 16 }, (_, i) => ({
       id: Date.now() + i,
-      x: (Math.random() - 0.5) * 120,
-      y: -30 - Math.random() * 80,
-      scale: 0.8 + Math.random() * 1.4,
-      rotate: (Math.random() - 0.5) * 60,
-      delay: Math.random() * 0.15,
+      x: (Math.random() - 0.5) * 160,
+      y: -40 - Math.random() * 100,
+      scale: 1.0 + Math.random() * 1.6,
+      rotate: (Math.random() - 0.5) * 70,
+      delay: Math.random() * 0.2,
     }));
     setParticles(newParticles);
-    const timer = setTimeout(() => setParticles([]), 1800);
+    const timer = setTimeout(() => setParticles([]), 3500);
     return () => clearTimeout(timer);
   }, [trigger]);
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-visible z-10">
+    <div className="absolute inset-0 pointer-events-none z-[100]" style={{ overflow: 'visible' }}>
       <AnimatePresence>
         {particles.map((p) => (
           <motion.span
             key={p.id}
             initial={{ opacity: 1, scale: 0, x: '50%', y: '50%' }}
             animate={{
-              opacity: [1, 1, 0.8, 0],
-              scale: [0, p.scale * 1.3, p.scale],
+              opacity: [1, 1, 1, 0.9, 0],
+              scale: [0, p.scale * 1.5, p.scale * 1.1, p.scale],
               x: `calc(50% + ${p.x}px)`,
               y: `calc(50% + ${p.y}px)`,
               rotate: p.rotate,
             }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.4, ease: 'easeOut', delay: p.delay }}
-            className="absolute text-2xl drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-            style={{ filter: 'saturate(1.4)' }}
+            transition={{ duration: 2.5, ease: 'easeOut', delay: p.delay }}
+            className="absolute text-3xl drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]"
+            style={{ filter: 'saturate(1.5)' }}
           >
             ❤️
           </motion.span>
