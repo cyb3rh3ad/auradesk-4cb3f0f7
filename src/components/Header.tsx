@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpRequestDialog } from "./HelpRequestDialog";
 import { NotificationsDropdown } from "./NotificationsDropdown";
+import { FocusModeToggle } from "./FocusModeToggle";
 import { AnimatedSearchIcon, AnimatedHeadphonesIcon } from "@/components/icons/AnimatedIcons";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -126,10 +127,11 @@ export const Header = () => {
           </Button>
         )}
 
-        <div className={cn(isMobile ? "mx-0.5" : "mx-2")}>
+        <FocusModeToggle />
+
+        <div className={cn(isMobile ? "mx-0.5" : "mx-1")}>
           <NotificationsDropdown />
         </div>
-
         {/* Profile Menu */}
         <div className="relative ml-1 md:ml-4">
           <button 

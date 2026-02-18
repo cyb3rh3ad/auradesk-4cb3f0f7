@@ -8,6 +8,8 @@ import { useAIPreferences } from '@/hooks/useAIPreferences';
 import { useSubscription } from '@/hooks/useSubscription';
 import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
 import { AIModelSelector } from '@/components/ai/AIModelSelector';
+import { PromptTemplates } from '@/components/ai/PromptTemplates';
+import { ConversationExport } from '@/components/ai/ConversationExport';
 import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -206,6 +208,10 @@ const AI = () => {
                 onModeChange={handleModeChange}
                 disabled={isLoading}
               />
+              <ConversationExport 
+                messages={messages} 
+                sessionTitle={sessions.find(s => s.id === currentSessionId)?.title}
+              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -271,6 +277,12 @@ const AI = () => {
                         <p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p>
                       </motion.button>
                     ))}
+                   </div>
+                  
+                  {/* Prompt Templates */}
+                  <div className="mt-6 w-full max-w-2xl px-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 text-center">Quick Templates</p>
+                    <PromptTemplates onSelect={(prompt) => setInput(prompt)} />
                   </div>
                 </motion.div>
               ) : (
