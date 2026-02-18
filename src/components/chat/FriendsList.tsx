@@ -59,7 +59,10 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         .select('id, full_name, username, email, avatar_url')
         .in('id', friendIds);
 
+      console.log('[FriendsList] friendIds:', friendIds, 'profiles:', profiles?.length, 'error:', profileError);
+
       if (profileError || !profiles) {
+        console.error('[FriendsList] Failed to fetch profiles:', profileError);
         setFriends([]);
         setLoading(false);
         return;
