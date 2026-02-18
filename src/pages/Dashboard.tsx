@@ -16,6 +16,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { PageHeader, AnimatedCard, StaggeredList } from "@/components/PageTransition";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { LiveTeamPulse } from "@/components/dashboard/LiveTeamPulse";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -85,6 +87,9 @@ const Dashboard = () => {
         title="Welcome to AuraDesk"
         subtitle="Your intelligent collaboration workspace"
       />
+
+      {/* Quick Actions */}
+      <QuickActions />
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
         {stats.map((stat, i) => (
@@ -178,6 +183,9 @@ const Dashboard = () => {
           </Card>
         </AnimatedCard>
       </div>
+
+      {/* Live Team Pulse */}
+      <LiveTeamPulse />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
