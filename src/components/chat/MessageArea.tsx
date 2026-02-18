@@ -484,7 +484,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                           >
                             <div
                               className={cn(
-                                'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm select-none',
+                                'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl select-none',
                                 isOwn
                                   ? cn(bubbleStyles.own, 'rounded-tr-md')
                                   : cn(bubbleStyles.other, 'rounded-tl-md')
@@ -493,9 +493,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                               {quoteMatch && (
                                 <div className={cn(
                                   'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
-                                  isOwn 
-                                    ? 'bg-white/10 border-white/40 text-primary-foreground/80'
-                                    : 'bg-muted/50 border-primary/40 text-muted-foreground'
+                                  'bg-black/15 border-white/30 opacity-80'
                                 )}>
                                   <span className="font-semibold">{quoteMatch[1]}</span>
                                   <p className="truncate">{quoteMatch[2]}</p>

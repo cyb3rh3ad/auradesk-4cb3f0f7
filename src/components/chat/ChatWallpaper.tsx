@@ -9,7 +9,6 @@ export const WALLPAPERS = [
   { id: 'ocean', label: 'Ocean', className: 'bg-gradient-to-br from-[#0a192f] via-[#112240] to-[#0d2137]' },
   { id: 'forest', label: 'Forest', className: 'bg-gradient-to-br from-[#0b1a0b] via-[#1a2f1a] to-[#0f2b1d]' },
   { id: 'warm', label: 'Warm', className: 'bg-gradient-to-br from-[#1a1a0e] via-[#2d2a1a] to-[#1a1510]' },
-  // New wallpapers
   { id: 'neon', label: 'Neon', className: 'bg-gradient-to-br from-[#0a0a1a] via-[#1a0a2e] to-[#0d0d2b]' },
   { id: 'candy', label: 'Candy', className: 'bg-gradient-to-br from-[#2d1326] via-[#1a1030] to-[#261030]' },
   { id: 'arctic', label: 'Arctic', className: 'bg-gradient-to-br from-[#0c1929] via-[#142942] to-[#0e2035]' },
@@ -20,54 +19,55 @@ export const WALLPAPERS = [
 ] as const;
 
 // ===== CHAT BUBBLE THEMES =====
+// All themes designed for dark mode readability with consistent contrast
 export const BUBBLE_THEMES = [
   { 
     id: 'default', label: 'Default',
-    own: 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground',
-    other: 'bg-card border border-border/50',
-    preview: 'bg-gradient-to-r from-primary to-primary/80',
+    own: 'bg-primary text-primary-foreground',
+    other: 'bg-card/80 text-card-foreground border border-border/40',
+    preview: 'bg-primary',
   },
   { 
     id: 'messenger', label: 'Messenger',
-    own: 'bg-gradient-to-br from-[#0084ff] to-[#0066cc] text-white',
-    other: 'bg-[#3a3b3c] text-white border-0',
-    preview: 'bg-gradient-to-r from-[#0084ff] to-[#0066cc]',
+    own: 'bg-[#0084ff] text-white',
+    other: 'bg-[#303133] text-[#e4e6eb]',
+    preview: 'bg-[#0084ff]',
   },
   { 
     id: 'whatsapp', label: 'WhatsApp',
-    own: 'bg-gradient-to-br from-[#005c4b] to-[#00473a] text-white',
-    other: 'bg-[#1f2c34] text-white border-0',
-    preview: 'bg-gradient-to-r from-[#005c4b] to-[#00473a]',
+    own: 'bg-[#005c4b] text-[#e9edef]',
+    other: 'bg-[#202c33] text-[#e9edef]',
+    preview: 'bg-[#005c4b]',
   },
   { 
-    id: 'iMessage', label: 'iMessage',
-    own: 'bg-gradient-to-br from-[#34c759] to-[#28a745] text-white',
-    other: 'bg-[#e5e5ea] text-[#1c1c1e] border-0 dark:bg-[#3a3a3c] dark:text-white',
-    preview: 'bg-gradient-to-r from-[#34c759] to-[#28a745]',
+    id: 'imessage', label: 'iMessage',
+    own: 'bg-[#007aff] text-white',
+    other: 'bg-[#2c2c2e] text-[#f2f2f7]',
+    preview: 'bg-[#007aff]',
   },
   { 
     id: 'telegram', label: 'Telegram',
-    own: 'bg-gradient-to-br from-[#4ea4f6] to-[#3d8ed0] text-white',
-    other: 'bg-white/10 backdrop-blur-sm text-foreground border border-white/10',
-    preview: 'bg-gradient-to-r from-[#4ea4f6] to-[#3d8ed0]',
+    own: 'bg-[#3d8ed0] text-white',
+    other: 'bg-[#212121] text-[#f5f5f5]',
+    preview: 'bg-[#3d8ed0]',
   },
   { 
     id: 'discord', label: 'Discord',
     own: 'bg-[#5865f2] text-white',
-    other: 'bg-[#2b2d31] text-[#dcddde] border-0',
+    other: 'bg-[#2b2d31] text-[#dbdee1]',
     preview: 'bg-[#5865f2]',
   },
   { 
     id: 'snapchat', label: 'Snapchat',
-    own: 'bg-gradient-to-br from-[#fffc00] to-[#e6e300] text-[#1c1c1c]',
-    other: 'bg-[#f0f0f0] text-[#1c1c1c] border-0 dark:bg-[#2a2a2a] dark:text-white',
-    preview: 'bg-gradient-to-r from-[#fffc00] to-[#e6e300]',
+    own: 'bg-[#8b5cf6] text-white',
+    other: 'bg-[#1e1e1e] text-[#f0f0f0]',
+    preview: 'bg-[#8b5cf6]',
   },
   { 
     id: 'neon-glow', label: 'Neon Glow',
-    own: 'bg-gradient-to-br from-[#ff006e] to-[#8338ec] text-white shadow-lg shadow-[#ff006e]/20',
-    other: 'bg-[#1a1a2e] text-white border border-[#8338ec]/30 shadow-lg shadow-[#8338ec]/10',
-    preview: 'bg-gradient-to-r from-[#ff006e] to-[#8338ec]',
+    own: 'bg-gradient-to-br from-[#e040fb] to-[#7c4dff] text-white',
+    other: 'bg-[#1a1a2e]/90 text-[#e8e8e8] border border-[#7c4dff]/25',
+    preview: 'bg-gradient-to-r from-[#e040fb] to-[#7c4dff]',
   },
 ] as const;
 
@@ -94,7 +94,10 @@ export const getWallpaperClass = (wallpaperId: WallpaperId): string => {
 };
 
 export const getBubbleTheme = (): BubbleThemeId => {
-  return (localStorage.getItem(BUBBLE_THEME_KEY) as BubbleThemeId) || 'default';
+  // Handle legacy 'iMessage' key → new 'imessage'
+  const stored = localStorage.getItem(BUBBLE_THEME_KEY);
+  if (stored === 'iMessage') return 'imessage';
+  return (stored as BubbleThemeId) || 'default';
 };
 
 export const setBubbleThemeStorage = (themeId: BubbleThemeId) => {
