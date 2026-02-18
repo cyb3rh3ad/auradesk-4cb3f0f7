@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette } from 'lucide-react';
+import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette, Pin } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,11 @@ import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { CameraCapture } from './CameraCapture';
 import { MessageReactionMenu } from './MessageReactionMenu';
 import { ScrollToBottomFAB } from './ScrollToBottomFAB';
-import { WallpaperPicker, getWallpaper, getWallpaperClass, type WallpaperId } from './ChatWallpaper';
+import { WallpaperPicker, BubbleThemePicker, getWallpaper, getWallpaperClass, getBubbleTheme, getBubbleClasses, type WallpaperId, type BubbleThemeId } from './ChatWallpaper';
+import { PinnedMessagesDrawer } from './PinnedMessagesDrawer';
+import { ScheduleMessageDialog } from './ScheduleMessageDialog';
+import { LinkPreview } from './LinkPreview';
+import { renderFormattedMessage, extractFirstUrl } from '@/utils/messageFormatting';
 import { playSendSound, playReceiveSound } from '@/utils/chatSounds';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -79,6 +83,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const [showScrollFAB, setShowScrollFAB] = useState(false);
   const [wallpaper, setWallpaper] = useState<WallpaperId>('none');
+  const [bubbleTheme, setBubbleTheme] = useState<BubbleThemeId>('default');
+  const [showPinnedDrawer, setShowPinnedDrawer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,11 +95,12 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
 
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
 
-  // Load wallpaper for this conversation
+  // Load wallpaper and bubble theme for this conversation
   useEffect(() => {
     if (conversationId) {
       setWallpaper(getWallpaper(conversationId));
     }
+    setBubbleTheme(getBubbleTheme());
   }, [conversationId]);
 
   const getScrollContainer = useCallback(() => {
@@ -334,10 +341,20 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       );
     }
     
-    return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>;
+    // Render formatted text with markdown + link previews
+    const firstUrl = extractFirstUrl(message.content);
+    return (
+      <div>
+        <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+          {renderFormattedMessage(message.content)}
+        </div>
+        {firstUrl && <LinkPreview url={firstUrl} isOwn={isOwn} />}
+      </div>
+    );
   };
 
   const wallpaperClass = getWallpaperClass(wallpaper);
+  const bubbleStyles = getBubbleClasses(bubbleTheme);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -370,15 +387,25 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                   <Palette className="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto" align="end">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Chat Wallpaper</p>
-                <WallpaperPicker
-                  conversationId={conversationId}
-                  currentWallpaper={wallpaper}
-                  onSelect={setWallpaper}
-                />
+              <PopoverContent className="w-auto max-w-xs" align="end">
+                <div className="space-y-4">
+                  <WallpaperPicker
+                    conversationId={conversationId}
+                    currentWallpaper={wallpaper}
+                    onSelect={setWallpaper}
+                  />
+                  <BubbleThemePicker
+                    currentTheme={bubbleTheme}
+                    onSelect={setBubbleTheme}
+                  />
+                </div>
               </PopoverContent>
             </Popover>
+          )}
+          {conversationId && (
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setShowPinnedDrawer(true)}>
+              <Pin className="w-4 h-4" />
+            </Button>
           )}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => handleStartCall(false)}>
             <Phone className="w-4 h-4" />
@@ -459,8 +486,8 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                               className={cn(
                                 'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl shadow-sm select-none',
                                 isOwn
-                                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-md'
-                                  : 'bg-card border border-border/50 rounded-tl-md'
+                                  ? cn(bubbleStyles.own, 'rounded-tr-md')
+                                  : cn(bubbleStyles.other, 'rounded-tl-md')
                               )}
                             >
                               {quoteMatch && (
@@ -475,7 +502,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
                                 </div>
                               )}
                               {quoteMatch 
-                                ? <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{quoteMatch[3]}</p>
+                                ? <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{renderFormattedMessage(quoteMatch[3])}</div>
                                 : renderMessageContent(message, isOwn)
                               }
                             </div>
@@ -508,6 +535,15 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
           onClick={scrollToBottom}
         />
       </div>
+
+      {/* Pinned messages drawer */}
+      {conversationId && (
+        <PinnedMessagesDrawer
+          conversationId={conversationId}
+          open={showPinnedDrawer}
+          onClose={() => setShowPinnedDrawer(false)}
+        />
+      )}
 
       {/* Hidden file input */}
       <input
@@ -600,16 +636,25 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
             className="flex-1 bg-background/80 border-border/50 focus-visible:ring-primary/30 h-10 md:h-11 text-base rounded-full px-4"
           />
 
-          {/* Voice recorder or Send button */}
+          {/* Voice recorder, schedule, or Send button */}
           {input.trim() || pendingFiles.length > 0 ? (
-            <Button 
-              type="submit" 
-              size="icon" 
-              disabled={!input.trim() && pendingFiles.length === 0}
-              className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-10 w-10 md:h-11 md:w-11 touch-manipulation rounded-full"
-            >
-              <Send className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-0.5">
+              {conversationId && input.trim() && (
+                <ScheduleMessageDialog
+                  conversationId={conversationId}
+                  messageContent={input}
+                  onScheduled={() => setInput('')}
+                />
+              )}
+              <Button 
+                type="submit" 
+                size="icon" 
+                disabled={!input.trim() && pendingFiles.length === 0}
+                className="shrink-0 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 h-10 w-10 md:h-11 md:w-11 touch-manipulation rounded-full"
+              >
+                <Send className="w-5 h-5" />
+              </Button>
+            </div>
           ) : (
             <VoiceRecorder onRecordingComplete={handleVoiceRecording} disabled={uploading} />
           )}

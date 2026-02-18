@@ -456,6 +456,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pinned_messages: {
+        Row: {
+          conversation_id: string
+          id: string
+          message_id: string
+          pinned_at: string
+          pinned_by: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          message_id: string
+          pinned_at?: string
+          pinned_by: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          message_id?: string
+          pinned_at?: string
+          pinned_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinned_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pinned_messages_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -465,6 +504,8 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          mood_emoji: string | null
+          mood_text: string | null
           theme: string | null
           updated_at: string
           username: string | null
@@ -477,6 +518,8 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          mood_emoji?: string | null
+          mood_text?: string | null
           theme?: string | null
           updated_at?: string
           username?: string | null
@@ -489,6 +532,8 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          mood_emoji?: string | null
+          mood_text?: string | null
           theme?: string | null
           updated_at?: string
           username?: string | null
@@ -595,6 +640,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          scheduled_at: string
+          sender_id: string
+          sent: boolean
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          scheduled_at: string
+          sender_id: string
+          sent?: boolean
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          scheduled_at?: string
+          sender_id?: string
+          sent?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_channels: {
         Row: {
