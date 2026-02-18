@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, X, SwitchCamera, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +33,7 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -47,6 +49,13 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
     try {
       stopStream();
       setLoading(true);
+      setError(null);
+
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera not supported on this device');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
@@ -54,27 +63,38 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        // Wait for video to be ready before playing
+        await new Promise<void>((resolve, reject) => {
+          const video = videoRef.current!;
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(reject);
+          };
+          // Timeout fallback
+          setTimeout(() => resolve(), 3000);
+        });
       }
       setLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera access failed:', err);
       setLoading(false);
-      setIsOpen(false);
+      setError(err?.message || 'Could not access camera. Please grant camera permission.');
     }
   }, [stopStream]);
 
   const openCamera = useCallback(async () => {
     setIsOpen(true);
     setCapturedImage(null);
+    setError(null);
     triggerHaptic('light');
-    await startCamera(facingMode);
+    // Small delay to let the portal mount before starting camera
+    setTimeout(() => startCamera(facingMode), 100);
   }, [facingMode, startCamera]);
 
   const closeCamera = useCallback(() => {
     stopStream();
     setIsOpen(false);
     setCapturedImage(null);
+    setError(null);
   }, [stopStream]);
 
   const switchCamera = useCallback(async () => {
@@ -112,8 +132,118 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
 
   const handleRetake = useCallback(async () => {
     setCapturedImage(null);
+    setError(null);
     await startCamera(facingMode);
   }, [facingMode, startCamera]);
+
+  // Use portal to render fullscreen overlay at document root
+  // This escapes any parent overflow:hidden or z-index stacking contexts
+  const cameraOverlay = isOpen ? createPortal(
+    <AnimatePresence>
+      {capturedImage ? (
+        <PhotoEditor
+          imageUrl={capturedImage}
+          onSend={handleEditorSend}
+          onRetake={handleRetake}
+        />
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            backgroundColor: '#000',
+            display: 'flex',
+            flexDirection: 'column',
+            // Use 100dvh for true fullscreen on mobile browsers
+            height: '100dvh',
+            width: '100vw',
+          }}
+        >
+          {/* Camera viewfinder */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+              }}
+            />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                <Loader2 className="w-10 h-10 text-white animate-spin" />
+              </div>
+            )}
+            {error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 px-6 text-center">
+                <Camera className="w-16 h-16 text-white/40 mb-4" />
+                <p className="text-white text-lg font-medium mb-2">Camera Unavailable</p>
+                <p className="text-white/60 text-sm mb-6">{error}</p>
+                <button
+                  onClick={closeCamera}
+                  className="px-6 py-3 rounded-full bg-white/20 text-white font-medium"
+                >
+                  Go Back
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom controls */}
+          {!error && (
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.85)',
+                backdropFilter: 'blur(20px)',
+                padding: '24px',
+                paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+              }}
+            >
+              <div className="flex items-center justify-between max-w-sm mx-auto">
+                {/* Close */}
+                <button
+                  onClick={closeCamera}
+                  className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white active:bg-white/20 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                {/* Shutter */}
+                <motion.button
+                  onClick={takePhoto}
+                  whileTap={{ scale: 0.85 }}
+                  disabled={loading}
+                  className="w-[76px] h-[76px] rounded-full border-[4px] border-white flex items-center justify-center disabled:opacity-50"
+                >
+                  <div className="w-[64px] h-[64px] rounded-full bg-white" />
+                </motion.button>
+
+                {/* Flip */}
+                <button
+                  onClick={switchCamera}
+                  className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white active:bg-white/20 transition-colors"
+                >
+                  <SwitchCamera className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  ) : null;
 
   return (
     <>
@@ -130,68 +260,8 @@ export const CameraCapture = ({ onCapture, disabled }: CameraCaptureProps) => {
         <Camera className="w-5 h-5" />
       </button>
 
-      <canvas ref={canvasRef} className="hidden" />
-
-      <AnimatePresence>
-        {isOpen && (
-          capturedImage ? (
-            <PhotoEditor
-              imageUrl={capturedImage}
-              onSend={handleEditorSend}
-              onRetake={handleRetake}
-            />
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9999] bg-black flex flex-col"
-            >
-              <div className="flex-1 relative overflow-hidden">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={cn(
-                    "w-full h-full object-cover",
-                    facingMode === 'user' && "scale-x-[-1]"
-                  )}
-                />
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-black/80 backdrop-blur-xl px-6 py-6 safe-area-pb">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={closeCamera}
-                    className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors touch-manipulation"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                  <motion.button
-                    onClick={takePhoto}
-                    whileTap={{ scale: 0.85 }}
-                    className="w-[72px] h-[72px] rounded-full border-4 border-white flex items-center justify-center touch-manipulation"
-                  >
-                    <div className="w-[60px] h-[60px] rounded-full bg-white" />
-                  </motion.button>
-                  <button
-                    onClick={switchCamera}
-                    className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors touch-manipulation"
-                  >
-                    <SwitchCamera className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )
-        )}
-      </AnimatePresence>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      {cameraOverlay}
     </>
   );
 };
