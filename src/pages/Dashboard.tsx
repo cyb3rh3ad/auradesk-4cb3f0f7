@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 import { PageHeader, AnimatedCard, StaggeredList } from "@/components/PageTransition";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { LiveTeamPulse } from "@/components/dashboard/LiveTeamPulse";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -186,6 +187,9 @@ const Dashboard = () => {
 
       {/* Live Team Pulse */}
       <LiveTeamPulse />
+
+      {/* Activity Feed */}
+      <ActivityFeed />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

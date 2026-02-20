@@ -10,6 +10,7 @@ import { AIChatSidebar } from '@/components/ai/AIChatSidebar';
 import { AIModelSelector } from '@/components/ai/AIModelSelector';
 import { PromptTemplates } from '@/components/ai/PromptTemplates';
 import { ConversationExport } from '@/components/ai/ConversationExport';
+import { MarkdownRenderer } from '@/components/ai/MarkdownRenderer';
 import { Loader2, Send, User, Menu, X, Settings, Sparkles, Zap, Lightbulb, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -308,7 +309,9 @@ const AI = () => {
                           ? 'bg-primary text-primary-foreground rounded-br-md'
                           : 'bg-muted/80 rounded-bl-md'
                       )}>
-                        {message.content.includes('![Generated Image]') ? (
+                        {message.role === 'assistant' ? (
+                          <MarkdownRenderer content={message.content} />
+                        ) : message.content.includes('![Generated Image]') ? (
                           <div className="space-y-2">
                             {message.content.split('\n\n').map((part, i) => {
                               const imgMatch = part.match(/!\[Generated Image\]\((.*?)\)/);

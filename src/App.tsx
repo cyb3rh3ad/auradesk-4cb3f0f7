@@ -22,6 +22,7 @@ import { PushNotificationInit } from "@/components/PushNotificationInit";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import { PWAUpdateHandler } from "@/components/PWAUpdateHandler";
 import { useAppUpdate } from "@/hooks/useAppUpdate";
+import { CommandPalette } from "@/components/CommandPalette";
 import { supabase } from "@/integrations/supabase/client";
 import { isElectronApp } from "@/hooks/useIsElectron";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -332,6 +333,7 @@ const App = () => {
                       <CallProvider>
                         {/* Global PiP call overlay - persists across all navigation */}
                         <GlobalCallOverlay />
+                        <CommandPalette />
                         <AppLayout>
                           <Routes>
                             <Route path="/dashboard" element={<Dashboard />} />
