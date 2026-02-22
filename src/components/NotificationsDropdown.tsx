@@ -5,6 +5,14 @@ import { Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { triggerHaptic } from '@/utils/haptics';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 
 interface Notification {
   id: string;
@@ -14,11 +22,93 @@ interface Notification {
   read: boolean;
 }
 
+const NotificationsList = ({
+  notifications,
+  unreadCount,
+  onClearAll,
+  onRemove,
+  onMarkAsRead,
+  onClose,
+}: {
+  notifications: Notification[];
+  unreadCount: number;
+  onClearAll: () => void;
+  onRemove: (id: string, e: React.MouseEvent) => void;
+  onMarkAsRead: (id: string) => void;
+  onClose: () => void;
+}) => (
+  <>
+    {/* Header */}
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <span className="font-semibold text-foreground">Notifications</span>
+      <div className="flex items-center gap-2">
+        {notifications.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-7 px-2 text-muted-foreground hover:text-destructive"
+            onClick={onClearAll}
+          >
+            Clear all
+          </Button>
+        )}
+        {unreadCount > 0 && (
+          <Badge variant="secondary" className="text-xs">
+            {unreadCount} new
+          </Badge>
+        )}
+      </div>
+    </div>
+
+    {/* Notifications List */}
+    <div className="py-1 max-h-[60vh] overflow-y-auto">
+      {notifications.length === 0 ? (
+        <div className="p-6 text-center text-muted-foreground text-sm">
+          <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p>No notifications</p>
+          <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
+        </div>
+      ) : (
+        notifications.map((notification) => (
+          <div key={notification.id} className="relative group">
+            <button
+              className="w-full flex flex-col items-start gap-1 p-3 pr-10 hover:bg-accent/30 transition-colors text-left"
+              onClick={() => {
+                onMarkAsRead(notification.id);
+                onClose();
+              }}
+            >
+              <div className="flex items-center gap-2 w-full">
+                <span className="font-medium text-foreground">{notification.title}</span>
+                {!notification.read && (
+                  <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+              <span className="text-xs text-muted-foreground/60">{notification.time}</span>
+            </button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 opacity-100 md:opacity-0 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => onRemove(notification.id, e)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  </>
+);
+
 export const NotificationsDropdown = () => {
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -42,19 +132,20 @@ export const NotificationsDropdown = () => {
     setOpen(false);
   }, []);
 
-  // Update position when opening
+  // Update position when opening (desktop only)
   useEffect(() => {
-    if (open && buttonRef.current) {
+    if (open && buttonRef.current && !isMobile) {
       const rect = buttonRef.current.getBoundingClientRect();
       setMenuPosition({
         top: rect.bottom + 8,
         right: window.innerWidth - rect.right,
       });
     }
-  }, [open]);
+  }, [open, isMobile]);
 
-  // Close on click outside
+  // Close on click outside (desktop only)
   useEffect(() => {
+    if (isMobile) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (
         menuRef.current && 
@@ -73,11 +164,20 @@ export const NotificationsDropdown = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   const handleToggle = () => {
     triggerHaptic('selection');
     setOpen(!open);
+  };
+
+  const listProps = {
+    notifications,
+    unreadCount,
+    onClearAll: clearAll,
+    onRemove: removeNotification,
+    onMarkAsRead: markAsRead,
+    onClose: () => setOpen(false),
   };
 
   return (
@@ -100,7 +200,23 @@ export const NotificationsDropdown = () => {
         )}
       </Button>
 
-      {typeof document !== 'undefined' && createPortal(
+      {/* Mobile: Bottom drawer */}
+      {isMobile && (
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerContent className="max-h-[80vh]">
+            <DrawerHeader className="sr-only">
+              <DrawerTitle>Notifications</DrawerTitle>
+              <DrawerDescription>Your recent notifications</DrawerDescription>
+            </DrawerHeader>
+            <div className="pb-safe-area">
+              <NotificationsList {...listProps} />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Desktop: Portal dropdown */}
+      {!isMobile && typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {open && (
             <motion.div
@@ -121,72 +237,7 @@ export const NotificationsDropdown = () => {
               }}
               className="w-80 max-w-[calc(100vw-16px)] rounded-xl border border-border bg-background shadow-xl overflow-hidden"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="font-semibold text-foreground">Notifications</span>
-                <div className="flex items-center gap-2">
-                  {notifications.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-7 px-2 text-muted-foreground hover:text-destructive"
-                      onClick={clearAll}
-                    >
-                      Clear all
-                    </Button>
-                  )}
-                  {unreadCount > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {unreadCount} new
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Notifications List */}
-              <div className="py-1 max-h-[60vh] overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground text-sm">
-                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p>No notifications</p>
-                    <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
-                  </div>
-                ) : (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className="relative group"
-                    >
-                      <button
-                        className="w-full flex flex-col items-start gap-1 p-3 pr-10 hover:bg-accent/30 transition-colors text-left"
-                        onClick={() => {
-                          markAsRead(notification.id);
-                          setOpen(false);
-                        }}
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <span className="font-medium text-foreground">{notification.title}</span>
-                          {!notification.read && (
-                            <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
-                        <span className="text-xs text-muted-foreground/60">{notification.time}</span>
-                      </button>
-                      
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 opacity-100 md:opacity-0 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => removeNotification(notification.id, e)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
+              <NotificationsList {...listProps} />
             </motion.div>
           )}
         </AnimatePresence>,

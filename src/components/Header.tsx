@@ -16,6 +16,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePresenceContext } from "@/contexts/PresenceContext";
 import { PresenceIndicator } from "./PresenceIndicator";
 import { PresenceStatus } from "@/hooks/usePresence";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -38,19 +45,20 @@ export const Header = () => {
     return email.substring(0, 2).toUpperCase();
   };
 
-  // Update menu position when opened
+  // Update menu position when opened (desktop only)
   useEffect(() => {
-    if (profileMenuOpen && buttonRef.current) {
+    if (profileMenuOpen && buttonRef.current && !isMobile) {
       const rect = buttonRef.current.getBoundingClientRect();
       setMenuPosition({
         top: rect.bottom + 8,
         right: window.innerWidth - rect.right
       });
     }
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, isMobile]);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside (desktop only)
   useEffect(() => {
+    if (isMobile) return;
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
@@ -70,7 +78,7 @@ export const Header = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, isMobile]);
 
   const handleMenuItemClick = (path: string) => {
     navigate(path);
@@ -82,10 +90,112 @@ export const Header = () => {
     setProfileMenuOpen(false);
   };
 
+  const profileMenuContent = (
+    <>
+      {/* User info header */}
+      <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
+        <div className="flex items-center gap-3">
+          <Avatar className="w-12 h-12 ring-2 ring-background shadow-lg">
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-semibold">
+              {user?.email ? getInitials(user.email) : "AD"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground truncate">
+              {user?.user_metadata?.full_name || "My Account"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Status picker */}
+      <div className="p-2 border-t border-border/50">
+        <button
+          onClick={() => setStatusPickerOpen(!statusPickerOpen)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <PresenceIndicator status={myStatus} size="sm" />
+          </div>
+          <span className="flex-1 text-left">
+            {myStatus === 'dnd' ? 'Do Not Disturb' : myStatus === 'idle' ? 'Idle' : myStatus === 'in_call' ? 'In a Call' : 'Available'}
+          </span>
+          <Circle className={cn("w-3 h-3 text-muted-foreground transition-transform", statusPickerOpen && "rotate-90")} />
+        </button>
+        <AnimatePresence>
+          {statusPickerOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <div className="pl-4 py-1 space-y-0.5">
+                {statusOptions.map((opt) => (
+                  <button
+                    key={opt.status}
+                    onClick={() => {
+                      setManualStatus(opt.status);
+                      setStatusPickerOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors",
+                      ((myStatus === 'online' && opt.status === 'online') || (myStatus === 'dnd' && opt.status === 'dnd')) && "bg-muted/60"
+                    )}
+                  >
+                    {opt.icon}
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      
+      {/* Menu items */}
+      <div className="p-2">
+        <button
+          onClick={() => handleMenuItemClick('/settings')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <Settings className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span>Settings</span>
+        </button>
+        <button
+          onClick={() => handleMenuItemClick('/subscription')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <User className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span>Subscription</span>
+        </button>
+      </div>
+      
+      {/* Sign out footer */}
+      <div className="p-2 border-t border-border/50">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-destructive/10 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+            <LogOut className="w-4 h-4 text-destructive" />
+          </div>
+          <span className="text-destructive">Sign out</span>
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <header className="h-14 md:h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-6 relative z-[100]">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-      {/* Subtle top glow */}
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
 
       {!isMobile && (
@@ -105,7 +215,6 @@ export const Header = () => {
       )}
 
       <div className={cn("flex items-center gap-1.5 relative z-10", isMobile && "ml-auto")}>
-        {/* Mobile: Icon-only help button */}
         {isMobile ? (
           <Button
             variant="ghost"
@@ -132,6 +241,7 @@ export const Header = () => {
         <div className={cn(isMobile ? "mx-0.5" : "mx-1")}>
           <NotificationsDropdown />
         </div>
+
         {/* Profile Menu */}
         <div className="relative ml-1 md:ml-4">
           <button 
@@ -153,8 +263,23 @@ export const Header = () => {
             </span>
           </button>
 
-          {/* Portal dropdown to body */}
-          {profileMenuOpen && createPortal(
+          {/* Mobile: Bottom drawer */}
+          {isMobile && (
+            <Drawer open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
+              <DrawerContent className="max-h-[85vh]">
+                <DrawerHeader className="sr-only">
+                  <DrawerTitle>Profile Menu</DrawerTitle>
+                  <DrawerDescription>Account options and settings</DrawerDescription>
+                </DrawerHeader>
+                <div className="pb-safe-area">
+                  {profileMenuContent}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          {/* Desktop: Portal dropdown */}
+          {!isMobile && profileMenuOpen && createPortal(
             <div ref={profileMenuRef}>
               <AnimatePresence>
                 <motion.div
@@ -169,105 +294,8 @@ export const Header = () => {
                     right: menuPosition.right,
                     zIndex: 99999
                   }}
-              >
-                {/* User info header */}
-                <div className="p-4 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12 ring-2 ring-background shadow-lg">
-                      <AvatarImage src={user?.user_metadata?.avatar_url} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-semibold">
-                        {user?.email ? getInitials(user.email) : "AD"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">
-                        {user?.user_metadata?.full_name || "My Account"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Status picker */}
-                <div className="p-2 border-t border-border/50">
-                  <button
-                    onClick={() => setStatusPickerOpen(!statusPickerOpen)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <PresenceIndicator status={myStatus} size="sm" />
-                    </div>
-                    <span className="flex-1 text-left">
-                      {myStatus === 'dnd' ? 'Do Not Disturb' : myStatus === 'idle' ? 'Idle' : myStatus === 'in_call' ? 'In a Call' : 'Available'}
-                    </span>
-                    <Circle className={cn("w-3 h-3 text-muted-foreground transition-transform", statusPickerOpen && "rotate-90")} />
-                  </button>
-                  <AnimatePresence>
-                    {statusPickerOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="pl-4 py-1 space-y-0.5">
-                          {statusOptions.map((opt) => (
-                            <button
-                              key={opt.status}
-                              onClick={() => {
-                                setManualStatus(opt.status);
-                                setStatusPickerOpen(false);
-                              }}
-                              className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors",
-                                ((myStatus === 'online' && opt.status === 'online') || (myStatus === 'dnd' && opt.status === 'dnd')) && "bg-muted/60"
-                              )}
-                            >
-                              {opt.icon}
-                              <span>{opt.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                
-                {/* Menu items */}
-                <div className="p-2">
-                  <button
-                    onClick={() => handleMenuItemClick('/settings')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <Settings className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <span>Settings</span>
-                  </button>
-                  <button
-                    onClick={() => handleMenuItemClick('/subscription')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-muted/80 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <User className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <span>Subscription</span>
-                  </button>
-                </div>
-                
-                {/* Sign out footer */}
-                <div className="p-2 border-t border-border/50">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-destructive/10 transition-colors group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
-                      <LogOut className="w-4 h-4 text-destructive" />
-                    </div>
-                    <span className="text-destructive">Sign out</span>
-                  </button>
-                </div>
+                >
+                  {profileMenuContent}
                 </motion.div>
               </AnimatePresence>
             </div>,
