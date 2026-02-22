@@ -13,7 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -31,11 +30,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useChatActions } from '@/hooks/useChatActions';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ChatOptionsMenuProps {
   children: React.ReactNode;
@@ -72,7 +79,9 @@ export const ChatOptionsMenu = ({
     isUserBlocked,
     loading 
   } = useChatActions();
+  const isMobile = useIsMobile();
 
+  const [menuOpen, setMenuOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
   const [nickname, setNicknameValue] = useState('');
   const [currentNickname, setCurrentNickname] = useState<string | null>(null);
@@ -145,61 +154,151 @@ export const ChatOptionsMenu = ({
     }
   };
 
+  const menuItems = (
+    <>
+      <button
+        onClick={() => {
+          setNicknameValue(currentNickname || '');
+          setOpenDialog('nickname');
+          setMenuOpen(false);
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/30 active:bg-accent transition-colors text-left"
+      >
+        <Edit3 className="w-4 h-4" />
+        {currentNickname ? 'Edit nickname' : 'Set nickname'}
+      </button>
+      
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/30 active:bg-accent transition-colors text-left">
+        <BellOff className="w-4 h-4" />
+        Mute conversation
+      </button>
+      
+      <div className="h-px bg-border/50 mx-2" />
+      
+      <button
+        onClick={() => {
+          setOpenDialog('unfriend');
+          setMenuOpen(false);
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-destructive/10 text-destructive transition-colors text-left"
+      >
+        <UserMinus className="w-4 h-4" />
+        Remove friend
+      </button>
+      
+      <button
+        onClick={() => {
+          setOpenDialog('report');
+          setMenuOpen(false);
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-yellow-500/10 text-yellow-500 transition-colors text-left"
+      >
+        <Flag className="w-4 h-4" />
+        Report user
+      </button>
+      
+      {isBlocked ? (
+        <button
+          onClick={() => {
+            handleUnblock();
+            setMenuOpen(false);
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/30 transition-colors text-left"
+        >
+          <ShieldOff className="w-4 h-4" />
+          Unblock user
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            setOpenDialog('block');
+            setMenuOpen(false);
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-orange-500/10 text-orange-500 transition-colors text-left"
+        >
+          <UserX className="w-4 h-4" />
+          Block user
+        </button>
+      )}
+    </>
+  );
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {children}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 py-1">
-          <DropdownMenuItem 
-            onClick={() => {
-              setNicknameValue(currentNickname || '');
-              setOpenDialog('nickname');
-            }}
-            className="py-3"
-          >
-            <Edit3 className="w-4 h-4 mr-3" />
-            {currentNickname ? 'Edit nickname' : 'Set nickname'}
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem className="py-3">
-            <BellOff className="w-4 h-4 mr-3" />
-            Mute conversation
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => setOpenDialog('unfriend')}
-            className="py-3 text-destructive focus:text-destructive"
-          >
-            <UserMinus className="w-4 h-4 mr-3" />
-            Remove friend
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            onClick={() => setOpenDialog('report')}
-            className="py-3 text-yellow-500 focus:text-yellow-500"
-          >
-            <Flag className="w-4 h-4 mr-3" />
-            Report user
-          </DropdownMenuItem>
-          
-          {isBlocked ? (
-            <DropdownMenuItem onClick={handleUnblock} className="py-3">
-              <ShieldOff className="w-4 h-4 mr-3" />
-              Unblock user
-            </DropdownMenuItem>
-          ) : (
+      {/* Mobile: Drawer menu */}
+      {isMobile ? (
+        <>
+          <div onClick={() => setMenuOpen(true)}>
+            {children}
+          </div>
+          <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+            <DrawerContent className="max-h-[70vh]">
+              <DrawerHeader>
+                <DrawerTitle>{targetUserName}</DrawerTitle>
+                <DrawerDescription>Chat options</DrawerDescription>
+              </DrawerHeader>
+              <div className="py-1 pb-safe-area">
+                {menuItems}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
+      ) : (
+        /* Desktop: Dropdown menu */
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            {children}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 py-1">
             <DropdownMenuItem 
-              onClick={() => setOpenDialog('block')}
-              className="py-3 text-orange-500 focus:text-orange-500"
+              onClick={() => {
+                setNicknameValue(currentNickname || '');
+                setOpenDialog('nickname');
+              }}
+              className="py-3"
             >
-              <UserX className="w-4 h-4 mr-3" />
-              Block user
+              <Edit3 className="w-4 h-4 mr-3" />
+              {currentNickname ? 'Edit nickname' : 'Set nickname'}
             </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            
+            <DropdownMenuItem className="py-3">
+              <BellOff className="w-4 h-4 mr-3" />
+              Mute conversation
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem 
+              onClick={() => setOpenDialog('unfriend')}
+              className="py-3 text-destructive focus:text-destructive"
+            >
+              <UserMinus className="w-4 h-4 mr-3" />
+              Remove friend
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem 
+              onClick={() => setOpenDialog('report')}
+              className="py-3 text-yellow-500 focus:text-yellow-500"
+            >
+              <Flag className="w-4 h-4 mr-3" />
+              Report user
+            </DropdownMenuItem>
+            
+            {isBlocked ? (
+              <DropdownMenuItem onClick={handleUnblock} className="py-3">
+                <ShieldOff className="w-4 h-4 mr-3" />
+                Unblock user
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem 
+                onClick={() => setOpenDialog('block')}
+                className="py-3 text-orange-500 focus:text-orange-500"
+              >
+                <UserX className="w-4 h-4 mr-3" />
+                Block user
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {/* Nickname Dialog */}
       <Dialog open={openDialog === 'nickname'} onOpenChange={(open) => !open && setOpenDialog(null)}>
