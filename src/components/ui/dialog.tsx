@@ -1,6 +1,15 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 import { cn } from "@/lib/utils";
 
@@ -27,7 +36,7 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = React.forwardRef<
+const DialogContentDesktop = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
@@ -49,6 +58,67 @@ const DialogContent = React.forwardRef<
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
+DialogContentDesktop.displayName = "DialogContentDesktop";
+
+/**
+ * Adaptive DialogContent: renders as a bottom drawer on mobile,
+ * standard centered dialog on desktop.
+ */
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => {
+  const isMobile = useIsMobile();
+
+  if (!isMobile) {
+    return (
+      <DialogContentDesktop ref={ref} className={className} {...props}>
+        {children}
+      </DialogContentDesktop>
+    );
+  }
+
+  // On mobile, render as a bottom drawer sheet instead of centered dialog
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 mt-24 flex flex-col rounded-t-2xl border bg-background shadow-2xl",
+          "max-h-[90vh] overflow-y-auto",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "duration-200",
+          className,
+        )}
+        // Remove centering transforms that cause overflow
+        style={{
+          transform: 'none',
+          left: 0,
+          top: 'auto',
+          right: 0,
+          bottom: 0,
+          translate: 'none',
+          width: '100%',
+          maxWidth: '100%',
+        }}
+        {...props}
+      >
+        {/* Drag handle visual */}
+        <div className="mx-auto mt-3 mb-1 h-1.5 w-12 rounded-full bg-muted flex-shrink-0" />
+        <div className="p-6 pt-2">
+          {children}
+        </div>
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -88,6 +158,7 @@ export {
   DialogClose,
   DialogTrigger,
   DialogContent,
+  DialogContentDesktop,
   DialogHeader,
   DialogFooter,
   DialogTitle,
