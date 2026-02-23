@@ -78,14 +78,15 @@ const DialogContent = React.forwardRef<
     );
   }
 
-  // On mobile, render as a bottom drawer sheet instead of centered dialog
+  // On mobile, render as a bottom drawer sheet anchored to the screen (not viewport)
+  // Using window.innerHeight ensures the sheet doesn't move when the virtual keyboard opens
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mt-24 flex flex-col rounded-t-2xl border bg-background shadow-2xl",
+          "fixed inset-x-0 z-50 flex flex-col rounded-t-2xl border bg-background shadow-2xl",
           "max-h-[90vh] overflow-y-auto",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
@@ -93,17 +94,19 @@ const DialogContent = React.forwardRef<
           "duration-200",
           className,
         )}
-        // Remove centering transforms that cause overflow
         style={{
-          transform: 'none',
-          left: 0,
-          top: 'auto',
-          right: 0,
+          position: 'fixed',
           bottom: 0,
+          left: 0,
+          right: 0,
+          top: 'auto',
+          transform: 'none',
           translate: 'none',
           width: '100%',
           maxWidth: '100%',
         }}
+        // Prevent auto-focus on first input when the sheet opens
+        onOpenAutoFocus={(e) => e.preventDefault()}
         {...props}
       >
         {/* Drag handle visual */}
