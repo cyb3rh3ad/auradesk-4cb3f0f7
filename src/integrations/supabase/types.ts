@@ -220,6 +220,136 @@ export type Database = {
           },
         ]
       }
+      decision_options: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          position: number
+          room_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          position?: number
+          room_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          position?: number
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_options_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "decision_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          deadline: string | null
+          description: string | null
+          id: string
+          is_anonymous: boolean
+          status: string
+          team_id: string | null
+          title: string
+          updated_at: string
+          voting_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: string
+          team_id?: string | null
+          title: string
+          updated_at?: string
+          voting_type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+          voting_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_rooms_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          rank: number | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          rank?: number | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          rank?: number | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "decision_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_votes_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "decision_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_storage_usage: {
         Row: {
           created_at: string
