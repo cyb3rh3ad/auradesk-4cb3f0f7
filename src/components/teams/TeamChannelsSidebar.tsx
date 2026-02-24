@@ -38,14 +38,17 @@ import {
   Trash2,
   Loader2,
   Users,
+  Vote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TeamChannelsSidebarProps {
   team: Team;
   selectedChannel: TeamChannel | null;
-  onSelectChannel: (channel: TeamChannel) => void;
+  onSelectChannel: (channel: TeamChannel | null) => void;
   canManage: boolean;
+  showDecisions?: boolean;
+  onShowDecisions?: () => void;
 }
 
 export function TeamChannelsSidebar({
@@ -53,6 +56,8 @@ export function TeamChannelsSidebar({
   selectedChannel,
   onSelectChannel,
   canManage,
+  showDecisions,
+  onShowDecisions,
 }: TeamChannelsSidebarProps) {
   const { groupedChannels, loading, createChannel, deleteChannel } = useTeamChannels(team.id);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['General']));
@@ -208,6 +213,21 @@ export function TeamChannelsSidebar({
       {/* Channels List */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
+          {/* Decision Rooms entry */}
+          {onShowDecisions && (
+            <button
+              onClick={onShowDecisions}
+              className={cn(
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-2',
+                'hover:bg-muted/50',
+                showDecisions && 'bg-primary/10 text-primary font-medium'
+              )}
+            >
+              <Vote className="w-4 h-4 shrink-0" />
+              <span>Decision Rooms</span>
+            </button>
+          )}
+
           {Object.entries(groupedChannels).map(([category, channels]) => (
             <div key={category}>
               {/* Category Header */}
