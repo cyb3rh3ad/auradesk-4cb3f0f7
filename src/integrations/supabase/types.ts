@@ -670,6 +670,88 @@ export type Database = {
         }
         Relationships: []
       }
+      promise_signatures: {
+        Row: {
+          created_at: string
+          id: string
+          promise_id: string
+          signature_data: string | null
+          signed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          promise_id: string
+          signature_data?: string | null
+          signed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          promise_id?: string
+          signature_data?: string | null
+          signed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promise_signatures_promise_id_fkey"
+            columns: ["promise_id"]
+            isOneToOne: false
+            referencedRelation: "promises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promises: {
+        Row: {
+          created_at: string
+          creator_id: string
+          deadline: string | null
+          description: string | null
+          id: string
+          status: string
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          team_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promises_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promo_code_usage: {
         Row: {
           id: string
@@ -768,6 +850,39 @@ export type Database = {
           token?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      qr_login_sessions: {
+        Row: {
+          access_token: string | null
+          approved_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string | null
+          status: string
+          token: string
+        }
+        Insert: {
+          access_token?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string | null
+          status?: string
+          token?: string
+        }
+        Update: {
+          access_token?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string | null
+          status?: string
+          token?: string
         }
         Relationships: []
       }

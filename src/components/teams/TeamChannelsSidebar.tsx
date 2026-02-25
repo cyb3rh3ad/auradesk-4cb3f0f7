@@ -39,6 +39,7 @@ import {
   Loader2,
   Users,
   Vote,
+  FileSignature,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -49,6 +50,8 @@ interface TeamChannelsSidebarProps {
   canManage: boolean;
   showDecisions?: boolean;
   onShowDecisions?: () => void;
+  showPromises?: boolean;
+  onShowPromises?: () => void;
 }
 
 export function TeamChannelsSidebar({
@@ -58,6 +61,8 @@ export function TeamChannelsSidebar({
   canManage,
   showDecisions,
   onShowDecisions,
+  showPromises,
+  onShowPromises,
 }: TeamChannelsSidebarProps) {
   const { groupedChannels, loading, createChannel, deleteChannel } = useTeamChannels(team.id);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['General']));
@@ -218,13 +223,28 @@ export function TeamChannelsSidebar({
             <button
               onClick={onShowDecisions}
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-2',
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors',
                 'hover:bg-muted/50',
                 showDecisions && 'bg-primary/10 text-primary font-medium'
               )}
             >
               <Vote className="w-4 h-4 shrink-0" />
               <span>Decision Rooms</span>
+            </button>
+          )}
+
+          {/* Verified Promises entry */}
+          {onShowPromises && (
+            <button
+              onClick={onShowPromises}
+              className={cn(
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors mb-2',
+                'hover:bg-muted/50',
+                showPromises && 'bg-primary/10 text-primary font-medium'
+              )}
+            >
+              <FileSignature className="w-4 h-4 shrink-0" />
+              <span>Verified Promises</span>
             </button>
           )}
 
