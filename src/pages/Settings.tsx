@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload, Info } from 'lucide-react';
+import { Palette, Lock, Mic, Camera, Volume2, User, Users, Upload, Info, QrCode } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { QRScannerDialog } from '@/components/auth/QRScannerDialog';
 
 // App version - this will be shown in the About section
 const APP_VERSION = '1.0.0';
@@ -20,6 +21,31 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import { BiometricSettings } from '@/components/settings/BiometricSettings';
+
+// QR Login Scanner Card component
+const QRLoginScannerCard = () => {
+  const [scannerOpen, setScannerOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <QrCode className="w-5 h-5 text-primary" />
+          QR Code Login
+        </CardTitle>
+        <CardDescription>
+          Scan a QR code from your desktop app to log in instantly — no password needed
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button onClick={() => setScannerOpen(true)} variant="outline" className="gap-2">
+          <Camera className="w-4 h-4" />
+          Open QR Scanner
+        </Button>
+        <QRScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} />
+      </CardContent>
+    </Card>
+  );
+};
 
 const Settings = () => {
   const { user } = useAuth();
@@ -559,6 +585,9 @@ const Settings = () => {
           <TwoFactorAuth />
           
           <BiometricSettings />
+
+          {/* QR Login Scanner */}
+          <QRLoginScannerCard />
         </TabsContent>
 
         <TabsContent value="audio-video" className="space-y-4">

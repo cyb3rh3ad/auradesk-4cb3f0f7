@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft, Hash, Volume2, Vote } from 'lucide-react';
+import { Users, Plus, UserPlus, Loader2, Check, MessageCircle, ArrowLeft, Hash, Volume2, Vote, FileSignature } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { TeamChat } from '@/components/teams/TeamChat';
@@ -20,6 +20,7 @@ import { TeamChannelsSidebar } from '@/components/teams/TeamChannelsSidebar';
 import { ChannelChat } from '@/components/teams/ChannelChat';
 import { VoiceChannelRoom } from '@/components/teams/VoiceChannelRoom';
 import { DecisionRoomsPanel } from '@/components/teams/DecisionRoomsPanel';
+import { PromisesPanel } from '@/components/promises/PromisesPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Teams = () => {
@@ -37,6 +38,7 @@ const Teams = () => {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<TeamChannel | null>(null);
   const [showDecisions, setShowDecisions] = useState(false);
+  const [showPromises, setShowPromises] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [teamDescription, setTeamDescription] = useState('');
   const [memberUsername, setMemberUsername] = useState('');
@@ -139,11 +141,13 @@ const Teams = () => {
           <div className="w-60 lg:w-64 border-r flex-col hidden md:flex bg-muted/30">
             <TeamChannelsSidebar
               team={selectedTeam}
-              selectedChannel={showDecisions ? null : selectedChannel}
-              onSelectChannel={(ch) => { setShowDecisions(false); setSelectedChannel(ch); }}
+              selectedChannel={(showDecisions || showPromises) ? null : selectedChannel}
+              onSelectChannel={(ch) => { setShowDecisions(false); setShowPromises(false); setSelectedChannel(ch); }}
               canManage={canManageTeam(selectedTeam)}
               showDecisions={showDecisions}
-              onShowDecisions={() => { setShowDecisions(true); setSelectedChannel(null); }}
+              onShowDecisions={() => { setShowDecisions(true); setShowPromises(false); setSelectedChannel(null); }}
+              showPromises={showPromises}
+              onShowPromises={() => { setShowPromises(true); setShowDecisions(false); setSelectedChannel(null); }}
             />
             {/* Back button at bottom */}
             <div className="p-2 border-t">
@@ -167,9 +171,10 @@ const Teams = () => {
             {/* Mobile header with back button */}
             <div className="md:hidden flex items-center gap-2 p-3 border-b shrink-0">
               <Button variant="ghost" size="icon" onClick={() => {
-                if (selectedChannel || showDecisions) {
+                if (selectedChannel || showDecisions || showPromises) {
                   setSelectedChannel(null);
                   setShowDecisions(false);
+                  setShowPromises(false);
                 } else {
                   setSelectedTeam(null);
                 }
@@ -177,7 +182,12 @@ const Teams = () => {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div className="flex items-center gap-2">
-                {showDecisions ? (
+                {showPromises ? (
+                  <>
+                    <FileSignature className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Verified Promises</span>
+                  </>
+                ) : showDecisions ? (
                   <>
                     <Vote className="w-5 h-5 text-primary" />
                     <span className="font-semibold">Decision Rooms</span>
@@ -205,7 +215,9 @@ const Teams = () => {
             </div>
 
             {/* Channel Content or Channel List (mobile) */}
-            {showDecisions ? (
+            {showPromises ? (
+              <PromisesPanel teamId={selectedTeam.id} />
+            ) : showDecisions ? (
               <DecisionRoomsPanel teamId={selectedTeam.id} />
             ) : selectedChannel ? (
               selectedChannel.type === 'text' ? (
@@ -219,16 +231,18 @@ const Teams = () => {
                 <TeamChannelsSidebar
                   team={selectedTeam}
                   selectedChannel={selectedChannel}
-                  onSelectChannel={(ch) => { setShowDecisions(false); setSelectedChannel(ch); }}
+                  onSelectChannel={(ch) => { setShowDecisions(false); setShowPromises(false); setSelectedChannel(ch); }}
                   canManage={canManageTeam(selectedTeam)}
                   showDecisions={showDecisions}
-                  onShowDecisions={() => { setShowDecisions(true); setSelectedChannel(null); }}
+                  onShowDecisions={() => { setShowDecisions(true); setShowPromises(false); setSelectedChannel(null); }}
+                  showPromises={showPromises}
+                  onShowPromises={() => { setShowPromises(true); setShowDecisions(false); setSelectedChannel(null); }}
                 />
               </div>
             )}
             
             {/* Desktop: Show placeholder when no channel selected */}
-            {!selectedChannel && !showDecisions && (
+            {!selectedChannel && !showDecisions && !showPromises && (
               <div className="hidden md:flex flex-1 items-center justify-center text-muted-foreground">
                 <div className="text-center space-y-2">
                   <Hash className="w-12 h-12 mx-auto opacity-50" />
@@ -240,6 +254,11 @@ const Teams = () => {
             {showDecisions && !isMobile && (
               <div className="hidden md:flex flex-1">
                 <DecisionRoomsPanel teamId={selectedTeam.id} />
+              </div>
+            )}
+            {showPromises && !isMobile && (
+              <div className="hidden md:flex flex-1">
+                <PromisesPanel teamId={selectedTeam.id} />
               </div>
             )}
           </div>
