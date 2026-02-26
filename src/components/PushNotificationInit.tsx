@@ -3,14 +3,14 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { webPushService } from '@/services/webPushNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Bell, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -130,9 +130,9 @@ export const PushNotificationInit = () => {
   };
 
   return (
-    <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
-      <AlertDialogContent className="max-w-md z-[9999]">
-        <AlertDialogHeader>
+    <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <DialogContent className="max-w-md z-[9999]">
+        <DialogHeader>
           <div className="flex items-center justify-center mb-4">
             <div className="relative">
               <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
@@ -143,10 +143,10 @@ export const PushNotificationInit = () => {
               </div>
             </div>
           </div>
-          <AlertDialogTitle className="text-center text-lg">
+          <DialogTitle className="text-center text-lg">
             Enable Notifications & Call Ringing
-          </AlertDialogTitle>
-          <AlertDialogDescription asChild>
+          </DialogTitle>
+          <DialogDescription asChild>
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
                 AuraDesk needs your permission to:
@@ -165,10 +165,10 @@ export const PushNotificationInit = () => {
                 ⚠️ Without this, you will <strong>not hear calls</strong> and will <strong>miss messages</strong> when the app isn't in focus.
               </p>
             </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col sm:flex-col gap-2 mt-2">
-          <AlertDialogAction
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col sm:flex-col gap-2 mt-2">
+          <Button
             onClick={handleEnable}
             disabled={permissionState === 'requesting'}
             className="w-full"
@@ -186,7 +186,7 @@ export const PushNotificationInit = () => {
                 Enable Now
               </span>
             )}
-          </AlertDialogAction>
+          </Button>
           {permissionState === 'pending' && (
             <button
               onClick={handleSkip}
@@ -195,8 +195,8 @@ export const PushNotificationInit = () => {
               Skip for now (you'll miss calls)
             </button>
           )}
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
