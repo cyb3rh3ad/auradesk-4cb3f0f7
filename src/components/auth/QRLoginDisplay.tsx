@@ -70,16 +70,31 @@ export function QRLoginDisplay({ onLoginSuccess }: QRLoginDisplayProps) {
       }, async (payload: any) => {
         if (payload.new.status === 'approved') {
           setStatus('approved');
-          // Use the tokens to set session on desktop
-          const { access_token, refresh_token } = payload.new;
-          if (access_token && refresh_token) {
-            const { error } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
-            if (!error) {
-              setTimeout(onLoginSuccess, 1500);
+          // The access_token field contains the magic link action URL
+          const actionLink = payload.new.access_token;
+          const hashedToken = payload.new.refresh_token;
+          
+          if (hashedToken) {
+            try {
+              // Verify the OTP token hash to establish a session
+              const { error } = await supabase.auth.verifyOtp({
+                token_hash: hashedToken,
+                type: 'magiclink',
+              });
+              if (!error) {
+                setTimeout(onLoginSuccess, 1500);
+              } else {
+                console.error('OTP verify error:', error);
+                // Fallback: try navigating to the action link
+                if (actionLink) {
+                  window.location.href = actionLink;
+                }
+              }
+            } catch (e) {
+              console.error('Session transfer error:', e);
             }
+          } else if (actionLink) {
+            window.location.href = actionLink;
           }
         }
       })
