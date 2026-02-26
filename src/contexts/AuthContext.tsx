@@ -55,6 +55,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Core MFA check function - returns true if MFA is required but not verified
   const checkAndHandleMfa = async (currentSession: Session): Promise<boolean> => {
     try {
+      // QR code login bypasses MFA — the phone scan IS the second factor
+      if (sessionStorage.getItem('qr_login_bypass_mfa') === 'true') {
+        console.log('MFA check: Bypassed via QR code login');
+        sessionStorage.removeItem('qr_login_bypass_mfa');
+        return false;
+      }
+
       // First check if user has any verified TOTP factors
       const { data: factorsData } = await supabase.auth.mfa.listFactors();
       const verifiedFactor = factorsData?.totp.find(f => f.status === 'verified');
