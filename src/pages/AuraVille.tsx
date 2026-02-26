@@ -9,6 +9,7 @@ import { SpatialProfile } from '@/components/auraville/gameTypes';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, UserCog, Volume2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const AuraVille = () => {
   const isMobile = useIsMobile();
@@ -50,7 +51,6 @@ const AuraVille = () => {
     }
   }, [voiceEnabled, startMic, stopMic]);
 
-  // Loading
   if (profileLoading) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-background">
@@ -62,10 +62,9 @@ const AuraVille = () => {
     );
   }
 
-  // First-time character creation
   if (!profile) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-950/50 via-background to-blue-950/50 p-4 overflow-auto">
+      <div className="absolute inset-0 flex items-center justify-center bg-background p-4 overflow-auto">
         <CharacterCustomizer onSave={handleSaveProfile} isNew />
       </div>
     );
@@ -73,7 +72,6 @@ const AuraVille = () => {
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-background">
-      {/* Game Canvas */}
       <GameCanvas
         position={position}
         profile={profile}
@@ -83,71 +81,80 @@ const AuraVille = () => {
         updateMovement={updateMovement}
       />
 
-      {/* HUD - Top bar */}
+      {/* HUD */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2 pointer-events-auto flex items-center gap-3"
+          className="bg-card/80 backdrop-blur-md border border-border/30 rounded-xl px-3 py-2 pointer-events-auto flex items-center gap-3 shadow-lg"
         >
-          <span className="text-white font-bold text-sm tracking-wide">🏘️ AuraVille</span>
-          <span className="text-white/50 text-xs">|</span>
-          <span className="text-green-400 text-xs font-medium">{remotePlayers.size} online</span>
+          <span className="font-bold text-sm tracking-wide text-foreground">🏘️ AuraVille</span>
+          <span className="text-muted-foreground/50 text-xs">|</span>
+          <span className="text-primary text-xs font-medium">{remotePlayers.size} online</span>
         </motion.div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Voice toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleVoice}
-            className={`h-9 w-9 rounded-xl ${voiceEnabled ? 'bg-blue-500/80 hover:bg-blue-500 text-white' : 'bg-black/50 backdrop-blur-sm text-white/70 hover:text-white hover:bg-black/60'}`}
+            className={cn(
+              "h-9 w-9 rounded-xl shadow-lg border border-border/30",
+              voiceEnabled
+                ? "bg-primary/90 hover:bg-primary text-primary-foreground"
+                : "bg-card/80 backdrop-blur-md text-muted-foreground hover:text-foreground"
+            )}
           >
             {voiceEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
           </Button>
 
-          {/* Nearby voice indicator */}
           {voiceEnabled && nearbyCount > 0 && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="bg-blue-500/80 backdrop-blur-sm rounded-xl px-2 py-1.5 flex items-center gap-1.5"
+              className="bg-primary/90 backdrop-blur-md rounded-xl px-2 py-1.5 flex items-center gap-1.5 shadow-lg"
             >
-              <Volume2 className="w-3.5 h-3.5 text-white" />
-              <span className="text-white text-xs font-medium">{nearbyCount}</span>
+              <Volume2 className="w-3.5 h-3.5 text-primary-foreground" />
+              <span className="text-primary-foreground text-xs font-medium">{nearbyCount}</span>
             </motion.div>
           )}
 
-          {/* Edit character */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowCustomizer(true)}
-            className="h-9 w-9 rounded-xl bg-black/50 backdrop-blur-sm text-white/70 hover:text-white hover:bg-black/60"
+            className="h-9 w-9 rounded-xl bg-card/80 backdrop-blur-md text-muted-foreground hover:text-foreground shadow-lg border border-border/30"
           >
             <UserCog className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Coordinates display */}
-      <div className="absolute bottom-3 right-3 bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1 z-10">
-        <span className="text-white/50 text-[10px] font-mono">
+      {/* Coordinates */}
+      <div className="absolute bottom-3 right-3 bg-card/60 backdrop-blur-sm rounded-lg px-2 py-1 z-10 border border-border/20">
+        <span className="text-muted-foreground text-[10px] font-mono">
           {Math.round(position.x)}, {Math.round(position.y)}
         </span>
       </div>
 
-      {/* Mobile touch controls */}
+      {/* Controls hint (desktop) */}
+      {!isMobile && (
+        <div className="absolute bottom-3 left-3 bg-card/60 backdrop-blur-sm rounded-lg px-3 py-1.5 z-10 border border-border/20">
+          <span className="text-muted-foreground text-xs">
+            <kbd className="bg-muted px-1 rounded text-[10px] font-mono">WASD</kbd> or <kbd className="bg-muted px-1 rounded text-[10px] font-mono">↑↓←→</kbd> to move
+          </span>
+        </div>
+      )}
+
       {isMobile && <TouchControls onMove={setJoystick} />}
 
-      {/* Character customizer overlay */}
       <AnimatePresence>
         {showCustomizer && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-30"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-30"
             onClick={(e) => e.target === e.currentTarget && setShowCustomizer(false)}
           >
             <CharacterCustomizer
