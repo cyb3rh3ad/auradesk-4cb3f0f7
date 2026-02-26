@@ -8,7 +8,10 @@ class WebPushService {
 
   isSupported(): boolean {
     if (Capacitor.isNativePlatform()) return false;
-    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    if (!('serviceWorker' in navigator)) return false;
+    if (!('PushManager' in window)) return false;
+    if (!('Notification' in window)) return false;
+    return true;
   }
 
   async initialize(): Promise<boolean> {
@@ -24,8 +27,18 @@ class WebPushService {
       this.vapidPublicKey = data.publicKey;
       console.log('[WebPush] VAPID key fetched');
 
-      // Check existing subscription
-      const registration = await navigator.serviceWorker.ready;
+      // Ensure service worker is registered and ready
+      // On mobile, navigator.serviceWorker.ready can take time — add a timeout
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 8000))
+      ]) as ServiceWorkerRegistration;
+
+      if (!registration) {
+        console.error('[WebPush] Service worker not ready');
+        return false;
+      }
+
       this.subscription = await (registration as any).pushManager.getSubscription();
 
       if (this.subscription) {

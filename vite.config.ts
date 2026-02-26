@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
           clientsClaim: true,
           cleanupOutdatedCaches: true,
           // Import custom push notification handler into the service worker
-          importScripts: ['/push-handler.js'],
+          // Use absolute path for mobile compatibility
+          importScripts: ['push-handler.js'],
           // Never cache OAuth redirect routes
           navigateFallbackDenylist: [/^\/~oauth/],
           runtimeCaching: [
