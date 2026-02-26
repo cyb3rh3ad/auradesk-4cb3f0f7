@@ -4,13 +4,12 @@ import { webPushService } from '@/services/webPushNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// Bump this version to force re-prompt ALL users (clears old state)
-const PUSH_PROMPT_VERSION = '3';
+// Bump this to force ALL users to re-prompt
+const PUSH_PROMPT_VERSION = '4';
 
 /**
- * Single unified push notification initializer.
- * One permission covers everything: messages, calls, updates.
- * Shows ONE prompt per version, never nags.
+ * Unified push notification initializer.
+ * Aggressively ensures every user gets subscribed for messages + calls.
  */
 export const PushNotificationInit = () => {
   const { isSupported: isNativeSupported } = usePushNotifications();
@@ -24,51 +23,62 @@ export const PushNotificationInit = () => {
     let timer: ReturnType<typeof setTimeout>;
 
     const initWebPush = async () => {
-      if (!webPushService.isSupported()) return;
+      if (!webPushService.isSupported()) {
+        console.log('[PushInit] Web push not supported in this browser');
+        return;
+      }
 
       // Permission denied at browser level — nothing we can do
-      if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return;
+      if (Notification.permission === 'denied') {
+        console.log('[PushInit] Notifications blocked by browser');
+        return;
+      }
 
-      // Already granted — silently ensure subscription is active
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      // Already granted — ensure subscription is active and saved
+      if (Notification.permission === 'granted') {
+        console.log('[PushInit] Permission already granted, ensuring subscription...');
         const ok = await webPushService.initialize();
-        if (ok && !webPushService.isSubscribed()) {
-          await webPushService.requestPermissionAndSubscribe();
-        } else if (ok) {
-          // Already subscribed, refresh subscription in background
-          await webPushService.refreshSubscription();
+        if (ok) {
+          if (!webPushService.isSubscribed()) {
+            // Re-subscribe (subscription may have expired)
+            await webPushService.requestPermissionAndSubscribe();
+          } else {
+            await webPushService.refreshSubscription();
+          }
         }
         return;
       }
 
-      // Check if we already prompted for this version
+      // Permission is 'default' — need to ask
       const askedVersion = localStorage.getItem('auradesk-webpush-version');
-      if (askedVersion === PUSH_PROMPT_VERSION) return;
+      if (askedVersion === PUSH_PROMPT_VERSION) {
+        console.log('[PushInit] Already prompted for this version');
+        return;
+      }
 
-      // Initialize the service (fetch VAPID key)
-      const initialized = await webPushService.initialize();
-      if (!initialized) return;
+      // Pre-initialize to fetch VAPID key
+      await webPushService.initialize();
 
-      // Show ONE prompt after a short delay so user settles in
+      // Show prompt after user settles in
       timer = setTimeout(() => {
         localStorage.setItem('auradesk-webpush-version', PUSH_PROMPT_VERSION);
 
-        toast('🔔 Stay in the loop', {
-          description: 'Enable notifications to get alerts for calls, messages, and updates — even when the app is closed.',
-          duration: 30000,
+        toast('🔔 Enable Notifications', {
+          description: 'Get alerts for incoming calls, messages, and updates — even when the app is closed.',
+          duration: 60000,
           action: {
-            label: 'Enable',
+            label: 'Enable Now',
             onClick: async () => {
               const success = await webPushService.requestPermissionAndSubscribe();
               if (success) {
-                toast.success('You\'re all set! You\'ll get alerts for calls and messages.');
+                toast.success('Notifications enabled! You\'ll get alerts for calls and messages.');
               } else {
                 toast.error('Could not enable notifications. Check your browser settings.');
               }
             },
           },
         });
-      }, 3000);
+      }, 2000);
     };
 
     initWebPush();

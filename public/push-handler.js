@@ -1,5 +1,5 @@
-// Push notification handler for AuraDesk PWA/Web
-// Handles both regular notifications and incoming calls
+// AuraDesk Push Notification Handler (Service Worker)
+// Handles messages, calls, and other notifications
 
 self.addEventListener("push", function (event) {
   let data = {};
@@ -9,36 +9,42 @@ self.addEventListener("push", function (event) {
     data = { title: "AuraDesk", body: event.data ? event.data.text() : "New notification" };
   }
 
+  console.log("[SW] Push received:", JSON.stringify(data));
+
   const title = data.title || "AuraDesk";
-  const isCall = data.data?.type === "call";
+  const isCall = data.isCall === true || data.data?.type === "call";
 
   const options = {
     body: data.body || "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     data: data.data || data,
-    tag: data.tag || (isCall ? "auradesk-call" : "auradesk-" + Date.now()),
     renotify: true,
     actions: [],
   };
 
   if (isCall) {
-    // Call notifications: persistent, long vibration, require interaction
-    options.vibrate = [300, 100, 300, 100, 300, 100, 300, 100, 300];
+    // ── INCOMING CALL ──
+    // Persistent, vibrating, requires user action
+    options.tag = "auradesk-call-" + (data.data?.conversationId || "active");
+    options.vibrate = [400, 100, 400, 100, 400, 100, 400, 100, 400, 100, 400];
     options.requireInteraction = true;
     options.silent = false;
+    options.urgency = "high";
     options.actions = [
-      { action: "accept", title: "✓ Accept" },
-      { action: "decline", title: "✕ Decline" },
+      { action: "accept", title: "✅ Answer" },
+      { action: "decline", title: "❌ Decline" },
     ];
-    // Override tag so repeated call pushes update the same notification
-    options.tag = "auradesk-call-" + (data.data?.conversationId || "unknown");
   } else if (data.data?.type === "message") {
+    // ── NEW MESSAGE ──
+    options.tag = "auradesk-msg-" + (data.data?.conversationId || Date.now());
     options.vibrate = [100, 50, 100];
     options.actions = [
-      { action: "reply", title: "Open Chat" },
+      { action: "open", title: "Open Chat" },
     ];
   } else {
+    // ── GENERIC NOTIFICATION ──
+    options.tag = "auradesk-" + Date.now();
     options.vibrate = [100, 50, 100];
   }
 
@@ -49,7 +55,9 @@ self.addEventListener("notificationclick", function (event) {
   const action = event.action;
   const data = event.notification.data || {};
 
-  // If user declined the call, just close the notification
+  console.log("[SW] Notification click, action:", action, "data:", JSON.stringify(data));
+
+  // Decline = just close
   if (action === "decline") {
     event.notification.close();
     return;
@@ -60,33 +68,38 @@ self.addEventListener("notificationclick", function (event) {
   let url = "/";
 
   if (data.type === "call" && data.conversationId) {
-    // Accept or tap on call notification → open the chat with call flag
-    url = "/#/chat?conversation=" + data.conversationId + "&incoming_call=true";
+    // Accept or tap → open chat with incoming call flag
+    url = "/chat?conversation=" + data.conversationId + "&incoming_call=true";
   } else if (data.type === "message" && data.conversationId) {
-    url = "/#/chat?conversation=" + data.conversationId;
+    url = "/chat?conversation=" + data.conversationId;
   } else if (data.type === "meeting" && data.meetingId) {
-    url = "/#/meetings?room=" + data.meetingId;
+    url = "/meetings?room=" + data.meetingId;
   } else if (data.type === "team") {
-    url = "/#/teams";
+    url = "/teams";
   } else {
-    url = "/#/dashboard";
+    url = "/dashboard";
   }
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
-      // Focus existing window if available
+      // Try to focus an existing window
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        if (client.url.includes(self.location.origin) && "focus" in client) {
+        if ("focus" in client) {
           client.focus();
           client.navigate(url);
           return;
         }
       }
-      // Open new window
+      // Open new window if none exist
       if (clients.openWindow) {
         return clients.openWindow(url);
       }
     })
   );
+});
+
+// Keep service worker alive for push events
+self.addEventListener("pushsubscriptionchange", function (event) {
+  console.log("[SW] Push subscription changed");
 });

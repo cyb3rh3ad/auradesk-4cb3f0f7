@@ -13,44 +13,37 @@ class WebPushService {
 
   async initialize(): Promise<boolean> {
     if (!this.isSupported()) return false;
-    
-    // Allow re-initialization to pick up subscription changes
-    if (this.initialized && this.vapidPublicKey) {
-      // Just refresh subscription status
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        this.subscription = await (registration as any).pushManager.getSubscription();
-      } catch {}
-      return true;
-    }
 
     try {
+      // Fetch VAPID key from backend
       const { data, error } = await supabase.functions.invoke('web-push-vapid');
       if (error || !data?.publicKey) {
-        console.error('Failed to fetch VAPID key:', error);
+        console.error('[WebPush] Failed to fetch VAPID key:', error);
         return false;
       }
       this.vapidPublicKey = data.publicKey;
-      
+      console.log('[WebPush] VAPID key fetched');
+
       // Check existing subscription
       const registration = await navigator.serviceWorker.ready;
       this.subscription = await (registration as any).pushManager.getSubscription();
-      
+
       if (this.subscription) {
+        console.log('[WebPush] Existing subscription found, syncing to DB');
         await this.saveSubscription(this.subscription);
       }
 
       this.initialized = true;
       return true;
     } catch (err) {
-      console.error('Web push init error:', err);
+      console.error('[WebPush] Init error:', err);
       return false;
     }
   }
 
   async requestPermissionAndSubscribe(): Promise<boolean> {
     if (!this.isSupported()) return false;
-    
+
     // Initialize if needed
     if (!this.vapidPublicKey) {
       const ok = await this.initialize();
@@ -59,32 +52,42 @@ class WebPushService {
 
     try {
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.log('Notification permission denied');
-        return false;
-      }
+      console.log('[WebPush] Permission result:', permission);
+      if (permission !== 'granted') return false;
 
       const registration = await navigator.serviceWorker.ready;
       const applicationServerKey = this.urlBase64ToUint8Array(this.vapidPublicKey!);
+
+      // Unsubscribe existing to force fresh subscription
+      const existing = await (registration as any).pushManager.getSubscription();
+      if (existing) {
+        console.log('[WebPush] Removing stale subscription');
+        await existing.unsubscribe();
+      }
 
       this.subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
       });
 
-      console.log('Web push subscription created:', this.subscription.endpoint);
+      console.log('[WebPush] New subscription created:', this.subscription.endpoint);
       await this.saveSubscription(this.subscription);
       return true;
     } catch (err) {
-      console.error('Web push subscribe error:', err);
+      console.error('[WebPush] Subscribe error:', err);
       return false;
     }
   }
 
-  /** Re-save the current subscription to ensure DB is up to date */
   async refreshSubscription(): Promise<void> {
-    if (!this.subscription) return;
-    await this.saveSubscription(this.subscription);
+    if (!this.isSupported()) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      this.subscription = await (registration as any).pushManager.getSubscription();
+      if (this.subscription) {
+        await this.saveSubscription(this.subscription);
+      }
+    } catch {}
   }
 
   private async saveSubscription(subscription: PushSubscription): Promise<void> {
@@ -94,6 +97,16 @@ class WebPushService {
     const subJson = subscription.toJSON();
     const p256dh = subJson.keys?.p256dh || '';
     const auth = subJson.keys?.auth || '';
+
+    // Delete old subscriptions for this user first, then insert fresh
+    // This avoids upsert issues
+    try {
+      await supabase
+        .from('web_push_subscriptions')
+        .delete()
+        .eq('user_id', user.id)
+        .neq('endpoint', subscription.endpoint);
+    } catch {}
 
     const { error } = await supabase
       .from('web_push_subscriptions')
@@ -108,15 +121,34 @@ class WebPushService {
       );
 
     if (error) {
-      console.error('Error saving web push subscription:', error);
+      console.error('[WebPush] Error saving subscription:', error);
+      // Fallback: delete and re-insert
+      await supabase
+        .from('web_push_subscriptions')
+        .delete()
+        .eq('user_id', user.id);
+
+      const { error: insertError } = await supabase
+        .from('web_push_subscriptions')
+        .insert({
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+        });
+
+      if (insertError) {
+        console.error('[WebPush] Fallback insert also failed:', insertError);
+      } else {
+        console.log('[WebPush] Subscription saved via fallback');
+      }
     } else {
-      console.log('Web push subscription saved');
+      console.log('[WebPush] Subscription saved');
     }
   }
 
   async unsubscribe(): Promise<void> {
     if (this.subscription) {
-      const endpoint = this.subscription.endpoint;
       await this.subscription.unsubscribe();
       this.subscription = null;
 
@@ -125,14 +157,17 @@ class WebPushService {
         await supabase
           .from('web_push_subscriptions')
           .delete()
-          .eq('user_id', user.id)
-          .eq('endpoint', endpoint);
+          .eq('user_id', user.id);
       }
     }
   }
 
   isSubscribed(): boolean {
     return this.subscription !== null;
+  }
+
+  isInitializedState(): boolean {
+    return this.initialized;
   }
 
   getPermissionState(): NotificationPermission | 'unsupported' {
