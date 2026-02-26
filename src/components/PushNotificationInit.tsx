@@ -4,10 +4,13 @@ import { webPushService } from '@/services/webPushNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Bump this version to force re-prompt all users
+const PUSH_PROMPT_VERSION = '2';
+
 /**
  * Single unified push notification initializer.
  * One permission covers everything: messages, calls, updates.
- * Shows ONE prompt, never nags.
+ * Shows ONE prompt per version, never nags.
  */
 export const PushNotificationInit = () => {
   const { isSupported: isNativeSupported, isInitialized: isNativeInit } = usePushNotifications();
@@ -36,18 +39,22 @@ export const PushNotificationInit = () => {
         return;
       }
 
-      // Already asked before — don't nag
-      if (localStorage.getItem('auradesk-webpush-asked')) return;
+      // Permission denied — can't do anything (user must change in browser settings)
+      if (Notification.permission === 'denied') return;
+
+      // Check if we already prompted for this version
+      const askedVersion = localStorage.getItem('auradesk-webpush-version');
+      if (askedVersion === PUSH_PROMPT_VERSION) return;
 
       // Show ONE prompt after a delay
       timer = setTimeout(() => {
         if (cancelled) return;
         setPrompted(true);
-        localStorage.setItem('auradesk-webpush-asked', 'true');
+        localStorage.setItem('auradesk-webpush-version', PUSH_PROMPT_VERSION);
 
         toast('🔔 Stay in the loop', {
           description: 'Enable notifications to get alerts for calls, messages, and updates — even when the app is closed.',
-          duration: 15000,
+          duration: 20000,
           action: {
             label: 'Enable',
             onClick: async () => {
@@ -58,7 +65,7 @@ export const PushNotificationInit = () => {
             },
           },
         });
-      }, 8000); // Wait 8s so user has time to settle in
+      }, 5000);
     };
 
     initWebPush();
