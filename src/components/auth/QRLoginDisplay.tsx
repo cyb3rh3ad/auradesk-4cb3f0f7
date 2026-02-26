@@ -82,6 +82,8 @@ export function QRLoginDisplay({ onLoginSuccess }: QRLoginDisplayProps) {
                 type: 'magiclink',
               });
               if (!error) {
+                // Flag QR login so MFA is bypassed — the phone scan IS the 2FA
+                sessionStorage.setItem('qr_login_bypass_mfa', 'true');
                 setTimeout(onLoginSuccess, 1500);
               } else {
                 console.error('OTP verify error:', error);
