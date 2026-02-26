@@ -332,10 +332,10 @@ const Auth = () => {
           
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className={`grid w-full mb-6 ${isElectron ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <TabsList className="grid w-full mb-6 grid-cols-3">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                {isElectron && <TabsTrigger value="qr" className="gap-1"><QrCode className="w-3.5 h-3.5" />QR</TabsTrigger>}
+                <TabsTrigger value="qr" className="gap-1"><QrCode className="w-3.5 h-3.5" />QR</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -477,12 +477,10 @@ const Auth = () => {
                 </form>
               </TabsContent>
 
-              {/* QR Code Login Tab (Desktop/Electron only) */}
-              {isElectron && (
-                <TabsContent value="qr">
-                  <QRLoginDisplay onLoginSuccess={() => navigate('/dashboard')} />
-                </TabsContent>
-              )}
+              {/* QR Code Login Tab */}
+              <TabsContent value="qr">
+                <QRLoginDisplay onLoginSuccess={() => navigate('/dashboard')} />
+              </TabsContent>
             </Tabs>
             
             {/* Google Sign In - Hidden in Electron since OAuth doesn't work reliably */}

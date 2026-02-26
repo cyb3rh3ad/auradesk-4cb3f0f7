@@ -17,6 +17,8 @@ import {
   SettingsIcon,
   MoreIcon,
 } from "@/components/icons/CosmicIcons";
+import { QrCode } from "lucide-react";
+import { QRScannerDialog } from "@/components/auth/QRScannerDialog";
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -84,6 +86,7 @@ const NavItem = ({ icon: Icon, label, path, onClick }: NavItemProps) => {
 export const MobileNavBar = () => {
   const { isOwner } = useUserRole();
   const [showMore, setShowMore] = useState(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const location = useLocation();
   const isKeyboardOpen = useKeyboardVisibility();
 
@@ -108,6 +111,12 @@ export const MobileNavBar = () => {
     ...(isOwner ? [{ icon: ShieldIcon, label: "Admin", path: "/admin" }] : []),
     { icon: SettingsIcon, label: "Settings", path: "/settings" },
   ];
+
+  const handleQrScan = () => {
+    triggerHaptic('selection');
+    setShowMore(false);
+    setQrScannerOpen(true);
+  };
 
   const handleMoreClick = () => {
     triggerHaptic('selection');
@@ -176,11 +185,28 @@ export const MobileNavBar = () => {
                     </NavLink>
                   );
                 })}
+                {/* QR Scanner button */}
+                <button
+                  onClick={handleQrScan}
+                  className="flex flex-col items-center gap-2.5 p-4 rounded-2xl transition-all duration-200 touch-manipulation text-muted-foreground hover:bg-accent/50 active:bg-accent active:scale-90"
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: secondaryItems.length * 0.05 }}
+                  >
+                    <QrCode className="w-5 h-5" />
+                  </motion.div>
+                  <span className="text-xs font-semibold">QR Scan</span>
+                </button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* QR Scanner Dialog */}
+      <QRScannerDialog open={qrScannerOpen} onOpenChange={setQrScannerOpen} />
 
       {/* Bottom Navigation Bar - part of flex flow, not fixed */}
       <nav 
