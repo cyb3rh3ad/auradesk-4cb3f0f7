@@ -1,4 +1,4 @@
-import { WebRTCRoom } from "@/components/webrtc/WebRTCRoom";
+import { LiveKitCallRoom } from "@/components/call/LiveKitCallRoom";
 
 type PiPMode = 'mini' | 'small' | 'medium' | 'full';
 
@@ -14,22 +14,21 @@ export interface HybridCallRoomProps {
 }
 
 /**
- * HybridCallRoom - Pure P2P WebRTC with TURN fallback
- * Free, no external dependencies, 5 person limit
- * Uses OpenRelay TURN servers for NAT traversal when needed
+ * HybridCallRoom - Now powered by LiveKit Cloud
+ * Handles all STUN/TURN/connectivity automatically via LiveKit's infrastructure
  */
 export function HybridCallRoom({
   roomName,
   participantName,
   onDisconnect,
   className,
-  initialVideo = true,
+  initialVideo = false,
   initialAudio = true,
   isHost = false,
   pipMode = 'full',
 }: HybridCallRoomProps) {
   return (
-    <WebRTCRoom
+    <LiveKitCallRoom
       roomName={roomName}
       participantName={participantName}
       onDisconnect={onDisconnect}
