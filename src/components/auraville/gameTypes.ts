@@ -81,9 +81,9 @@ export const VOICE_CONNECT_DISTANCE = 450;
 export const VOICE_DISCONNECT_DISTANCE = 550;
 
 // Interior constants
-export const INTERIOR_WIDTH = 400;
-export const INTERIOR_HEIGHT = 320;
-export const HOUSE_ENTER_DISTANCE = 50;
+export const INTERIOR_WIDTH = 560;
+export const INTERIOR_HEIGHT = 420;
+export const HOUSE_ENTER_DISTANCE = 55;
 
 // House colors by style
 export const HOUSE_COLORS: { roof: string; wall: string }[] = [
