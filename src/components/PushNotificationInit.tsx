@@ -28,28 +28,45 @@ export const PushNotificationInit = () => {
 
   useEffect(() => {
     if (!user || isNativeSupported) return;
-    // Allow re-running when user changes (new login)
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
     const forceInit = async () => {
-      // Check if browser supports push at all
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        console.log('[PushInit] Browser does not support push notifications');
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      console.log('[PushInit] Starting. Mobile:', isMobile, 'UA:', navigator.userAgent.substring(0, 80));
+
+      // Check basic support
+      if (!('serviceWorker' in navigator)) {
+        console.log('[PushInit] No serviceWorker support');
+        return;
+      }
+      if (!('Notification' in window)) {
+        console.log('[PushInit] No Notification API');
+        return;
+      }
+      
+      // On mobile, PushManager might not exist in some browsers
+      if (!('PushManager' in window)) {
+        console.log('[PushInit] No PushManager — this browser does not support web push');
+        // Still show dialog to inform user
+        if (isMobile) {
+          toast.info('This mobile browser has limited notification support. For the best experience, use Chrome on Android or install the app.');
+        }
         return;
       }
 
-      console.log('[PushInit] Current permission:', Notification.permission);
+      const currentPermission = Notification.permission;
+      console.log('[PushInit] Current Notification.permission:', currentPermission);
 
-      if (Notification.permission === 'granted') {
-        // Already granted — force re-subscribe to ensure token is in DB
-        console.log('[PushInit] Permission granted, force re-subscribing...');
+      if (currentPermission === 'granted') {
+        // Already granted — silently ensure subscription is fresh
+        console.log('[PushInit] Already granted, force re-subscribing...');
         try {
           const ok = await webPushService.initialize();
+          console.log('[PushInit] Initialize result:', ok);
           if (ok) {
-            // Always force a fresh subscription
-            await webPushService.requestPermissionAndSubscribe();
-            console.log('[PushInit] Re-subscription complete');
+            const subResult = await webPushService.requestPermissionAndSubscribe();
+            console.log('[PushInit] Re-subscribe result:', subResult);
           }
         } catch (err) {
           console.error('[PushInit] Re-subscribe error:', err);
@@ -57,17 +74,20 @@ export const PushNotificationInit = () => {
         return;
       }
 
-      if (Notification.permission === 'denied') {
-        console.log('[PushInit] Permission denied by browser, cannot override');
+      if (currentPermission === 'denied') {
+        console.log('[PushInit] Permission denied by browser');
+        if (isMobile) {
+          toast.error('Notifications are blocked. Go to your browser settings → Site Settings → Notifications to enable them for AuraDesk.');
+        }
         return;
       }
 
-      // Permission is 'default' — show our modal IMMEDIATELY
-      console.log('[PushInit] Permission is default, showing modal NOW');
+      // Permission is 'default' — show modal
+      console.log('[PushInit] Permission is default, showing dialog');
       setShowDialog(true);
     };
 
-    // Run immediately, no delay
+    // Run immediately
     forceInit();
   }, [user, isNativeSupported]);
 
