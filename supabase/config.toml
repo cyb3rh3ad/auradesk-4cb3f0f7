@@ -35,3 +35,9 @@ verify_jwt = true
 
 [functions.qr-login-approve]
 verify_jwt = false
+
+[functions.web-push-vapid]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
