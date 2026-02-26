@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette, Pin } from 'lucide-react';
+import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette, Pin, Sparkles } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { LinkPreview } from './LinkPreview';
 import { renderFormattedMessage, extractFirstUrl } from '@/utils/messageFormatting';
 import { playSendSound, playReceiveSound } from '@/utils/chatSounds';
 import { toast } from 'sonner';
+import { useAIAutoReply } from '@/hooks/useAIAutoReply';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface MessageAreaProps {
@@ -91,6 +92,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const prevMessageCountRef = useRef(0);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
   const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
+  const { generateReply, isGenerating } = useAIAutoReply();
   const isKeyboardOpen = useKeyboardVisibility();
 
   const currentUserName = user?.user_metadata?.full_name || user?.email || 'Someone';
@@ -663,7 +665,38 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
               </Button>
             </div>
           ) : (
-            <VoiceRecorder onRecordingComplete={handleVoiceRecording} disabled={uploading} />
+            <div className="flex items-center gap-0.5">
+              {conversationId && messages.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-10 w-10 md:h-11 md:w-11 rounded-full touch-manipulation shrink-0 transition-all",
+                    isGenerating 
+                      ? "text-primary animate-pulse" 
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  )}
+                  onClick={async () => {
+                    if (!conversationId) return;
+                    const reply = await generateReply(conversationId);
+                    if (reply) {
+                      setInput(reply);
+                      inputRef.current?.focus();
+                    }
+                  }}
+                  disabled={isGenerating}
+                  title="AI Smart Reply"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-5 h-5" />
+                  )}
+                </Button>
+              )}
+              <VoiceRecorder onRecordingComplete={handleVoiceRecording} disabled={uploading} />
+            </div>
           )}
         </form>
       </div>
