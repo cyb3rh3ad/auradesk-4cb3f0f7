@@ -21,12 +21,14 @@ export default defineConfig(({ mode }) => {
         injectRegister: 'auto',
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit for large bundles
-          // Force new service worker to take control immediately
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           skipWaiting: true,
           clientsClaim: true,
-          // Clean up old caches on update
           cleanupOutdatedCaches: true,
+          // Import custom push notification handler into the service worker
+          importScripts: ['/push-handler.js'],
+          // Never cache OAuth redirect routes
+          navigateFallbackDenylist: [/^\/~oauth/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -35,7 +37,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'supabase-cache',
                 expiration: {
                   maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                  maxAgeSeconds: 60 * 60 * 24
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -43,14 +45,13 @@ export default defineConfig(({ mode }) => {
               }
             },
             {
-              // Cache static assets with StaleWhileRevalidate for faster loads
               urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'images-cache',
                 expiration: {
                   maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                  maxAgeSeconds: 60 * 60 * 24 * 30
                 }
               }
             }
