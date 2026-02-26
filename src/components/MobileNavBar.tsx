@@ -17,7 +17,7 @@ import {
   SettingsIcon,
   MoreIcon,
 } from "@/components/icons/CosmicIcons";
-import { QrCode } from "lucide-react";
+import { QrCode, Focus } from "lucide-react";
 import { QRScannerDialog } from "@/components/auth/QRScannerDialog";
 
 interface NavItemProps {
@@ -107,6 +107,7 @@ export const MobileNavBar = () => {
   const secondaryItems = [
     { icon: FilesIcon, label: "Files", path: "/files" },
     { icon: AIIcon, label: "AI", path: "/ai" },
+    { icon: ({ className, ...props }: any) => <Focus className={cn("w-5 h-5", className)} />, label: "Focus", path: "/focus" },
     { icon: CrownIcon, label: "Plans", path: "/subscription" },
     ...(isOwner ? [{ icon: ShieldIcon, label: "Admin", path: "/admin" }] : []),
     { icon: SettingsIcon, label: "Settings", path: "/settings" },

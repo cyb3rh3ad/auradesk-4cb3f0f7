@@ -42,6 +42,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import ElectronCall from "./pages/ElectronCall";
+import FocusRoom from "./pages/FocusRoom";
 
 // Check if running as a native app or standalone PWA (skip landing page)
 const isStandaloneApp = (): boolean => {
@@ -202,7 +203,7 @@ const AppLayout = memo(({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   
   // Pages that manage their own scroll/layout (chat, teams, ai with sidebars)
-  const selfManagedPages = ['/chat', '/teams', '/ai'];
+  const selfManagedPages = ['/chat', '/teams', '/ai', '/focus'];
   const isSelfManagedPage = selfManagedPages.some(p => location.pathname.startsWith(p));
   
   return (
@@ -343,6 +344,7 @@ const App = () => {
                             <Route path="/files" element={<Files />} />
                             <Route path="/ai" element={<AI />} />
                             <Route path="/ai-settings" element={<AISettings />} />
+                            <Route path="/focus" element={<FocusRoom />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="/subscription" element={<Subscription />} />
                             <Route path="/admin" element={<Admin />} />

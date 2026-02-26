@@ -16,8 +16,22 @@ import {
   ShieldIcon,
   SettingsIcon,
 } from "@/components/icons/SimpleIcons";
+import { Focus } from "lucide-react";
 
 // Separate component for nav items to properly use hooks
+interface IconProps {
+  className?: string;
+  isActive?: boolean;
+  isHovered?: boolean;
+  size?: "sm" | "md" | "lg";
+}
+
+// Simple Focus Icon wrapper to match the icon interface
+const FocusIcon = ({ className, isActive, isHovered, size = "md" }: IconProps) => {
+  const sizeMap = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
+  return <Focus className={cn(sizeMap[size], "transition-all duration-200", (isActive || isHovered) && "text-primary", className)} />;
+};
+
 interface NavItemProps {
   icon: React.ComponentType<{
     className?: string;
@@ -98,6 +112,10 @@ export const Sidebar = () => {
     icon: AIIcon,
     label: "AI Assistant",
     path: "/ai"
+  }, {
+    icon: FocusIcon,
+    label: "Focus Room",
+    path: "/focus"
   }, {
     icon: CrownIcon,
     label: "Subscription",
