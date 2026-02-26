@@ -6,18 +6,25 @@ class WebPushService {
   private subscription: PushSubscription | null = null;
   private initialized = false;
 
-  // Check if Web Push is supported in this browser
   isSupported(): boolean {
-    // Don't use web push on native platforms (they use FCM directly)
     if (Capacitor.isNativePlatform()) return false;
     return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   }
 
   async initialize(): Promise<boolean> {
-    if (!this.isSupported() || this.initialized) return this.initialized;
+    if (!this.isSupported()) return false;
+    
+    // Allow re-initialization to pick up subscription changes
+    if (this.initialized && this.vapidPublicKey) {
+      // Just refresh subscription status
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        this.subscription = await (registration as any).pushManager.getSubscription();
+      } catch {}
+      return true;
+    }
 
     try {
-      // Fetch VAPID public key from edge function
       const { data, error } = await supabase.functions.invoke('web-push-vapid');
       if (error || !data?.publicKey) {
         console.error('Failed to fetch VAPID key:', error);
@@ -25,15 +32,12 @@ class WebPushService {
       }
       this.vapidPublicKey = data.publicKey;
       
-      // Check if already subscribed
+      // Check existing subscription
       const registration = await navigator.serviceWorker.ready;
       this.subscription = await (registration as any).pushManager.getSubscription();
       
       if (this.subscription) {
-        // Already subscribed, ensure it's saved
         await this.saveSubscription(this.subscription);
-        this.initialized = true;
-        return true;
       }
 
       this.initialized = true;
@@ -45,9 +49,12 @@ class WebPushService {
   }
 
   async requestPermissionAndSubscribe(): Promise<boolean> {
-    if (!this.isSupported() || !this.vapidPublicKey) {
-      console.log('Web push not supported or not initialized');
-      return false;
+    if (!this.isSupported()) return false;
+    
+    // Initialize if needed
+    if (!this.vapidPublicKey) {
+      const ok = await this.initialize();
+      if (!ok) return false;
     }
 
     try {
@@ -58,9 +65,7 @@ class WebPushService {
       }
 
       const registration = await navigator.serviceWorker.ready;
-
-      // Convert VAPID key from base64url to Uint8Array
-      const applicationServerKey = this.urlBase64ToUint8Array(this.vapidPublicKey);
+      const applicationServerKey = this.urlBase64ToUint8Array(this.vapidPublicKey!);
 
       this.subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
@@ -68,14 +73,18 @@ class WebPushService {
       });
 
       console.log('Web push subscription created:', this.subscription.endpoint);
-
-      // Save subscription to database
       await this.saveSubscription(this.subscription);
       return true;
     } catch (err) {
       console.error('Web push subscribe error:', err);
       return false;
     }
+  }
+
+  /** Re-save the current subscription to ensure DB is up to date */
+  async refreshSubscription(): Promise<void> {
+    if (!this.subscription) return;
+    await this.saveSubscription(this.subscription);
   }
 
   private async saveSubscription(subscription: PushSubscription): Promise<void> {
@@ -111,7 +120,6 @@ class WebPushService {
       await this.subscription.unsubscribe();
       this.subscription = null;
 
-      // Remove from database
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
