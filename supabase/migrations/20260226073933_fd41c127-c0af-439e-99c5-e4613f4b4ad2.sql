@@ -1,0 +1,1 @@
+ALTER TABLE public.spatial_profiles ADD COLUMN IF NOT EXISTS body_type text NOT NULL DEFAULT 'male';
