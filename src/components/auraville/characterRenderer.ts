@@ -223,8 +223,13 @@ function drawFrontView(
 ) {
   const isFemale = p.bodyType === 'female';
   const phase = frame * 0.12;
-  const bodyBob = isMoving ? Math.abs(Math.sin(phase * 2)) * 0.6 * s : 0;
-  const legTilt = isMoving ? Math.sin(phase) * 0.3 : 0;
+  const bodyBob = isMoving ? Math.abs(Math.sin(phase * 2)) * 0.5 * s : 0;
+  // For front/back: legs step forward/back = vertical offset + subtle scale for depth
+  const leftLegStep = isMoving ? Math.sin(phase) * 2.5 * s : 0;
+  const rightLegStep = isMoving ? Math.sin(phase + Math.PI) * 2.5 * s : 0;
+  // Leg that steps "forward" (toward camera) appears slightly wider
+  const leftLegScale = isMoving ? 1 + Math.sin(phase) * 0.08 : 1;
+  const rightLegScale = isMoving ? 1 + Math.sin(phase + Math.PI) * 0.08 : 1;
 
   ctx.save();
   ctx.translate(x, y - bodyBob);
@@ -244,30 +249,29 @@ function drawFrontView(
   const headR = isFemale ? 6.2 * s : 6.5 * s;
   const headY = -11 * s;
 
-  // ─── Legs ────────────
-  // Left leg
-  ctx.save();
-  ctx.translate(-legSpacing * s, 5 * s);
-  ctx.rotate(legTilt);
-  ctx.fillStyle = p.pantsColor;
-  roundRect(ctx, -legW / 2, 0, legW, legH * 0.85, 1.5 * s);
-  ctx.fill();
-  ctx.fillStyle = '#2d2d2d';
-  roundRect(ctx, -legW / 2 - 0.3 * s, legH * 0.78, legW + 0.8 * s, 2.2 * s, 1 * s);
-  ctx.fill();
-  ctx.restore();
+  // ─── Legs (vertical stepping for front view) ────────────
+  // Back leg first (the one stepping away from camera — slightly higher & narrower)
+  const drawLeg = (xOff: number, stepY: number, scaleW: number) => {
+    ctx.save();
+    ctx.translate(xOff, 5 * s + stepY);
+    const w = legW * scaleW;
+    ctx.fillStyle = p.pantsColor;
+    roundRect(ctx, -w / 2, 0, w, legH * 0.85, 1.5 * s);
+    ctx.fill();
+    ctx.fillStyle = '#2d2d2d';
+    roundRect(ctx, -w / 2 - 0.3 * s, legH * 0.78, w + 0.8 * s, 2.2 * s, 1 * s);
+    ctx.fill();
+    ctx.restore();
+  };
 
-  // Right leg
-  ctx.save();
-  ctx.translate(legSpacing * s, 5 * s);
-  ctx.rotate(-legTilt);
-  ctx.fillStyle = p.pantsColor;
-  roundRect(ctx, -legW / 2, 0, legW, legH * 0.85, 1.5 * s);
-  ctx.fill();
-  ctx.fillStyle = '#2d2d2d';
-  roundRect(ctx, -legW / 2 - 0.3 * s, legH * 0.78, legW + 0.8 * s, 2.2 * s, 1 * s);
-  ctx.fill();
-  ctx.restore();
+  // Draw the leg stepping backward first (behind), then forward leg on top
+  if (leftLegStep < rightLegStep) {
+    drawLeg(-legSpacing * s, leftLegStep, leftLegScale);
+    drawLeg(legSpacing * s, rightLegStep, rightLegScale);
+  } else {
+    drawLeg(legSpacing * s, rightLegStep, rightLegScale);
+    drawLeg(-legSpacing * s, leftLegStep, leftLegScale);
+  }
 
   // Skirt (female style 3)
   if (p.pantsStyle === 3 && isFemale) {
@@ -305,24 +309,28 @@ function drawFrontView(
   ctx.arc(0, -5.5 * s, 3 * s, Math.PI + 0.4, -0.4);
   ctx.stroke();
 
-  // ─── Arms ────────────
+  // ─── Arms (subtle forward/back motion via scale, not rotation) ────────────
   const armW = isFemale ? 2.2 * s : 2.8 * s;
   const armH = isFemale ? 7.5 * s : 8.5 * s;
   const armX = isFemale ? shoulderW / 2 + 0.5 * s : bodyW / 2 + 0.5 * s;
-  const armSwing = isMoving ? Math.sin(phase) * 0.2 : 0;
+  // Arms swing opposite to their side's leg — scale to simulate depth
+  const leftArmScale = isMoving ? 1 + Math.sin(phase + Math.PI) * 0.06 : 1;
+  const rightArmScale = isMoving ? 1 + Math.sin(phase) * 0.06 : 1;
+  const leftArmY = isMoving ? Math.sin(phase + Math.PI) * 1.2 * s : 0;
+  const rightArmY = isMoving ? Math.sin(phase) * 1.2 * s : 0;
 
-  [-1, 1].forEach(side => {
+  [[-1, leftArmScale, leftArmY], [1, rightArmScale, rightArmY]].forEach(([side, scaleF, yOff]) => {
     ctx.save();
-    ctx.translate(side * armX, -3 * s);
-    ctx.rotate(side * armSwing);
+    ctx.translate((side as number) * armX, -3 * s + (yOff as number));
+    const w = armW * (scaleF as number);
     ctx.fillStyle = p.shirtColor;
-    roundRect(ctx, -armW / 2, 0, armW, armH * 0.4, 1 * s);
+    roundRect(ctx, -w / 2, 0, w, armH * 0.4, 1 * s);
     ctx.fill();
     ctx.fillStyle = p.skinColor;
-    roundRect(ctx, -armW / 2, armH * 0.35, armW, armH * 0.55, 1 * s);
+    roundRect(ctx, -w / 2, armH * 0.35, w, armH * 0.55, 1 * s);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(0, armH * 0.85, armW * 0.55, 0, Math.PI * 2);
+    ctx.arc(0, armH * 0.85, w * 0.55, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });
@@ -362,8 +370,12 @@ function drawBackView(
 ) {
   const isFemale = p.bodyType === 'female';
   const phase = frame * 0.12;
-  const bodyBob = isMoving ? Math.abs(Math.sin(phase * 2)) * 0.6 * s : 0;
-  const legTilt = isMoving ? Math.sin(phase) * 0.3 : 0;
+  const bodyBob = isMoving ? Math.abs(Math.sin(phase * 2)) * 0.5 * s : 0;
+  // Same vertical stepping as front view
+  const leftLegStep = isMoving ? Math.sin(phase) * 2.5 * s : 0;
+  const rightLegStep = isMoving ? Math.sin(phase + Math.PI) * 2.5 * s : 0;
+  const leftLegScale = isMoving ? 1 + Math.sin(phase) * 0.08 : 1;
+  const rightLegScale = isMoving ? 1 + Math.sin(phase + Math.PI) * 0.08 : 1;
 
   ctx.save();
   ctx.translate(x, y - bodyBob);
@@ -382,19 +394,28 @@ function drawBackView(
   const headR = isFemale ? 6.2 * s : 6.5 * s;
   const headY = -11 * s;
 
-  // Legs
-  [-1, 1].forEach((side, i) => {
+  // Legs with vertical stepping
+  const drawLeg = (xOff: number, stepY: number, scaleW: number) => {
     ctx.save();
-    ctx.translate(side * legSpacing * s, 5 * s);
-    ctx.rotate(side * (i === 0 ? legTilt : -legTilt));
+    ctx.translate(xOff, 5 * s + stepY);
+    const w = legW * scaleW;
     ctx.fillStyle = p.pantsColor;
-    roundRect(ctx, -legW / 2, 0, legW, legH * 0.85, 1.5 * s);
+    roundRect(ctx, -w / 2, 0, w, legH * 0.85, 1.5 * s);
     ctx.fill();
     ctx.fillStyle = '#2d2d2d';
-    roundRect(ctx, -legW / 2 - 0.3 * s, legH * 0.78, legW + 0.8 * s, 2.2 * s, 1 * s);
+    roundRect(ctx, -w / 2 - 0.3 * s, legH * 0.78, w + 0.8 * s, 2.2 * s, 1 * s);
     ctx.fill();
     ctx.restore();
-  });
+  };
+
+  // Draw back-stepping leg first, then front-stepping on top
+  if (leftLegStep > rightLegStep) {
+    drawLeg(-legSpacing * s, leftLegStep, leftLegScale);
+    drawLeg(legSpacing * s, rightLegStep, rightLegScale);
+  } else {
+    drawLeg(legSpacing * s, rightLegStep, rightLegScale);
+    drawLeg(-legSpacing * s, leftLegStep, leftLegScale);
+  }
 
   // Torso
   ctx.fillStyle = p.shirtColor;
@@ -408,24 +429,27 @@ function drawBackView(
   ctx.lineTo(0, 3 * s);
   ctx.stroke();
 
-  // Arms (same as front but no face)
+  // Arms with depth-based motion (same approach as front)
   const armW = isFemale ? 2.2 * s : 2.8 * s;
   const armH = isFemale ? 7.5 * s : 8.5 * s;
   const armX = bodyW / 2 + 0.5 * s;
-  const armSwing = isMoving ? Math.sin(phase) * 0.2 : 0;
+  const leftArmScale = isMoving ? 1 + Math.sin(phase + Math.PI) * 0.06 : 1;
+  const rightArmScale = isMoving ? 1 + Math.sin(phase) * 0.06 : 1;
+  const leftArmY = isMoving ? Math.sin(phase + Math.PI) * 1.2 * s : 0;
+  const rightArmY = isMoving ? Math.sin(phase) * 1.2 * s : 0;
 
-  [-1, 1].forEach(side => {
+  [[-1, leftArmScale, leftArmY], [1, rightArmScale, rightArmY]].forEach(([side, scaleF, yOff]) => {
     ctx.save();
-    ctx.translate(side * armX, -3 * s);
-    ctx.rotate(side * armSwing);
+    ctx.translate((side as number) * armX, -3 * s + (yOff as number));
+    const w = armW * (scaleF as number);
     ctx.fillStyle = p.shirtColor;
-    roundRect(ctx, -armW / 2, 0, armW, armH * 0.4, 1 * s);
+    roundRect(ctx, -w / 2, 0, w, armH * 0.4, 1 * s);
     ctx.fill();
     ctx.fillStyle = p.skinColor;
-    roundRect(ctx, -armW / 2, armH * 0.35, armW, armH * 0.55, 1 * s);
+    roundRect(ctx, -w / 2, armH * 0.35, w, armH * 0.55, 1 * s);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(0, armH * 0.85, armW * 0.55, 0, Math.PI * 2);
+    ctx.arc(0, armH * 0.85, w * 0.55, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });
