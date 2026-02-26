@@ -51,12 +51,12 @@ export function drawCharacter(
   const s = scale;
   const isFemale = p.bodyType === 'female';
 
-  // Smooth sinusoidal walk cycle
-  const walkPhase = frame * 0.18;
-  const legSwing = isMoving ? Math.sin(walkPhase) * 4 * s : 0;
-  const bodyBob = isMoving ? Math.abs(Math.sin(walkPhase)) * 1.5 * s : 0;
-  const armSwing = isMoving ? Math.sin(walkPhase) * 3 * s : 0;
-  const headBob = isMoving ? Math.abs(Math.sin(walkPhase * 0.5)) * 0.5 * s : 0;
+  // Subtle, natural walk cycle — small values prevent goofy look
+  const walkPhase = frame * 0.14;
+  const legSwing = isMoving ? Math.sin(walkPhase) * 2 * s : 0;
+  const bodyBob = isMoving ? Math.abs(Math.sin(walkPhase)) * 0.6 * s : 0;
+  const armSwing = isMoving ? Math.sin(walkPhase) * 1.5 * s : 0;
+  const headBob = isMoving ? Math.abs(Math.sin(walkPhase * 0.5)) * 0.2 * s : 0;
 
   ctx.save();
   ctx.translate(x, y - bodyBob);
@@ -76,7 +76,7 @@ export function drawCharacter(
   // Left leg
   ctx.save();
   ctx.translate(-legSpacing * s, 5 * s);
-  ctx.rotate(isMoving ? Math.sin(walkPhase) * 0.25 : 0);
+  ctx.rotate(isMoving ? Math.sin(walkPhase) * 0.15 : 0);
 
   if (p.pantsStyle === 3 && isFemale) {
     // Skirt - draw skirt shape instead of individual legs
@@ -108,7 +108,7 @@ export function drawCharacter(
   // Right leg
   ctx.save();
   ctx.translate(legSpacing * s, 5 * s);
-  ctx.rotate(isMoving ? -Math.sin(walkPhase) * 0.25 : 0);
+  ctx.rotate(isMoving ? -Math.sin(walkPhase) * 0.15 : 0);
 
   if (p.pantsStyle === 3 && isFemale) {
     // handled by skirt below
@@ -259,7 +259,7 @@ export function drawCharacter(
   // Left arm
   ctx.save();
   ctx.translate(-armX, -3 * s);
-  ctx.rotate(isMoving ? Math.sin(walkPhase) * 0.35 : 0);
+  ctx.rotate(isMoving ? Math.sin(walkPhase) * 0.2 : 0);
   // Sleeve
   ctx.fillStyle = p.shirtStyle === 2 ? p.skinColor : p.shirtColor;
   roundRect(ctx, -armW / 2, 0, armW, armH * 0.4, 1 * s);
@@ -277,7 +277,7 @@ export function drawCharacter(
   // Right arm
   ctx.save();
   ctx.translate(armX, -3 * s);
-  ctx.rotate(isMoving ? -Math.sin(walkPhase) * 0.35 : 0);
+  ctx.rotate(isMoving ? -Math.sin(walkPhase) * 0.2 : 0);
   ctx.fillStyle = p.shirtStyle === 2 ? p.skinColor : p.shirtColor;
   roundRect(ctx, -armW / 2, 0, armW, armH * 0.4, 1 * s);
   ctx.fill();
