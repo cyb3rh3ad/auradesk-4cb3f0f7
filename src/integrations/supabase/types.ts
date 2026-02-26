@@ -980,6 +980,57 @@ export type Database = {
           },
         ]
       }
+      spatial_profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          face_style: number
+          hair_color: string
+          hair_style: number
+          house_style: number
+          id: string
+          pants_color: string
+          pants_style: number
+          shirt_color: string
+          shirt_style: number
+          skin_color: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          face_style?: number
+          hair_color?: string
+          hair_style?: number
+          house_style?: number
+          id?: string
+          pants_color?: string
+          pants_style?: number
+          shirt_color?: string
+          shirt_style?: number
+          skin_color?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          face_style?: number
+          hair_color?: string
+          hair_style?: number
+          house_style?: number
+          id?: string
+          pants_color?: string
+          pants_style?: number
+          shirt_color?: string
+          shirt_style?: number
+          skin_color?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_channels: {
         Row: {
           category: string | null
