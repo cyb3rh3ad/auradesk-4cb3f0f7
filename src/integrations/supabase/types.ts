@@ -670,6 +670,44 @@ export type Database = {
         }
         Relationships: []
       }
+      promise_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          promise_id: string
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          promise_id: string
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          promise_id?: string
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promise_notifications_promise_id_fkey"
+            columns: ["promise_id"]
+            isOneToOne: false
+            referencedRelation: "promises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promise_signatures: {
         Row: {
           created_at: string
@@ -1243,6 +1281,14 @@ export type Database = {
       }
       is_meeting_participant: {
         Args: { _meeting_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_promise_accessible: {
+        Args: { _promise_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_promise_signer: {
+        Args: { _promise_id: string; _user_id: string }
         Returns: boolean
       }
       is_team_member: {
