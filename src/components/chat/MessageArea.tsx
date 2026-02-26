@@ -149,8 +149,17 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
       }
     }
 
-    if (isNearBottom()) {
-      scrollToBottom();
+    // Always scroll to bottom on initial load or when near bottom
+    if (prevCount === 0 || isNearBottom()) {
+      // Use requestAnimationFrame + small delay to ensure DOM has rendered
+      requestAnimationFrame(() => {
+        scrollToBottom();
+        // Extra delayed scroll for initial load (scroll area may need time)
+        if (prevCount === 0) {
+          setTimeout(scrollToBottom, 100);
+          setTimeout(scrollToBottom, 300);
+        }
+      });
     }
   }, [messages, scrollToBottom, isNearBottom, user?.id]);
 
