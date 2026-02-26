@@ -54,6 +54,7 @@ export function WebRTCRoom({
     callStatus,
     connectionStats,
     connectionMode,
+    callPhase,
     joinRoom,
     leaveRoom,
     toggleAudio,
@@ -306,15 +307,23 @@ export function WebRTCRoom({
 
   // ── CONNECTING STATE ──
   if (isConnecting || !isConnected) {
+    const phaseText = (() => {
+      switch (callPhase) {
+        case 'getting-media': return 'Accessing camera & microphone...';
+        case 'joining-room': return 'Joining call room...';
+        case 'waiting-for-peer': return 'Waiting for the other person to join...';
+        case 'negotiating': return 'Establishing secure connection...';
+        default: return 'Connecting...';
+      }
+    })();
+
     return (
       <div className="flex flex-col items-center justify-center h-full bg-background relative overflow-hidden p-6">
-        {/* Cosmic background nebula */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-primary/5 blur-[80px]" />
           <div className="absolute top-1/3 left-1/3 w-[200px] h-[200px] rounded-full bg-[hsl(var(--cosmic-cyan))]/5 blur-[60px]" />
         </div>
 
-        {/* Animated rings */}
         <div className="relative z-10">
           <motion.div
             className="absolute inset-[-30px] rounded-full border border-primary/20"
@@ -341,8 +350,22 @@ export function WebRTCRoom({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <p className="text-foreground font-medium">Connecting...</p>
-          <p className="text-muted-foreground text-xs">Establishing secure connection</p>
+          <p className="text-foreground font-medium">{phaseText}</p>
+          {callPhase === 'waiting-for-peer' && (
+            <p className="text-muted-foreground text-xs">Ringing...</p>
+          )}
+        </motion.div>
+        
+        {/* Allow leaving while waiting */}
+        <motion.div 
+          className="mt-6 z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+        >
+          <Button onClick={handleDisconnect} variant="outline" size="sm" className="rounded-full px-6 gap-2">
+            <PhoneOff className="w-4 h-4" /> Cancel
+          </Button>
         </motion.div>
       </div>
     );
