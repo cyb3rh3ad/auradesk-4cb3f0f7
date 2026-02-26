@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,7 +38,7 @@ export const IncomingCallDialog = ({
     }
 
     try {
-      callRingtone.playIncomingRing({ volume: 0.4, loop: true });
+      callRingtone.playIncomingRing({ volume: 0.6, loop: true });
       setAudioBlocked(false);
     } catch (e) {
       setAudioBlocked(true);
@@ -47,9 +46,9 @@ export const IncomingCallDialog = ({
 
     if (isMobile) {
       const vibrateInterval = setInterval(() => {
-        vibratePhone([200, 100, 200, 100, 200]);
+        vibratePhone([400, 200, 400, 200, 400]);
       }, 2000);
-      vibratePhone([200, 100, 200, 100, 200]);
+      vibratePhone([400, 200, 400, 200, 400]);
       return () => {
         clearInterval(vibrateInterval);
         callRingtone.stop();
@@ -65,7 +64,7 @@ export const IncomingCallDialog = ({
 
   const handleUnblockAudio = useCallback(() => {
     try {
-      callRingtone.playIncomingRing({ volume: 0.4, loop: true });
+      callRingtone.playIncomingRing({ volume: 0.6, loop: true });
       setAudioBlocked(false);
     } catch { /* still blocked */ }
   }, []);
@@ -89,143 +88,130 @@ export const IncomingCallDialog = ({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[99999] flex items-center justify-center"
-          style={{ background: 'hsl(var(--background) / 0.85)' }}
-        >
-          {/* Cosmic aurora backdrop */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <motion.div
-              className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full"
-              style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.15), transparent 70%)' }}
-              animate={{ scale: [1, 1.3, 1], x: [0, 30, 0], y: [0, -20, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div
-              className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full"
-              style={{ background: 'radial-gradient(circle, hsl(var(--cosmic-cyan) / 0.1), transparent 70%)' }}
-              animate={{ scale: [1.2, 1, 1.2], x: [0, -20, 0], y: [0, 30, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div
-              className="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full -translate-x-1/2 -translate-y-1/2"
-              style={{ background: 'radial-gradient(circle, hsl(var(--cosmic-purple) / 0.08), transparent 70%)' }}
-              animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0.2, 0.5] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </div>
-
-          {/* Call card */}
+        <>
+          {/* Backdrop overlay - subtle dim */}
           <motion.div
-            initial={{ scale: 0.9, y: 20, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 20, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative z-10 flex flex-col items-center text-center p-10 max-w-sm mx-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99998] bg-black/30 pointer-events-none"
+          />
+
+          {/* Top banner */}
+          <motion.div
+            initial={{ y: -120, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -120, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+            className="fixed top-0 left-0 right-0 z-[99999] px-3 pt-3 pb-0 sm:px-6 sm:pt-4"
+            style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
           >
-            {/* Audio blocked indicator */}
-            {audioBlocked && (
-              <button 
-                className="absolute top-2 right-2 flex items-center gap-1.5 text-muted-foreground/70 hover:text-foreground text-xs transition-colors p-2"
-                onClick={handleUnblockAudio}
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-                Enable sound
-              </button>
-            )}
-
-            {/* Avatar with animated cosmic rings */}
-            <div className="relative mb-8">
-              {/* Outermost pulse */}
+            <div className="mx-auto max-w-xl">
+              {/* Glowing border effect */}
               <motion.div
-                className="absolute inset-[-32px] rounded-full"
-                style={{ border: '1px solid hsl(var(--primary) / 0.15)' }}
-                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0, 0.4] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                className="absolute inset-0 rounded-2xl opacity-60"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(var(--primary) / 0.3), hsl(142 76% 36% / 0.3), hsl(var(--primary) / 0.3))',
+                  backgroundSize: '200% 200%',
+                  filter: 'blur(8px)',
+                }}
+                animate={{
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
               />
-              {/* Middle ring */}
-              <motion.div
-                className="absolute inset-[-20px] rounded-full"
-                style={{ border: '1.5px solid hsl(var(--primary) / 0.25)' }}
-                animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.1, 0.6] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
-              />
-              {/* Inner glow ring */}
-              <motion.div
-                className="absolute inset-[-8px] rounded-full"
-                style={{ background: 'hsl(var(--primary) / 0.1)' }}
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-              
-              <motion.div
-                animate={{ scale: [1, 1.03, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                <Avatar className="w-32 h-32 ring-4 ring-primary/25 shadow-2xl shadow-primary/20">
-                  <AvatarImage src={callerAvatar || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-[hsl(var(--cosmic-purple))] text-primary-foreground text-4xl font-semibold">
-                    {getInitials(callerName)}
-                  </AvatarFallback>
-                </Avatar>
-              </motion.div>
-            </div>
 
-            {/* Caller Info */}
-            <div className="space-y-2 mb-10">
-              <h3 className="text-2xl font-bold text-foreground">{callerName}</h3>
-              <motion.p 
-                className="text-muted-foreground flex items-center justify-center gap-2"
-                animate={{ opacity: [0.6, 1, 0.6] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                {isVideo ? (
-                  <><Video className="w-4 h-4" /> Incoming video call...</>
-                ) : (
-                  <><Phone className="w-4 h-4" /> Incoming voice call...</>
-                )}
-              </motion.p>
-            </div>
+              <div className="relative rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+                {/* Top accent bar */}
+                <motion.div
+                  className="h-1 w-full"
+                  style={{
+                    background: 'linear-gradient(90deg, hsl(142 76% 36%), hsl(var(--primary)), hsl(142 76% 36%))',
+                    backgroundSize: '200% 100%',
+                  }}
+                  animate={{ backgroundPosition: ['0% 0%', '200% 0%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                />
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-16">
-              {/* Decline */}
-              <div className="flex flex-col items-center gap-2">
-                <motion.button
-                  className="w-16 h-16 rounded-full bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 flex items-center justify-center transition-colors shadow-lg shadow-red-500/10"
-                  onClick={handleDecline}
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <PhoneOff className="w-7 h-7" />
-                </motion.button>
-                <span className="text-xs text-muted-foreground">Decline</span>
-              </div>
-              
-              {/* Accept */}
-              <div className="flex flex-col items-center gap-2">
-                <motion.button
-                  className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-400 text-white flex items-center justify-center transition-colors shadow-xl shadow-green-500/40"
-                  onClick={handleAccept}
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{ boxShadow: [
-                    '0 10px 25px -5px rgba(34, 197, 94, 0.3)',
-                    '0 10px 40px -5px rgba(34, 197, 94, 0.5)',
-                    '0 10px 25px -5px rgba(34, 197, 94, 0.3)',
-                  ]}}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  {isVideo ? <Video className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
-                </motion.button>
-                <span className="text-xs text-muted-foreground">Accept</span>
+                <div className="flex items-center gap-4 p-4">
+                  {/* Avatar with pulse ring */}
+                  <div className="relative flex-shrink-0">
+                    <motion.div
+                      className="absolute inset-[-4px] rounded-full"
+                      style={{ border: '2px solid hsl(142 76% 36% / 0.5)' }}
+                      animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0, 0.6] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                    <Avatar className="w-14 h-14 ring-2 ring-green-500/30">
+                      <AvatarImage src={callerAvatar || undefined} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-lg font-semibold">
+                        {getInitials(callerName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  {/* Call info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground truncate text-base">
+                      {callerName}
+                    </p>
+                    <motion.p 
+                      className="text-sm text-muted-foreground flex items-center gap-1.5"
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      {isVideo ? (
+                        <><Video className="w-3.5 h-3.5" /> Incoming video call</>
+                      ) : (
+                        <><Phone className="w-3.5 h-3.5" /> Incoming voice call</>
+                      )}
+                    </motion.p>
+                    {audioBlocked && (
+                      <button 
+                        className="text-xs text-muted-foreground/70 hover:text-foreground flex items-center gap-1 mt-0.5 transition-colors"
+                        onClick={handleUnblockAudio}
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        Tap to enable sound
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {/* Decline */}
+                    <motion.button
+                      className="w-12 h-12 rounded-full bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 flex items-center justify-center transition-colors"
+                      onClick={handleDecline}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <PhoneOff className="w-5 h-5" />
+                    </motion.button>
+                    
+                    {/* Accept */}
+                    <motion.button
+                      className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-400 text-white flex items-center justify-center transition-colors shadow-lg shadow-green-500/30"
+                      onClick={handleAccept}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      animate={{ 
+                        boxShadow: [
+                          '0 4px 15px -3px rgba(34, 197, 94, 0.3)',
+                          '0 4px 25px -3px rgba(34, 197, 94, 0.5)',
+                          '0 4px 15px -3px rgba(34, 197, 94, 0.3)',
+                        ]
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      {isVideo ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+                    </motion.button>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
-        </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

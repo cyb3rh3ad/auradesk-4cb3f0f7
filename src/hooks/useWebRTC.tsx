@@ -265,7 +265,9 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const [error, setError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
   const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('hybrid');
+  // Mobile defaults to relay for maximum reliability
+  const isMobileDevice = useRef(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(isMobileDevice.current ? 'relay' : 'hybrid');
   const [callPhase, setCallPhase] = useState<CallPhase>('idle');
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -296,10 +298,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Re-offer timer — resends offer if no answer received
   const reOfferTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Track if we've already auto-retried with relay
+  // hasRetriedWithRelay ref
   const hasRetriedWithRelay = useRef(false);
-  // Detect mobile
-  const isMobileDevice = useRef(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
   // Adapt video quality based on bandwidth
   const adaptVideoQuality = useCallback(async (mode: 'high' | 'medium' | 'low' | 'audio-only') => {
@@ -644,7 +644,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   }, []);
 
   const createPeerConnection = useCallback(
-    (remoteUserId: string, remoteName: string, mode: ConnectionMode = 'hybrid') => {
+    (remoteUserId: string, remoteName: string, mode: ConnectionMode = isMobileDevice.current ? 'relay' : 'hybrid') => {
       if (!localStreamRef.current || !user) {
         console.error("[WebRTC] Cannot create peer connection - no local stream or user");
         return null;
@@ -1190,12 +1190,13 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
               
               console.log("[WebRTC] Discovered peer:", peerId, peerName);
               
-              if (isPoliteRef.current?.(peerId)) {
-                console.log("[WebRTC] We are polite, sending offer to:", peerId);
+              // BOTH peers send offers for maximum reliability
+              // The perfect negotiation pattern handles glare (simultaneous offers)
+              console.log("[WebRTC] Sending offer to discovered peer:", peerId);
+              const delay = isMobileDevice.current ? 500 : 100;
+              setTimeout(() => {
                 sendOfferRef.current?.(peerId, peerName);
-              } else {
-                console.log("[WebRTC] We are impolite, waiting for offer from:", peerId);
-              }
+              }, delay);
             }
           });
         })
@@ -1212,28 +1213,29 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             setCallPhase(prev => prev === 'waiting-for-peer' ? 'negotiating' : prev);
             console.log("[WebRTC] Peer joined:", key, peerName);
             
-            if (isPoliteRef.current?.(key)) {
-              console.log("[WebRTC] New peer joined, we are polite, sending offer");
-              // Small delay on mobile to let the other peer finish subscribing
-              const delay = isMobileDevice.current ? 800 : 200;
+            // BOTH peers send offers — perfect negotiation handles collisions
+            const delay = isMobileDevice.current ? 1000 : 300;
+            setTimeout(() => {
+              console.log("[WebRTC] Sending offer to newly joined peer:", key);
+              sendOfferRef.current?.(key, peerName);
+              
+              // Safety re-offer after 4s if still not connected
               setTimeout(() => {
-                sendOfferRef.current?.(key, peerName);
-                
-                // Safety re-offer after 5s if still not connected (handles mobile timing races)
-                setTimeout(() => {
-                  const pc = peerConnections.current.get(key);
-                  if (pc && pc.connectionState !== 'connected' && pc.connectionState !== 'closed') {
-                    console.log("[WebRTC] 🔄 Re-sending offer (safety retry) to:", key);
-                    // Close and recreate
-                    pc.close();
-                    peerConnections.current.delete(key);
+                const pc = peerConnections.current.get(key);
+                if (pc && pc.connectionState !== 'connected' && pc.connectionState !== 'closed') {
+                  console.log("[WebRTC] 🔄 Re-sending offer (safety retry) to:", key);
+                  pc.close();
+                  peerConnections.current.delete(key);
+                  // Retry with relay on mobile
+                  if (isMobileDevice.current) {
+                    const relayPc = createPeerConnection(key, peerName, 'relay');
+                    if (relayPc) sendOfferRef.current?.(key, peerName);
+                  } else {
                     sendOfferRef.current?.(key, peerName);
                   }
-                }, 5000);
-              }, delay);
-            } else {
-              console.log("[WebRTC] New peer joined, we are impolite, waiting for their offer");
-            }
+                }
+              }, 4000);
+            }, delay);
           }
         })
         .on('presence', { event: 'leave' }, ({ key }) => {
@@ -1284,13 +1286,13 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             hasRetriedWithRelay.current = false;
             
             // ── AUTO-RETRY LOGIC ──
-            // After 12s, if not connected, re-send offers (handles timing races on mobile)
+            // After 8s, if not connected, close all and retry with relay
             if (reOfferTimerRef.current) clearTimeout(reOfferTimerRef.current);
             reOfferTimerRef.current = setTimeout(() => {
               const anyConnected = Array.from(peerConnections.current.values()).some(pc => pc.connectionState === 'connected');
               if (anyConnected) return;
               
-              console.log("[WebRTC] 🔄 Auto-retry: re-sending offers after 12s");
+              console.log("[WebRTC] 🔄 Auto-retry: re-creating connections with RELAY after 8s");
               // Close existing failing connections and retry with relay
               peerConnections.current.forEach((pc, peerId) => {
                 if (pc.connectionState !== 'connected') {
@@ -1309,21 +1311,44 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
                 const peerName = peerData?.name || 'User';
                 console.log("[WebRTC] Auto-retry with RELAY for peer:", peerId);
                 const pc = createPeerConnection(peerId, peerName, 'relay');
-                if (pc && isPoliteRef.current?.(peerId)) {
+                if (pc) {
                   sendOfferRef.current?.(peerId, peerName);
                 }
               });
-            }, 12000);
+            }, 8000);
             
-            // Final timeout — 25s total
+            // Second retry at 18s with fresh connections
+            setTimeout(() => {
+              const anyConnected = Array.from(peerConnections.current.values()).some(pc => pc.connectionState === 'connected');
+              if (anyConnected) return;
+              
+              console.log("[WebRTC] 🔄 Second auto-retry at 18s");
+              peerConnections.current.forEach((pc, peerId) => {
+                if (pc.connectionState !== 'connected') {
+                  pc.close();
+                  peerConnections.current.delete(peerId);
+                }
+              });
+              
+              const state2 = channel.presenceState();
+              const peerIds2 = Object.keys(state2).filter(id => id !== user.id);
+              peerIds2.forEach(peerId => {
+                const peerData = state2[peerId]?.[0] as any;
+                const peerName = peerData?.name || 'User';
+                const pc = createPeerConnection(peerId, peerName, 'relay');
+                if (pc) sendOfferRef.current?.(peerId, peerName);
+              });
+            }, 18000);
+            
+            // Final timeout — 30s total
             if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
             connectionTimeoutRef.current = setTimeout(() => {
               if (!peerConnections.current.size || 
                   Array.from(peerConnections.current.values()).every(pc => pc.connectionState !== 'connected')) {
-                console.warn("[WebRTC] Connection timeout after 25s");
+                console.warn("[WebRTC] Connection timeout after 30s");
                 setError("Could not connect. The other person may not be available, or your network may be blocking the connection. Try again.");
               }
-            }, 25000);
+            }, 30000);
           }
         });
         
