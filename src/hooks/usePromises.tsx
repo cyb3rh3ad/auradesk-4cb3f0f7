@@ -171,15 +171,54 @@ export function usePromises(teamId?: string) {
 
       if (error) throw error;
 
+      // Get promise details for notification
+      const { data: promise } = await supabase
+        .from('promises')
+        .select('creator_id, title')
+        .eq('id', promiseId)
+        .single();
+
+      // Get user profile for notification message
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .single();
+      
+      const signerName = profile?.full_name || profile?.username || 'Someone';
+
+      // Notify creator that someone signed
+      if (promise && promise.creator_id !== user.id) {
+        await supabase.from('promise_notifications').insert({
+          promise_id: promiseId,
+          user_id: promise.creator_id,
+          type: 'signed',
+          message: `${signerName} signed your promise "${promise.title}"`,
+        });
+      }
+
       // Check if all signed → update promise status
       const { data: sigs } = await supabase
         .from('promise_signatures')
-        .select('status')
+        .select('status, user_id')
         .eq('promise_id', promiseId);
 
       const allSigned = sigs?.every(s => s.status === 'signed');
-      if (allSigned) {
+      if (allSigned && promise) {
         await supabase.from('promises').update({ status: 'fulfilled' }).eq('id', promiseId);
+        
+        // Notify all signers that the promise is fulfilled
+        const notifs = (sigs || [])
+          .filter(s => s.user_id !== user.id)
+          .map(s => ({
+            promise_id: promiseId,
+            user_id: s.user_id,
+            type: 'fulfilled',
+            message: `Promise "${promise.title}" has been fulfilled — all parties have signed!`,
+          }));
+        if (notifs.length > 0) {
+          await supabase.from('promise_notifications').insert(notifs);
+        }
       }
 
       toast({ title: 'Signed!', description: 'Your signature has been recorded' });
@@ -200,6 +239,45 @@ export function usePromises(teamId?: string) {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Get promise details and user profile for notification
+      const [{ data: promise }, { data: profile }] = await window.Promise.all([
+        supabase.from('promises').select('creator_id, title').eq('id', promiseId).single(),
+        supabase.from('profiles').select('full_name, username').eq('id', user.id).single(),
+      ]);
+
+      const declinerName = profile?.full_name || profile?.username || 'Someone';
+
+      // Notify creator
+      if (promise && promise.creator_id !== user.id) {
+        await supabase.from('promise_notifications').insert({
+          promise_id: promiseId,
+          user_id: promise.creator_id,
+          type: 'broken',
+          message: `${declinerName} declined your promise "${promise.title}"`,
+        });
+      }
+
+      // Mark the promise as broken
+      await supabase.from('promises').update({ status: 'broken' }).eq('id', promiseId);
+
+      // Notify all other signers
+      const { data: sigs } = await supabase
+        .from('promise_signatures')
+        .select('user_id')
+        .eq('promise_id', promiseId)
+        .neq('user_id', user.id);
+
+      if (sigs && sigs.length > 0 && promise) {
+        const notifs = sigs.map(s => ({
+          promise_id: promiseId,
+          user_id: s.user_id,
+          type: 'broken',
+          message: `${declinerName} broke the promise "${promise.title}"`,
+        }));
+        await supabase.from('promise_notifications').insert(notifs);
+      }
+
       toast({ title: 'Declined', description: 'You declined this promise' });
       return true;
     } catch (e: any) {
