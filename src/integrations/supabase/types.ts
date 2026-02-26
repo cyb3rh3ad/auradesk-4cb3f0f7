@@ -982,6 +982,7 @@ export type Database = {
       }
       spatial_profiles: {
         Row: {
+          body_type: string
           created_at: string
           display_name: string | null
           face_style: number
@@ -998,6 +999,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          body_type?: string
           created_at?: string
           display_name?: string | null
           face_style?: number
@@ -1014,6 +1016,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          body_type?: string
           created_at?: string
           display_name?: string | null
           face_style?: number

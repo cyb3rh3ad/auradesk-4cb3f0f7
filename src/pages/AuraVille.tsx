@@ -7,7 +7,7 @@ import { CharacterCustomizer } from '@/components/auraville/CharacterCustomizer'
 import { TouchControls } from '@/components/auraville/TouchControls';
 import { SpatialProfile } from '@/components/auraville/gameTypes';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, UserCog, Volume2, Loader2 } from 'lucide-react';
+import { Mic, MicOff, UserCog, Volume2, Loader2, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +28,7 @@ const AuraVille = () => {
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [insideHouseId, setInsideHouseId] = useState<string | null>(null);
 
   const { micActive, nearbyCount, startMic, stopMic } = useProximityVoice(
     channelRef,
@@ -50,6 +51,14 @@ const AuraVille = () => {
       setVoiceEnabled(true);
     }
   }, [voiceEnabled, startMic, stopMic]);
+
+  const handleEnterHouse = useCallback((houseId: string) => {
+    setInsideHouseId(houseId);
+  }, []);
+
+  const handleExitHouse = useCallback(() => {
+    setInsideHouseId(null);
+  }, []);
 
   if (profileLoading) {
     return (
@@ -79,6 +88,9 @@ const AuraVille = () => {
         houses={houses}
         decorations={decorations}
         updateMovement={updateMovement}
+        insideHouseId={insideHouseId}
+        onEnterHouse={handleEnterHouse}
+        onExitHouse={handleExitHouse}
       />
 
       {/* HUD */}
@@ -91,6 +103,14 @@ const AuraVille = () => {
           <span className="font-bold text-sm tracking-wide text-foreground">🏘️ AuraVille</span>
           <span className="text-muted-foreground/50 text-xs">|</span>
           <span className="text-primary text-xs font-medium">{remotePlayers.size} online</span>
+          {insideHouseId && (
+            <>
+              <span className="text-muted-foreground/50 text-xs">|</span>
+              <span className="text-xs font-medium flex items-center gap-1">
+                <Home className="w-3 h-3" /> Indoors
+              </span>
+            </>
+          )}
         </motion.div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
@@ -131,17 +151,19 @@ const AuraVille = () => {
       </div>
 
       {/* Coordinates */}
-      <div className="absolute bottom-3 right-3 bg-card/60 backdrop-blur-sm rounded-lg px-2 py-1 z-10 border border-border/20">
-        <span className="text-muted-foreground text-[10px] font-mono">
-          {Math.round(position.x)}, {Math.round(position.y)}
-        </span>
-      </div>
+      {!insideHouseId && (
+        <div className="absolute bottom-3 right-3 bg-card/60 backdrop-blur-sm rounded-lg px-2 py-1 z-10 border border-border/20">
+          <span className="text-muted-foreground text-[10px] font-mono">
+            {Math.round(position.x)}, {Math.round(position.y)}
+          </span>
+        </div>
+      )}
 
       {/* Controls hint (desktop) */}
       {!isMobile && (
         <div className="absolute bottom-3 left-3 bg-card/60 backdrop-blur-sm rounded-lg px-3 py-1.5 z-10 border border-border/20">
           <span className="text-muted-foreground text-xs">
-            <kbd className="bg-muted px-1 rounded text-[10px] font-mono">WASD</kbd> or <kbd className="bg-muted px-1 rounded text-[10px] font-mono">↑↓←→</kbd> to move
+            <kbd className="bg-muted px-1 rounded text-[10px] font-mono">WASD</kbd> move · <kbd className="bg-muted px-1 rounded text-[10px] font-mono">E</kbd> enter/exit
           </span>
         </div>
       )}

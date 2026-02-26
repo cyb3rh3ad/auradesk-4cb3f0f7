@@ -14,9 +14,11 @@ import {
   SHIRT_STYLE_NAMES,
   PANTS_STYLE_NAMES,
   HOUSE_STYLE_NAMES,
+  BODY_TYPE_NAMES,
   DEFAULT_PROFILE,
+  BodyType,
 } from './gameTypes';
-import { drawCharacter } from './GameCanvas';
+import { drawCharacter } from './characterRenderer';
 import { ChevronLeft, ChevronRight, Sparkles, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -36,7 +38,7 @@ export const CharacterCustomizer = ({ initialProfile, onSave, isNew = false }: C
     setProfile(prev => ({ ...prev, [key]: value }));
   };
 
-  // Animated preview using shared drawCharacter
+  // Animated preview
   const renderPreview = useCallback(() => {
     const canvas = previewRef.current;
     if (!canvas) return;
@@ -44,28 +46,25 @@ export const CharacterCustomizer = ({ initialProfile, onSave, isNew = false }: C
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 180 * dpr;
-    canvas.height = 220 * dpr;
+    canvas.width = 200 * dpr;
+    canvas.height = 260 * dpr;
     ctx.scale(dpr, dpr);
 
     frameRef.current++;
-    ctx.clearRect(0, 0, 180, 220);
+    ctx.clearRect(0, 0, 200, 260);
 
-    // Subtle background
-    const grad = ctx.createRadialGradient(90, 120, 10, 90, 120, 90);
+    const grad = ctx.createRadialGradient(100, 140, 10, 100, 140, 100);
     grad.addColorStop(0, 'rgba(59,130,246,0.08)');
     grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 180, 220);
+    ctx.fillRect(0, 0, 200, 260);
 
-    // Platform
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     ctx.beginPath();
-    ctx.ellipse(90, 170, 40, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(100, 195, 45, 10, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Use shared character renderer at larger scale
-    drawCharacter(ctx, 90, 130, profile, 'down', true, frameRef.current, 3);
+    drawCharacter(ctx, 100, 155, profile, 'down', true, frameRef.current, 3.2);
 
     rafRef.current = requestAnimationFrame(renderPreview);
   }, [profile]);
@@ -127,7 +126,7 @@ export const CharacterCustomizer = ({ initialProfile, onSave, isNew = false }: C
         <div className="flex justify-center">
           <canvas
             ref={previewRef}
-            style={{ width: 180, height: 220 }}
+            style={{ width: 200, height: 260 }}
             className="rounded-xl bg-background/50 border border-border/30"
           />
         </div>
@@ -140,6 +139,27 @@ export const CharacterCustomizer = ({ initialProfile, onSave, isNew = false }: C
             placeholder="Your name in AuraVille"
             className="h-9"
           />
+        </div>
+
+        {/* Body Type Toggle */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Body Type</Label>
+          <div className="flex gap-2">
+            {(['male', 'female'] as BodyType[]).map(bt => (
+              <button
+                key={bt}
+                onClick={() => update('bodyType', bt)}
+                className={cn(
+                  'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
+                  profile.bodyType === bt
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                )}
+              >
+                {bt === 'male' ? '♂ Male' : '♀ Female'}
+              </button>
+            ))}
+          </div>
         </div>
 
         <ColorRow label="Skin Tone" colors={SKIN_COLORS} value={profile.skinColor} onChange={c => update('skinColor', c)} />

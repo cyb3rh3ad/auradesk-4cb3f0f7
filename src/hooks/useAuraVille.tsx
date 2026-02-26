@@ -60,6 +60,7 @@ export function useAuraVille() {
           pantsColor: data.pants_color,
           houseStyle: data.house_style,
           displayName: data.display_name || user.user_metadata?.full_name || 'Player',
+          bodyType: (data as any).body_type || 'male',
         });
       }
       setProfileLoading(false);
@@ -83,6 +84,7 @@ export function useAuraVille() {
       pants_color: p.pantsColor,
       house_style: p.houseStyle,
       display_name: p.displayName,
+      body_type: p.bodyType,
     };
     await supabase.from('spatial_profiles').upsert(row, { onConflict: 'user_id' });
   }, [user]);

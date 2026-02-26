@@ -9,6 +9,8 @@ export interface PlayerPosition {
   isMoving: boolean;
 }
 
+export type BodyType = 'male' | 'female';
+
 export interface SpatialProfile {
   skinColor: string;
   hairColor: string;
@@ -20,6 +22,7 @@ export interface SpatialProfile {
   pantsColor: string;
   houseStyle: number;
   displayName: string;
+  bodyType: BodyType;
 }
 
 export interface RemotePlayer {
@@ -27,6 +30,7 @@ export interface RemotePlayer {
   displayName: string;
   position: PlayerPosition;
   profile: SpatialProfile;
+  insideHouseId?: string | null;
 }
 
 export interface House {
@@ -37,6 +41,14 @@ export interface House {
   style: number;
   roofColor: string;
   wallColor: string;
+}
+
+export interface HouseInterior {
+  houseId: string; // ownerId
+  ownerName: string;
+  width: number;
+  height: number;
+  style: number;
 }
 
 export interface WorldDecoration {
@@ -52,10 +64,11 @@ export const HAIR_COLORS = ['#2C1810', '#4A3728', '#8B4513', '#D4A017', '#E8E8E8
 export const SHIRT_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#1F2937', '#FFFFFF'];
 export const PANTS_COLORS = ['#1E3A5F', '#374151', '#1E40AF', '#7C3AED', '#047857', '#92400E'];
 
-export const HAIR_STYLE_NAMES = ['Buzz Cut', 'Short', 'Medium', 'Long', 'Mohawk'];
+export const BODY_TYPE_NAMES = ['Male', 'Female'];
+export const HAIR_STYLE_NAMES = ['Buzz Cut', 'Short', 'Medium', 'Long', 'Mohawk', 'Ponytail'];
 export const FACE_STYLE_NAMES = ['Happy', 'Cool', 'Chill', 'Wink'];
 export const SHIRT_STYLE_NAMES = ['T-Shirt', 'Hoodie', 'Tank Top', 'Polo'];
-export const PANTS_STYLE_NAMES = ['Jeans', 'Shorts', 'Cargo'];
+export const PANTS_STYLE_NAMES = ['Jeans', 'Shorts', 'Cargo', 'Skirt'];
 export const HOUSE_STYLE_NAMES = ['Cottage', 'Modern', 'Cabin', 'Villa'];
 
 // ─── World Constants ─────────────────────────────────
@@ -66,6 +79,11 @@ export const PLAYER_SPEED = 3;
 export const HEARING_DISTANCE = 350;
 export const VOICE_CONNECT_DISTANCE = 450;
 export const VOICE_DISCONNECT_DISTANCE = 550;
+
+// Interior constants
+export const INTERIOR_WIDTH = 400;
+export const INTERIOR_HEIGHT = 320;
+export const HOUSE_ENTER_DISTANCE = 50;
 
 // House colors by style
 export const HOUSE_COLORS: { roof: string; wall: string }[] = [
@@ -86,4 +104,5 @@ export const DEFAULT_PROFILE: SpatialProfile = {
   pantsColor: '#1E3A5F',
   houseStyle: 0,
   displayName: '',
+  bodyType: 'male',
 };
