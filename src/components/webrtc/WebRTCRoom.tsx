@@ -382,7 +382,7 @@ export function WebRTCRoom({
   const allParticipants = [
     { id: user?.id || 'local', name: participantName, stream: localStream, isLocal: true },
     ...Array.from(participants.values()).map(p => ({
-      id: p.odakle,
+      id: p.id,
       name: p.name,
       stream: p.stream,
       isLocal: false,
@@ -445,7 +445,7 @@ export function WebRTCRoom({
             )}
           </div>
           {connectionStats && (
-            <ConnectionQualityBadge stats={connectionStats} compact={pipMode === 'small'} mode={connectionMode} />
+            <ConnectionQualityBadge stats={connectionStats} compact={pipMode === 'small'} mode={connectionMode as ConnectionModeType} />
           )}
         </div>
       )}
