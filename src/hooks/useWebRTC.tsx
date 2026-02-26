@@ -254,6 +254,8 @@ type ConnectionMode = 'direct' | 'stun' | 'hybrid' | 'relay';
 // Legacy alias for compatibility
 const ICE_SERVERS = ICE_CONFIG_RELAY;
 
+export type CallPhase = 'idle' | 'getting-media' | 'joining-room' | 'waiting-for-peer' | 'negotiating' | 'connected';
+
 export const useWebRTC = (roomId: string | null, userName: string) => {
   const { user } = useAuth();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -264,26 +266,34 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   const [callStatus, setCallStatus] = useState<"IDLE" | "RINGING" | "IN_CALL">("IDLE");
   const [connectionStats, setConnectionStats] = useState<ConnectionStats | null>(null);
   const [connectionMode, setConnectionMode] = useState<ConnectionMode>('hybrid');
+  const [callPhase, setCallPhase] = useState<CallPhase>('idle');
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOffer = useRef<Set<string>>(new Set());
-  const initialSetup = useRef<Set<string>>(new Set()); // Suppress onnegotiationneeded during initial addTrack
-  const knownPeers = useRef<Map<string, string>>(new Map()); // peerId -> peerName
+  const initialSetup = useRef<Set<string>>(new Set());
+  const knownPeers = useRef<Map<string, string>>(new Map());
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastBytesReceived = useRef<number>(0);
   const lastBytesSent = useRef<number>(0);
   const lastStatsTime = useRef<number>(Date.now());
   const lowBandwidthCount = useRef<number>(0);
   const localIPsRef = useRef<string[]>([]);
-  const peerIPsRef = useRef<Map<string, string[]>>(new Map()); // peerId -> IPs
-  const connectionModeRef = useRef<Map<string, ConnectionMode>>(new Map()); // peerId -> mode
+  const peerIPsRef = useRef<Map<string, string[]>>(new Map());
+  const connectionModeRef = useRef<Map<string, ConnectionMode>>(new Map());
   const currentAdaptiveMode = useRef<'high' | 'medium' | 'low' | 'audio-only'>('high');
   
-  // Ref to hold sendOffer function for use in createPeerConnection
+  // Refs for handler functions — so channel callbacks always use the latest version
   const sendOfferRef = useRef<((remoteUserId: string, remoteName: string) => Promise<void>) | null>(null);
+  const handleOfferRef = useRef<((from: string, fromName: string, offer: RTCSessionDescriptionInit) => Promise<void>) | null>(null);
+  const handleAnswerRef = useRef<((from: string, answer: RTCSessionDescriptionInit) => Promise<void>) | null>(null);
+  const handleIceCandidateRef = useRef<((from: string, candidate: RTCIceCandidateInit) => Promise<void>) | null>(null);
+  const isPoliteRef = useRef<((remoteUserId: string) => boolean) | null>(null);
+  
+  // Connection timeout ref
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Adapt video quality based on bandwidth
   const adaptVideoQuality = useCallback(async (mode: 'high' | 'medium' | 'low' | 'audio-only') => {
@@ -830,8 +840,14 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
         if (pc.connectionState === 'connected') {
           setIsConnected(true);
           setCallStatus("IN_CALL");
+          setCallPhase('connected');
           reconnectAttempts = 0;
           failedConnections.current.delete(remoteUserId);
+          // Clear connection timeout
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
           console.log("[WebRTC] ✅ Successfully connected to:", remoteUserId);
         } else if (pc.connectionState === 'failed') {
           console.warn("[WebRTC] Connection failed for:", remoteUserId);
@@ -997,7 +1013,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     [createPeerConnection, userName, user],
   );
 
-  // Store sendOffer in ref for use in createPeerConnection callbacks
+  // Keep sendOffer ref up-to-date
   useEffect(() => {
     sendOfferRef.current = sendOffer;
   }, [sendOffer]);
@@ -1101,6 +1117,12 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     }
   }, []);
 
+  // Keep all handler refs in sync so joinRoom's channel callbacks always use latest
+  useEffect(() => { handleOfferRef.current = handleOffer; }, [handleOffer]);
+  useEffect(() => { handleAnswerRef.current = handleAnswer; }, [handleAnswer]);
+  useEffect(() => { handleIceCandidateRef.current = handleIceCandidate; }, [handleIceCandidate]);
+  useEffect(() => { isPoliteRef.current = isPolite; }, [isPolite]);
+
   const joinRoom = useCallback(
     async (video: boolean = true, audio: boolean = true) => {
       if (!roomId || !user) {
@@ -1110,20 +1132,22 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       
       console.log("[WebRTC] Joining room:", roomId);
       setIsConnecting(true);
+      setCallPhase('getting-media');
       setError(null);
       
       // Detect local IPs for same-network detection
-      console.log("[WebRTC] Detecting local network IPs...");
       const localIPs = await getLocalIPs();
       localIPsRef.current = localIPs;
-      console.log("[WebRTC] Local IPs detected:", localIPs);
       
+      setCallPhase('getting-media');
       const stream = await initializeMedia(video, audio);
       if (!stream) {
         setIsConnecting(false);
+        setCallPhase('idle');
         return;
       }
 
+      setCallPhase('joining-room');
       const channelName = `webrtc-room-${roomId}`;
       console.log("[WebRTC] Creating channel:", channelName);
       
@@ -1134,34 +1158,33 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       });
 
       channel
-        // Handle presence for peer discovery
+        // Handle presence for peer discovery — use REFS to avoid stale closures
         .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();
           console.log("[WebRTC] Presence sync:", Object.keys(state));
           
-          // Connect to all present peers we haven't connected to yet
-          Object.keys(state).forEach(peerId => {
-            if (peerId !== user.id && !peerConnections.current.has(peerId)) {
+          const peerIds = Object.keys(state).filter(id => id !== user.id);
+          if (peerIds.length > 0) {
+            setCallPhase(prev => prev === 'waiting-for-peer' || prev === 'joining-room' ? 'negotiating' : prev);
+          }
+          
+          peerIds.forEach(peerId => {
+            if (!peerConnections.current.has(peerId)) {
               const peerData = state[peerId]?.[0] as any;
               const peerName = peerData?.name || 'User';
               const peerIPs = peerData?.localIPs || [];
               
-              // Store peer's IPs for network detection
               if (peerIPs.length > 0) {
                 peerIPsRef.current.set(peerId, peerIPs);
-                console.log("[WebRTC] Peer", peerId, "IPs:", peerIPs);
               }
               
               console.log("[WebRTC] Discovered peer:", peerId, peerName);
               
-              // Only the "polite" peer sends the offer
-              if (isPolite(peerId)) {
+              if (isPoliteRef.current?.(peerId)) {
                 console.log("[WebRTC] We are polite, sending offer to:", peerId);
-                sendOffer(peerId, peerName);
+                sendOfferRef.current?.(peerId, peerName);
               } else {
                 console.log("[WebRTC] We are impolite, waiting for offer from:", peerId);
-                // Do NOT pre-create peer connection here - let handleOffer create it
-                // Pre-creating causes transceiver conflicts with the incoming offer SDP
               }
             }
           });
@@ -1172,20 +1195,18 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             const peerName = peerData?.name || 'User';
             const peerIPs = peerData?.localIPs || [];
             
-            // Store peer's IPs for network detection
             if (peerIPs.length > 0) {
               peerIPsRef.current.set(key, peerIPs);
-              console.log("[WebRTC] New peer", key, "IPs:", peerIPs);
             }
             
+            setCallPhase(prev => prev === 'waiting-for-peer' ? 'negotiating' : prev);
             console.log("[WebRTC] Peer joined:", key, peerName);
             
-            if (isPolite(key)) {
+            if (isPoliteRef.current?.(key)) {
               console.log("[WebRTC] New peer joined, we are polite, sending offer");
-              sendOffer(key, peerName);
+              sendOfferRef.current?.(key, peerName);
             } else {
               console.log("[WebRTC] New peer joined, we are impolite, waiting for their offer");
-              // Do NOT pre-create peer connection - let handleOffer do it
             }
           }
         })
@@ -1207,45 +1228,59 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
             });
           }
         })
-        // Handle signaling messages
+        // Handle signaling messages — use REFS to avoid stale closures
         .on("broadcast", { event: "offer" }, ({ payload }) => {
           if (payload.to === user.id) {
-            handleOffer(payload.from, payload.fromName, payload.offer);
+            handleOfferRef.current?.(payload.from, payload.fromName, payload.offer);
           }
         })
         .on("broadcast", { event: "answer" }, ({ payload }) => {
           if (payload.to === user.id) {
-            handleAnswer(payload.from, payload.answer);
+            handleAnswerRef.current?.(payload.from, payload.answer);
           }
         })
         .on("broadcast", { event: "ice-candidate" }, ({ payload }) => {
           if (payload.to === user.id) {
-            handleIceCandidate(payload.from, payload.candidate);
+            handleIceCandidateRef.current?.(payload.from, payload.candidate);
           }
         })
         .subscribe(async (status) => {
           console.log("[WebRTC] Channel status:", status);
           if (status === "SUBSCRIBED") {
-            // Track our presence with local IPs so peers can detect same-network
             await channel.track({ 
               name: userName, 
               joined_at: Date.now(),
-              localIPs: localIPsRef.current, // Share our local IPs
+              localIPs: localIPsRef.current,
             });
-            console.log("[WebRTC] Presence tracked with local IPs:", localIPsRef.current);
+            console.log("[WebRTC] Presence tracked");
             setIsConnecting(false);
-            // Don't set isConnected here - wait for actual peer connection
-            // isConnected will be set in onconnectionstatechange when pc.connectionState === 'connected'
+            setCallPhase('waiting-for-peer');
+            
+            // Set a timeout — if not connected after 45s, show error
+            if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = setTimeout(() => {
+              if (!peerConnections.current.size || 
+                  Array.from(peerConnections.current.values()).every(pc => pc.connectionState !== 'connected')) {
+                console.warn("[WebRTC] Connection timeout after 45s");
+                setError("Could not connect. The other person may not be available, or your network may be blocking the connection. Try again.");
+              }
+            }, 45000);
           }
         });
         
       channelRef.current = channel;
     },
-    [roomId, user, userName, initializeMedia, sendOffer, handleOffer, handleAnswer, handleIceCandidate, isPolite, createPeerConnection],
+    [roomId, user, userName, initializeMedia],
   );
 
   const leaveRoom = useCallback(() => {
     console.log("[WebRTC] Leaving room");
+    
+    // Clear connection timeout
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
     
     if (channelRef.current) {
       channelRef.current.untrack();
@@ -1280,6 +1315,7 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     setCallStatus("IDLE");
     setIsConnected(false);
     setConnectionMode('hybrid');
+    setCallPhase('idle');
   }, []);
 
   const toggleAudio = useCallback((muted: boolean) => {
@@ -1304,5 +1340,5 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     return () => leaveRoom();
   }, [leaveRoom]);
 
-  return { localStream, participants, isConnecting, isConnected, error, callStatus, connectionStats, connectionMode, joinRoom, leaveRoom, toggleAudio, toggleVideo };
+  return { localStream, participants, isConnecting, isConnected, error, callStatus, connectionStats, connectionMode, callPhase, joinRoom, leaveRoom, toggleAudio, toggleVideo };
 };
