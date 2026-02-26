@@ -16,7 +16,7 @@ import {
   ShieldIcon,
   SettingsIcon,
 } from "@/components/icons/SimpleIcons";
-import { Focus } from "lucide-react";
+import { Focus, Map } from "lucide-react";
 
 // Separate component for nav items to properly use hooks
 interface IconProps {
@@ -30,6 +30,11 @@ interface IconProps {
 const FocusIcon = ({ className, isActive, isHovered, size = "md" }: IconProps) => {
   const sizeMap = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
   return <Focus className={cn(sizeMap[size], "transition-all duration-200", (isActive || isHovered) && "text-primary", className)} />;
+};
+
+const AuraVilleIcon = ({ className, isActive, isHovered, size = "md" }: IconProps) => {
+  const sizeMap = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
+  return <Map className={cn(sizeMap[size], "transition-all duration-200", (isActive || isHovered) && "text-primary", className)} />;
 };
 
 interface NavItemProps {
@@ -116,6 +121,10 @@ export const Sidebar = () => {
     icon: FocusIcon,
     label: "Focus Room",
     path: "/focus"
+  }, {
+    icon: AuraVilleIcon,
+    label: "AuraVille",
+    path: "/auraville"
   }, {
     icon: CrownIcon,
     label: "Subscription",
