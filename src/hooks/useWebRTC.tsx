@@ -436,11 +436,10 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     setCallPhase('getting-media');
     setError(null);
 
-    // Step 1: Test TURN servers
-    const turnWorks = await testTurnServers();
-    if (!turnWorks) {
-      warn("⚠️ TURN servers may not be working, trying anyway...");
-    }
+    // Test TURN servers in background (non-blocking)
+    testTurnServers().then(works => {
+      if (!works) warn("⚠️ TURN servers may not be working");
+    });
 
     // Step 2: Get audio
     const stream = await getAudio();
@@ -590,9 +589,22 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      leaveRoom();
+      // Clean up on unmount only — no dependency on leaveRoom
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      if (channelRef.current) {
+        channelRef.current.untrack();
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      pcRef.current.forEach(pc => pc.close());
+      pcRef.current.clear();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => t.stop());
+        localStreamRef.current = null;
+      }
     };
-  }, [leaveRoom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     localStream, participants, isConnecting, isConnected, error, callStatus,
