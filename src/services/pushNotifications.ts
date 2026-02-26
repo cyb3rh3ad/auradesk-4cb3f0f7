@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
 
-// Check if we're on a native platform
 const isNative = Capacitor.isNativePlatform();
 
 export interface PushNotificationPayload {
@@ -14,6 +13,12 @@ export interface PushNotificationPayload {
 class PushNotificationService {
   private initialized = false;
   private token: string | null = null;
+  private onCallReceived: ((data: Record<string, string>) => void) | null = null;
+
+  /** Register a callback for incoming call push notifications (foreground) */
+  setCallHandler(handler: (data: Record<string, string>) => void) {
+    this.onCallReceived = handler;
+  }
 
   async initialize(): Promise<void> {
     if (!isNative || this.initialized) {
@@ -22,7 +27,6 @@ class PushNotificationService {
     }
 
     try {
-      // Request permission
       const permStatus = await PushNotifications.checkPermissions();
       
       if (permStatus.receive === 'prompt') {
@@ -36,32 +40,36 @@ class PushNotificationService {
         return;
       }
 
-      // Register for push notifications
       await PushNotifications.register();
 
-      // Listen for registration success
       PushNotifications.addListener('registration', async (token: Token) => {
         console.log('Push registration success, token:', token.value);
         this.token = token.value;
         await this.saveToken(token.value);
       });
 
-      // Listen for registration errors
       PushNotifications.addListener('registrationError', (error: any) => {
         console.error('Push registration error:', error);
       });
 
-      // Listen for push notifications received
+      // Foreground notification — if it's a call, trigger the in-app call UI
       PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-        console.log('Push notification received:', notification);
-        // Handle foreground notification - could show a toast or in-app alert
+        console.log('Push notification received (foreground):', notification);
+        const data = notification.data || {};
+        
+        if (data.type === 'call' && this.onCallReceived) {
+          // Don't show OS notification — the app is open and the realtime
+          // broadcast will handle the in-app call dialog
+          this.onCallReceived(data);
+          return;
+        }
+
         this.handleForegroundNotification(notification);
       });
 
-      // Listen for push notification actions
+      // Notification tapped — navigate to the right screen
       PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
         console.log('Push notification action performed:', action);
-        // Handle notification tap - navigate to relevant screen
         this.handleNotificationAction(action);
       });
 
@@ -82,7 +90,6 @@ class PushNotificationService {
 
       const platform = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
 
-      // Upsert the token (insert or update if exists)
       const { error } = await supabase
         .from('push_tokens')
         .upsert(
@@ -101,11 +108,8 @@ class PushNotificationService {
   }
 
   private handleForegroundNotification(notification: PushNotificationSchema): void {
-    // Create a custom in-app notification or toast
-    // For now, just log it - you can integrate with your toast system
     console.log('Foreground notification:', notification.title, notification.body);
     
-    // Optional: Show a toast notification
     if (typeof window !== 'undefined' && (window as any).showToast) {
       (window as any).showToast({
         title: notification.title || 'Notification',
@@ -117,10 +121,12 @@ class PushNotificationService {
   private handleNotificationAction(action: ActionPerformed): void {
     const data = action.notification.data;
     
-    // Navigate based on notification data
-    if (data?.type === 'message') {
+    if (data?.type === 'call' && data?.conversationId) {
+      // For calls, navigate to the chat and the realtime system picks up
+      window.location.href = `/chat?conversation=${data.conversationId}&incoming_call=true`;
+    } else if (data?.type === 'message' && data?.conversationId) {
       window.location.href = `/chat?conversation=${data.conversationId}`;
-    } else if (data?.type === 'meeting') {
+    } else if (data?.type === 'meeting' && data?.meetingId) {
       window.location.href = `/meetings?room=${data.meetingId}`;
     } else if (data?.type === 'team') {
       window.location.href = `/teams`;

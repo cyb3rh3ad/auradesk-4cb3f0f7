@@ -304,7 +304,8 @@ async function sendWebPush(
   auth: string,
   payload: string,
   vapidPrivateKeyJwk: JsonWebKey,
-  vapidPublicKeyRaw: Uint8Array
+  vapidPublicKeyRaw: Uint8Array,
+  isCallNotification = false
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { ciphertext, salt, serverPublicKey } = await encryptPayload(payload, { p256dh, auth });
@@ -318,8 +319,8 @@ async function sendWebPush(
         "Content-Encoding": "aesgcm",
         "Encryption": `salt=${b64url(salt.buffer)}`,
         "Content-Type": "application/octet-stream",
-        "TTL": "86400",
-        "Urgency": "high",
+        "TTL": isCallNotification ? "30" : "86400",
+        "Urgency": isCallNotification ? "high" : "normal",
       },
       body: ciphertext,
     });
@@ -413,7 +414,7 @@ serve(async (req) => {
           .in("user_id", targetUserIds);
 
         if (webSubs && webSubs.length > 0) {
-          const pushPayload = JSON.stringify({ title, body, data, tag: isCall ? "auradesk-call" : undefined });
+          const pushPayload = JSON.stringify({ title, body, data, tag: isCall ? "auradesk-call" : undefined, isCall });
 
           for (const sub of webSubs) {
             const result = await sendWebPush(
@@ -422,7 +423,8 @@ serve(async (req) => {
               sub.auth,
               pushPayload,
               vapidPrivateKeyJwk,
-              vapidPublicKeyRaw
+              vapidPublicKeyRaw,
+              isCall
             );
             if (result.success) {
               webSuccess++;
