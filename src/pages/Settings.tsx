@@ -585,9 +585,6 @@ const Settings = () => {
           <TwoFactorAuth />
           
           <BiometricSettings />
-
-          {/* QR Login Scanner */}
-          <QRLoginScannerCard />
         </TabsContent>
 
         <TabsContent value="audio-video" className="space-y-4">

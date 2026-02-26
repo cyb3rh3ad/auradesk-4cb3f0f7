@@ -114,16 +114,24 @@ export function usePromises(teamId?: string) {
   ) => {
     if (!user) return null;
     try {
-      const { data, error } = await supabase.from('promises').insert({
+      const insertData: any = {
         creator_id: user.id,
         team_id: tId || teamId || null,
         title,
-        description,
-        deadline,
+        description: description || null,
         status: 'pending',
-      }).select().single();
+      };
+      // Only add deadline if it's a valid value
+      if (deadline) {
+        insertData.deadline = new Date(deadline).toISOString();
+      }
 
-      if (error) throw error;
+      const { data, error } = await supabase.from('promises').insert(insertData).select().single();
+
+      if (error) {
+        console.error('Promise insert error:', error);
+        throw error;
+      }
 
       // Add creator as a signer too
       const allSigners = [...new Set([user.id, ...signerIds])];
@@ -134,12 +142,16 @@ export function usePromises(teamId?: string) {
       }));
 
       const { error: sigError } = await supabase.from('promise_signatures').insert(sigRows);
-      if (sigError) throw sigError;
+      if (sigError) {
+        console.error('Signature insert error:', sigError);
+        throw sigError;
+      }
 
       toast({ title: 'Promise created', description: 'Waiting for signatures' });
       return data;
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      console.error('Create promise error:', e);
+      toast({ title: 'Error creating promise', description: e.message || 'Something went wrong', variant: 'destructive' });
       return null;
     }
   };
