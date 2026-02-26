@@ -1,22 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LiveKitRoom,
-  AudioConference,
   useRoomContext,
   useParticipants,
   useLocalParticipant,
   RoomAudioRenderer,
-  useTracks,
-  TrackToggle,
-  DisconnectButton,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { Track, RoomEvent } from 'livekit-client';
+import { RoomEvent } from 'livekit-client';
 import { supabase } from '@/integrations/supabase/client';
 import { getSupabaseFunctionsUrl } from '@/lib/supabase-config';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mic, MicOff, PhoneOff, Loader2, Video, VideoOff } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Loader2, Video, VideoOff, RefreshCw, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -33,6 +29,10 @@ export interface LiveKitCallRoomProps {
   pipMode?: PiPMode;
 }
 
+const MAX_TOKEN_RETRIES = 3;
+const TOKEN_RETRY_DELAY = 1500;
+const CONNECTION_TIMEOUT = 15000;
+
 export function LiveKitCallRoom({
   roomName,
   participantName,
@@ -47,56 +47,114 @@ export function LiveKitCallRoom({
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const fetchedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch LiveKit token from edge function
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const fetchToken = useCallback(async (attempt = 0) => {
+    if (!mountedRef.current) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        if (!mountedRef.current) return;
+        setError('Not authenticated. Please sign in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Connection timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+
+      const response = await fetch(`${getSupabaseFunctionsUrl()}/livekit-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ roomName, participantName }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ error: 'Failed to get token' }));
+        throw new Error(errData.error || `Server error (${response.status})`);
+      }
+
+      const data = await response.json();
+
+      if (!data.token || !data.url) {
+        throw new Error('Invalid response from server');
+      }
+
+      if (!mountedRef.current) return;
+
+      console.log('[LiveKit] Token acquired successfully');
+      setToken(data.token);
+      setLivekitUrl(data.url);
+      setRetryCount(0);
+    } catch (err: any) {
+      if (!mountedRef.current) return;
+
+      const isAbort = err.name === 'AbortError';
+      const errorMsg = isAbort ? 'Connection timed out' : (err.message || 'Failed to connect');
+      console.error(`[LiveKit] Token fetch failed (attempt ${attempt + 1}):`, errorMsg);
+
+      if (attempt < MAX_TOKEN_RETRIES - 1) {
+        const delay = TOKEN_RETRY_DELAY * Math.pow(2, attempt);
+        console.log(`[LiveKit] Retrying in ${delay}ms...`);
+        timeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) fetchToken(attempt + 1);
+        }, delay);
+        return;
+      }
+
+      setError(errorMsg);
+      setRetryCount(attempt + 1);
+    } finally {
+      if (mountedRef.current) setIsLoading(false);
+    }
+  }, [roomName, participantName]);
+
+  // Initial fetch
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-
-    const fetchToken = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setError('Not authenticated');
-          setIsLoading(false);
-          return;
-        }
-
-        const response = await fetch(`${getSupabaseFunctionsUrl()}/livekit-token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            roomName,
-            participantName,
-          }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({ error: 'Failed to get token' }));
-          throw new Error(errData.error || 'Failed to get token');
-        }
-
-        const data = await response.json();
-        console.log('[LiveKit] Got token, URL:', data.url);
-        setToken(data.token);
-        setLivekitUrl(data.url);
-      } catch (err: any) {
-        console.error('[LiveKit] Token fetch error:', err);
-        setError(err.message || 'Failed to connect');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchToken();
-  }, [roomName, participantName]);
+  }, [fetchToken]);
+
+  const handleRetry = useCallback(() => {
+    fetchedRef.current = false;
+    setToken(null);
+    setLivekitUrl(null);
+    setError(null);
+    fetchToken();
+  }, [fetchToken]);
+
+  const handleRoomError = useCallback((err: Error) => {
+    console.error('[LiveKit] Room error:', err);
+    // Don't immediately show error for transient issues - LiveKit handles reconnection internally
+    if (err.message?.includes('signal') || err.message?.includes('websocket')) {
+      console.log('[LiveKit] Transient connection error, LiveKit will auto-reconnect');
+      return;
+    }
+    setError(err.message);
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -109,7 +167,9 @@ export function LiveKitCallRoom({
         >
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </motion.div>
-        <p className="mt-4 text-sm text-muted-foreground">Connecting to call...</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          {retryCount > 0 ? `Retrying connection (${retryCount}/${MAX_TOKEN_RETRIES})...` : 'Connecting to call...'}
+        </p>
         <Button onClick={onDisconnect} variant="outline" size="sm" className="mt-4 rounded-full px-6 gap-2">
           <PhoneOff className="w-4 h-4" /> Cancel
         </Button>
@@ -122,12 +182,15 @@ export function LiveKitCallRoom({
     return (
       <div className={cn("flex flex-col items-center justify-center h-full bg-background gap-4", className)}>
         <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
-          <PhoneOff className="w-8 h-8 text-destructive" />
+          <WifiOff className="w-8 h-8 text-destructive" />
         </div>
-        <p className="text-destructive text-sm font-medium">{error || 'Connection failed'}</p>
+        <p className="text-destructive text-sm font-medium text-center max-w-xs">{error || 'Connection failed'}</p>
+        <p className="text-xs text-muted-foreground text-center max-w-xs">
+          Check your internet connection and try again
+        </p>
         <div className="flex gap-3">
-          <Button onClick={() => { fetchedRef.current = false; setIsLoading(true); setError(null); }} className="rounded-full px-6">
-            Retry
+          <Button onClick={handleRetry} className="rounded-full px-6 gap-2">
+            <RefreshCw className="w-4 h-4" /> Retry
           </Button>
           <Button onClick={onDisconnect} variant="outline" className="rounded-full px-6">
             Leave
@@ -145,9 +208,11 @@ export function LiveKitCallRoom({
       audio={initialAudio}
       video={initialVideo}
       onDisconnected={onDisconnect}
-      onError={(err) => {
-        console.error('[LiveKit] Room error:', err);
-        setError(err.message);
+      onError={handleRoomError}
+      options={{
+        adaptiveStream: true,
+        dynacast: true,
+        disconnectOnPageLeave: false,
       }}
       className={cn("h-full", className)}
       style={{ 
@@ -187,6 +252,7 @@ function CallUI({
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(!initialVideo);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const durationRef = useRef<NodeJS.Timeout | null>(null);
 
   // Start duration timer when connected
@@ -198,6 +264,21 @@ function CallUI({
       if (durationRef.current) clearInterval(durationRef.current);
     };
   }, []);
+
+  // Track reconnection state
+  useEffect(() => {
+    if (!room) return;
+    const handleReconnecting = () => setIsReconnecting(true);
+    const handleReconnected = () => setIsReconnecting(false);
+    
+    room.on(RoomEvent.Reconnecting, handleReconnecting);
+    room.on(RoomEvent.Reconnected, handleReconnected);
+    
+    return () => {
+      room.off(RoomEvent.Reconnecting, handleReconnecting);
+      room.off(RoomEvent.Reconnected, handleReconnected);
+    };
+  }, [room]);
 
   // Sync mute state with LiveKit
   useEffect(() => {
@@ -214,15 +295,27 @@ function CallUI({
   };
 
   const handleToggleMute = async () => {
-    await localParticipant.setMicrophoneEnabled(isMuted);
+    try {
+      await localParticipant.setMicrophoneEnabled(isMuted);
+    } catch (err) {
+      console.error('[LiveKit] Failed to toggle mic:', err);
+    }
   };
 
   const handleToggleCamera = async () => {
-    await localParticipant.setCameraEnabled(isCameraOff);
+    try {
+      await localParticipant.setCameraEnabled(isCameraOff);
+    } catch (err) {
+      console.error('[LiveKit] Failed to toggle camera:', err);
+    }
   };
 
   const handleEndCall = () => {
-    room.disconnect();
+    try {
+      room.disconnect();
+    } catch (err) {
+      console.error('[LiveKit] Error during disconnect:', err);
+    }
     onDisconnect();
   };
 
@@ -238,14 +331,32 @@ function CallUI({
       {/* Subtle background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-primary/[0.03] blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-[hsl(var(--cosmic-cyan))]/[0.03] blur-[80px]" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-accent/[0.03] blur-[80px]" />
       </div>
+
+      {/* Reconnecting banner */}
+      <AnimatePresence>
+        {isReconnecting && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="relative z-20 bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center justify-center gap-2"
+          >
+            <Loader2 className="w-3 h-3 animate-spin text-yellow-500" />
+            <span className="text-xs text-yellow-500 font-medium">Reconnecting...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Top bar */}
       {!isCompact && (
         <div className="relative z-10 flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <div className={cn(
+              "w-2 h-2 rounded-full animate-pulse",
+              isReconnecting ? "bg-yellow-500" : "bg-green-500"
+            )} />
             <span className="text-xs text-muted-foreground font-mono">{formatDuration(callDuration)}</span>
           </div>
           <span className="text-xs text-muted-foreground">
