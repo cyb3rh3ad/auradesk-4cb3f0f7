@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { QrCode, RefreshCw, CheckCircle2, Loader2, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import QRCode from 'qrcode';
 
 interface QRLoginDisplayProps {
   onLoginSuccess: () => void;
@@ -93,11 +94,17 @@ export function QRLoginDisplay({ onLoginSuccess }: QRLoginDisplayProps) {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  // Generate QR code as SVG (simple QR-like visual with the token)
-  // We'll use a data URL approach
-  const qrDataUrl = qrToken
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrToken)}&bgcolor=transparent&color=fff`
-    : null;
+  // Generate QR code as data URL client-side
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!qrToken) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(qrToken, {
+      width: 200,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    }).then(url => setQrDataUrl(url)).catch(() => setQrDataUrl(null));
+  }, [qrToken]);
 
   return (
     <Card className="w-full max-w-sm mx-auto border-primary/10">
