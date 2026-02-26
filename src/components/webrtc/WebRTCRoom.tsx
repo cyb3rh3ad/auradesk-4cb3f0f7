@@ -130,10 +130,17 @@ export function WebRTCRoom({
     return () => { channel.unsubscribe(); };
   }, [roomName]);
 
-  // Connect on mount
+  // Connect on mount — use a ref to ensure we only join once
+  const hasJoined = useRef(false);
   useEffect(() => {
+    if (hasJoined.current) return;
+    hasJoined.current = true;
+    console.log("[WebRTCRoom] Mounting, calling joinRoom for:", roomName);
     joinRoom(initialVideo, initialAudio);
-    return () => { leaveRoom(); };
+    return () => { 
+      console.log("[WebRTCRoom] Unmounting, calling leaveRoom");
+      leaveRoom(); 
+    };
   }, [roomName]);
 
   // Attach local video
