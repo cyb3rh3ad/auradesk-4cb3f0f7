@@ -192,40 +192,50 @@ const ICE_CONFIG_HYBRID: RTCConfiguration = {
 };
 
 // Detect local IP to check if peers are on same network
+// NOTE: Many mobile browsers block this, so we use a short timeout and gracefully degrade
 const getLocalIPs = async (): Promise<string[]> => {
+  // Skip on mobile — local IP detection is unreliable and wastes time
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    console.log("[WebRTC] Skipping local IP detection on mobile");
+    return [];
+  }
+  
   return new Promise((resolve) => {
     const ips: string[] = [];
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    
-    pc.createDataChannel('');
-    pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => {});
-    
-    const timeout = setTimeout(() => {
-      pc.close();
-      resolve(ips);
-    }, 2000);
-    
-    pc.onicecandidate = (event) => {
-      if (!event.candidate) {
-        clearTimeout(timeout);
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      
+      pc.createDataChannel('');
+      pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => {});
+      
+      const timeout = setTimeout(() => {
         pc.close();
         resolve(ips);
-        return;
-      }
+      }, 1000); // Reduced from 2s to 1s
       
-      const candidate = event.candidate.candidate;
-      // Extract IP from candidate string
-      const ipMatch = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
-      if (ipMatch) {
-        const ip = ipMatch[0];
-        // Only include private IPs (local network)
-        if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.match(/^172\.(1[6-9]|2[0-9]|3[01])\./)) {
-          if (!ips.includes(ip)) {
-            ips.push(ip);
+      pc.onicecandidate = (event) => {
+        if (!event.candidate) {
+          clearTimeout(timeout);
+          pc.close();
+          resolve(ips);
+          return;
+        }
+        
+        const candidate = event.candidate.candidate;
+        const ipMatch = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
+        if (ipMatch) {
+          const ip = ipMatch[0];
+          if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.match(/^172\.(1[6-9]|2[0-9]|3[01])\./)) {
+            if (!ips.includes(ip)) {
+              ips.push(ip);
+            }
           }
         }
-      }
-    };
+      };
+    } catch {
+      resolve([]);
+    }
   });
 };
 
@@ -489,43 +499,59 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
   }, [isConnected, collectStats]);
 
   const initializeMedia = useCallback(async (video: boolean = true, audio: boolean = true) => {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
     try {
-      console.log("[WebRTC] Requesting media:", { video, audio });
+      console.log("[WebRTC] Requesting media:", { video, audio, isMobile });
       
-      // Try with both audio and video first
       let stream: MediaStream | null = null;
       
+      // Mobile-friendly constraints (simpler = more compatible)
+      const videoConstraints = video
+        ? isMobile
+          ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+          : { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } }
+        : false;
+      
+      const audioConstraints = audio
+        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        : false;
+      
+      // Attempt 1: Full request
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: video
-            ? {
-                width: { ideal: 1280, max: 1280 },
-                height: { ideal: 720, max: 720 },
-                frameRate: { ideal: 30, max: 30 },
-              }
-            : false,
-          audio: audio ? { 
-            echoCancellation: true, 
-            noiseSuppression: true, 
-            autoGainControl: true,
-            // Ensure we get audio even with strict constraints
-            sampleRate: { ideal: 48000 },
-            channelCount: { ideal: 1 },
-          } : false,
+          video: videoConstraints,
+          audio: audioConstraints,
         });
       } catch (primaryErr: any) {
         console.warn("[WebRTC] Primary media request failed:", primaryErr.name, primaryErr.message);
         
-        // Fallback: try audio-only if video fails
+        // Attempt 2: Simplest possible video constraints
         if (video && audio) {
-          console.log("[WebRTC] Falling back to audio-only");
           try {
+            console.log("[WebRTC] Trying simplified video constraints");
             stream = await navigator.mediaDevices.getUserMedia({
-              video: false,
-              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+              video: { facingMode: 'user' },
+              audio: true,
             });
-          } catch (audioErr) {
-            console.error("[WebRTC] Audio-only fallback failed:", audioErr);
+          } catch {
+            // Attempt 3: Audio only
+            console.log("[WebRTC] Falling back to audio-only");
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true,
+              });
+            } catch (audioErr) {
+              console.error("[WebRTC] Audio-only fallback failed:", audioErr);
+              throw primaryErr;
+            }
+          }
+        } else if (audio) {
+          // Just audio requested but failed
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+          } catch {
             throw primaryErr;
           }
         } else {
@@ -539,10 +565,8 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
 
       console.log("[WebRTC] Media obtained, tracks:", stream.getTracks().map(t => `${t.kind}:${t.enabled}:${t.readyState}`));
       
-      // Ensure all tracks are enabled
       stream.getTracks().forEach(track => {
         track.enabled = true;
-        console.log("[WebRTC] Track enabled:", track.kind, track.id);
       });
       
       setLocalStream(stream);
@@ -553,13 +577,17 @@ export const useWebRTC = (roomId: string | null, userName: string) => {
       let errorMessage = "Failed to access camera/microphone.";
       
       if (err.name === 'NotAllowedError') {
-        errorMessage = "Camera/microphone permission denied. Please allow access in your browser settings.";
+        errorMessage = isMobile
+          ? "Camera/microphone permission denied. Please go to your phone's Settings and allow access for this app."
+          : "Camera/microphone permission denied. Please allow access in your browser settings.";
       } else if (err.name === 'NotFoundError') {
-        errorMessage = "No camera or microphone found. Please connect a device.";
+        errorMessage = "No camera or microphone found.";
       } else if (err.name === 'NotReadableError') {
-        errorMessage = "Camera/microphone is in use by another application.";
+        errorMessage = "Camera/microphone is in use by another app. Close other apps using the camera and try again.";
       } else if (err.name === 'OverconstrainedError') {
-        errorMessage = "Camera does not meet requirements. Trying with lower quality...";
+        errorMessage = "Camera does not meet requirements.";
+      } else if (err.name === 'AbortError') {
+        errorMessage = "Media request was interrupted. Please try again.";
       }
       
       setError(errorMessage);

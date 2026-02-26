@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { webPushService } from '@/services/webPushNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// Bump this version to force re-prompt all users
-const PUSH_PROMPT_VERSION = '2';
+// Bump this version to force re-prompt ALL users (clears old state)
+const PUSH_PROMPT_VERSION = '3';
 
 /**
  * Single unified push notification initializer.
@@ -13,68 +13,70 @@ const PUSH_PROMPT_VERSION = '2';
  * Shows ONE prompt per version, never nags.
  */
 export const PushNotificationInit = () => {
-  const { isSupported: isNativeSupported, isInitialized: isNativeInit } = usePushNotifications();
+  const { isSupported: isNativeSupported } = usePushNotifications();
   const { user } = useAuth();
-  const [prompted, setPrompted] = useState(false);
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    if (!user || isNativeSupported || prompted) return;
+    if (!user || isNativeSupported || hasRun.current) return;
+    hasRun.current = true;
 
-    let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
 
     const initWebPush = async () => {
-      const supported = webPushService.isSupported();
-      if (!supported) return;
+      if (!webPushService.isSupported()) return;
 
-      const initialized = await webPushService.initialize();
-      if (!initialized || cancelled) return;
+      // Permission denied at browser level — nothing we can do
+      if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return;
 
-      // Already subscribed — nothing to do
-      if (webPushService.isSubscribed()) return;
-
-      // Permission already granted — silently subscribe
-      if (Notification.permission === 'granted') {
-        await webPushService.requestPermissionAndSubscribe();
+      // Already granted — silently ensure subscription is active
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const ok = await webPushService.initialize();
+        if (ok && !webPushService.isSubscribed()) {
+          await webPushService.requestPermissionAndSubscribe();
+        } else if (ok) {
+          // Already subscribed, refresh subscription in background
+          await webPushService.refreshSubscription();
+        }
         return;
       }
-
-      // Permission denied — can't do anything (user must change in browser settings)
-      if (Notification.permission === 'denied') return;
 
       // Check if we already prompted for this version
       const askedVersion = localStorage.getItem('auradesk-webpush-version');
       if (askedVersion === PUSH_PROMPT_VERSION) return;
 
-      // Show ONE prompt after a delay
+      // Initialize the service (fetch VAPID key)
+      const initialized = await webPushService.initialize();
+      if (!initialized) return;
+
+      // Show ONE prompt after a short delay so user settles in
       timer = setTimeout(() => {
-        if (cancelled) return;
-        setPrompted(true);
         localStorage.setItem('auradesk-webpush-version', PUSH_PROMPT_VERSION);
 
         toast('🔔 Stay in the loop', {
           description: 'Enable notifications to get alerts for calls, messages, and updates — even when the app is closed.',
-          duration: 20000,
+          duration: 30000,
           action: {
             label: 'Enable',
             onClick: async () => {
               const success = await webPushService.requestPermissionAndSubscribe();
               if (success) {
                 toast.success('You\'re all set! You\'ll get alerts for calls and messages.');
+              } else {
+                toast.error('Could not enable notifications. Check your browser settings.');
               }
             },
           },
         });
-      }, 5000);
+      }, 3000);
     };
 
     initWebPush();
 
     return () => {
-      cancelled = true;
       clearTimeout(timer);
     };
-  }, [user, isNativeSupported, prompted]);
+  }, [user, isNativeSupported]);
 
   return null;
 };
