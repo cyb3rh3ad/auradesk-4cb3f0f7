@@ -8,24 +8,26 @@ import { toast } from 'sonner';
  * Component that initializes push notifications on all platforms.
  * - Native: Uses Capacitor FCM
  * - Web/PWA: Uses Web Push API with VAPID
- * Should be placed inside AuthProvider and ProtectedRoute.
+ * 
+ * Notification permission covers everything: messages, calls, updates.
+ * Call-specific handling (ringtone, vibration) is done in the service worker
+ * and native push handler.
  */
 export const PushNotificationInit = () => {
   const { isSupported: isNativeSupported, isInitialized: isNativeInit } = usePushNotifications();
   const { user } = useAuth();
-  const [webPushReady, setWebPushReady] = useState(false);
   const [hasAskedPermission, setHasAskedPermission] = useState(false);
 
   // Native push notification log
   useEffect(() => {
     if (isNativeSupported && isNativeInit) {
-      console.log('Native push notifications ready');
+      console.log('Native push notifications ready (messages + calls)');
     }
   }, [isNativeSupported, isNativeInit]);
 
   // Web push initialization
   useEffect(() => {
-    if (!user || isNativeSupported) return; // Skip web push on native platforms
+    if (!user || isNativeSupported) return;
 
     const initWebPush = async () => {
       const supported = webPushService.isSupported();
@@ -37,11 +39,9 @@ export const PushNotificationInit = () => {
       const initialized = await webPushService.initialize();
       if (!initialized) return;
 
-      setWebPushReady(true);
-
       // If already subscribed, we're done
       if (webPushService.isSubscribed()) {
-        console.log('Web push already subscribed');
+        console.log('Web push already subscribed (messages + calls)');
         return;
       }
 
@@ -55,21 +55,21 @@ export const PushNotificationInit = () => {
       const asked = localStorage.getItem('auradesk-webpush-asked');
       if (asked) return;
 
-      // Wait a bit before asking, so the user has time to settle in
+      // Wait a bit before asking
       const timer = setTimeout(() => {
         if (!hasAskedPermission) {
           setHasAskedPermission(true);
           localStorage.setItem('auradesk-webpush-asked', 'true');
           
           toast('🔔 Enable notifications?', {
-            description: 'Get notified about messages, calls, and updates even when the app is in the background.',
-            duration: 15000,
+            description: 'Get notified about incoming calls, messages, and updates — even when the app is in the background.',
+            duration: 20000,
             action: {
               label: 'Enable',
               onClick: async () => {
                 const success = await webPushService.requestPermissionAndSubscribe();
                 if (success) {
-                  toast.success('Notifications enabled!');
+                  toast.success('Notifications enabled! You\'ll receive call and message alerts.');
                 } else {
                   toast.error('Could not enable notifications. Check your browser settings.');
                 }
