@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.validate-promo-code]
 verify_jwt = true
+
+[functions.qr-login-approve]
+verify_jwt = false
