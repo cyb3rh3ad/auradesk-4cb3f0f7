@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// LiveKit token generation using their REST API approach
+// LiveKit JWT token generation (HMAC-SHA256)
 async function createToken(
   apiKey: string,
   apiSecret: string,
@@ -22,7 +22,7 @@ async function createToken(
     iss: apiKey,
     sub: participantIdentity,
     name: participantName,
-    exp: exp,
+    exp,
     nbf: now,
     iat: now,
     video: {
@@ -35,7 +35,6 @@ async function createToken(
     jti: crypto.randomUUID(),
   };
 
-  // Base64URL encode
   const base64UrlEncode = (obj: object) => {
     const json = JSON.stringify(obj);
     const bytes = new TextEncoder().encode(json);
@@ -47,7 +46,6 @@ async function createToken(
   const encodedPayload = base64UrlEncode(payload);
   const signingInput = `${encodedHeader}.${encodedPayload}`;
 
-  // Sign with HMAC-SHA256
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(apiSecret),
@@ -71,17 +69,16 @@ async function createToken(
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify user is authenticated
+    // ── Auth: validate JWT via getClaims ──
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -92,14 +89,18 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth error:', claimsError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const userId = claimsData.claims.sub as string;
+    const userEmail = (claimsData.claims.email as string) || '';
 
     const { roomName, participantName } = await req.json();
 
@@ -115,31 +116,31 @@ serve(async (req) => {
     const apiSecret = Deno.env.get('LIVEKIT_API_SECRET');
 
     if (!livekitUrl || !apiKey || !apiSecret) {
-      console.error('Missing LiveKit configuration');
+      console.error('Missing LiveKit configuration. Set LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET secrets.');
       return new Response(
-        JSON.stringify({ error: 'LiveKit not configured' }),
+        JSON.stringify({ error: 'LiveKit not configured. Contact the app administrator.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Generating token for room: ${roomName}, user: ${user.id}`);
+    console.log(`[LiveKit] Generating token for room: ${roomName}, user: ${userId}`);
 
-    const token = await createToken(
+    const livekitToken = await createToken(
       apiKey,
       apiSecret,
       roomName,
-      user.id,
-      participantName || user.email || 'Anonymous'
+      userId,
+      participantName || userEmail || 'Anonymous'
     );
 
-    console.log('Token generated successfully');
+    console.log('[LiveKit] Token generated successfully');
 
     return new Response(
       JSON.stringify({ 
-        token, 
+        token: livekitToken, 
         url: livekitUrl,
         roomName,
-        participantIdentity: user.id
+        participantIdentity: userId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

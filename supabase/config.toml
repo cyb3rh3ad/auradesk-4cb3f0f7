@@ -1,37 +1,37 @@
 project_id = "jtbxuiyhuyvqvdkqqioo"
 
 [functions.chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.summarize]
-verify_jwt = true
+verify_jwt = false
 
 [functions.process-transcript]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-assistant]
-verify_jwt = true
+verify_jwt = false
 
 [functions.livekit-token]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-checkout]
-verify_jwt = true
+verify_jwt = false
 
 [functions.customer-portal]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-subscription]
-verify_jwt = true
+verify_jwt = false
 
 [functions.initialize-owner]
 verify_jwt = false
 
 [functions.activate-free-subscription]
-verify_jwt = true
+verify_jwt = false
 
 [functions.validate-promo-code]
-verify_jwt = true
+verify_jwt = false
 
 [functions.qr-login-approve]
 verify_jwt = false
@@ -43,4 +43,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-auto-reply]
-verify_jwt = true
+verify_jwt = false
