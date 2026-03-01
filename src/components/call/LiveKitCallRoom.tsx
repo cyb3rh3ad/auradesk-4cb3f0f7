@@ -9,7 +9,6 @@ import {
 import '@livekit/components-styles';
 import { RoomEvent } from 'livekit-client';
 import { supabase } from '@/integrations/supabase/client';
-import { getSupabaseFunctionsUrl } from '@/lib/supabase-config';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Mic, MicOff, PhoneOff, Loader2, Video, VideoOff, RefreshCw, WifiOff } from 'lucide-react';
@@ -31,7 +30,6 @@ export interface LiveKitCallRoomProps {
 
 const MAX_TOKEN_RETRIES = 3;
 const TOKEN_RETRY_DELAY = 1500;
-const CONNECTION_TIMEOUT = 15000;
 
 export function LiveKitCallRoom({
   roomName,
@@ -67,42 +65,22 @@ export function LiveKitCallRoom({
       setIsLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        if (!mountedRef.current) return;
-        setError('Not authenticated. Please sign in again.');
-        setIsLoading(false);
-        return;
-      }
+      console.log(`[LiveKit] Requesting token (attempt ${attempt + 1}/${MAX_TOKEN_RETRIES}) for room: ${roomName}`);
 
-      // Connection timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-
-      const response = await fetch(`${getSupabaseFunctionsUrl()}/livekit-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ roomName, participantName }),
-        signal: controller.signal,
+      // Use supabase.functions.invoke — handles auth headers automatically
+      const { data, error: fnError } = await supabase.functions.invoke('livekit-token', {
+        body: { roomName, participantName },
       });
 
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({ error: 'Failed to get token' }));
-        throw new Error(errData.error || `Server error (${response.status})`);
-      }
-
-      const data = await response.json();
-
-      if (!data.token || !data.url) {
-        throw new Error('Invalid response from server');
-      }
-
       if (!mountedRef.current) return;
+
+      if (fnError) {
+        throw new Error(fnError.message || 'Failed to get call token');
+      }
+
+      if (!data?.token || !data?.url) {
+        throw new Error(data?.error || 'Invalid response from call server');
+      }
 
       console.log('[LiveKit] Token acquired successfully');
       setToken(data.token);
@@ -111,8 +89,7 @@ export function LiveKitCallRoom({
     } catch (err: any) {
       if (!mountedRef.current) return;
 
-      const isAbort = err.name === 'AbortError';
-      const errorMsg = isAbort ? 'Connection timed out' : (err.message || 'Failed to connect');
+      const errorMsg = err.message || 'Failed to connect to call';
       console.error(`[LiveKit] Token fetch failed (attempt ${attempt + 1}):`, errorMsg);
 
       if (attempt < MAX_TOKEN_RETRIES - 1) {
@@ -148,7 +125,7 @@ export function LiveKitCallRoom({
 
   const handleRoomError = useCallback((err: Error) => {
     console.error('[LiveKit] Room error:', err);
-    // Don't immediately show error for transient issues - LiveKit handles reconnection internally
+    // Don't immediately show error for transient issues
     if (err.message?.includes('signal') || err.message?.includes('websocket')) {
       console.log('[LiveKit] Transient connection error, LiveKit will auto-reconnect');
       return;
@@ -255,7 +232,6 @@ function CallUI({
   const [isReconnecting, setIsReconnecting] = useState(false);
   const durationRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Start duration timer when connected
   useEffect(() => {
     durationRef.current = setInterval(() => {
       setCallDuration(d => d + 1);
@@ -265,7 +241,6 @@ function CallUI({
     };
   }, []);
 
-  // Track reconnection state
   useEffect(() => {
     if (!room) return;
     const handleReconnecting = () => setIsReconnecting(true);
@@ -280,7 +255,6 @@ function CallUI({
     };
   }, [room]);
 
-  // Sync mute state with LiveKit
   useEffect(() => {
     if (localParticipant) {
       setIsMuted(!localParticipant.isMicrophoneEnabled);
@@ -328,13 +302,11 @@ function CallUI({
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
-      {/* Subtle background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-primary/[0.03] blur-[100px]" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-accent/[0.03] blur-[80px]" />
       </div>
 
-      {/* Reconnecting banner */}
       <AnimatePresence>
         {isReconnecting && (
           <motion.div
@@ -349,7 +321,6 @@ function CallUI({
         )}
       </AnimatePresence>
 
-      {/* Top bar */}
       {!isCompact && (
         <div className="relative z-10 flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-2">
@@ -365,7 +336,6 @@ function CallUI({
         </div>
       )}
 
-      {/* Participants area */}
       <div className="flex-1 flex items-center justify-center relative z-10 p-4">
         <div className={cn(
           "grid gap-4 w-full max-w-2xl",
@@ -391,7 +361,6 @@ function CallUI({
                     isCompact && "p-3"
                   )}
                 >
-                  {/* Speaking glow */}
                   {isSpeaking && (
                     <motion.div
                       className="absolute inset-0 rounded-2xl bg-primary/5"
@@ -400,7 +369,6 @@ function CallUI({
                     />
                   )}
 
-                  {/* Avatar */}
                   <div className="relative">
                     <Avatar className={cn("border-2 border-border/50", isCompact ? "h-12 w-12" : "h-20 w-20")}>
                       <AvatarFallback className={cn(
@@ -411,7 +379,6 @@ function CallUI({
                       </AvatarFallback>
                     </Avatar>
 
-                    {/* Speaking ring */}
                     {isSpeaking && (
                       <motion.div
                         className="absolute inset-[-4px] rounded-full border-2 border-primary/60"
@@ -420,7 +387,6 @@ function CallUI({
                       />
                     )}
 
-                    {/* Mute indicator */}
                     {!hasMic && (
                       <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-destructive rounded-full flex items-center justify-center">
                         <MicOff className="w-3 h-3 text-white" />
@@ -438,7 +404,6 @@ function CallUI({
             })}
           </AnimatePresence>
 
-          {/* Waiting state when alone */}
           {remoteParticipants.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -458,12 +423,10 @@ function CallUI({
         </div>
       </div>
 
-      {/* Controls bar - WhatsApp style */}
       <div className={cn(
         "relative z-10 flex items-center justify-center gap-4 pb-6 pt-3",
         isCompact && "pb-3 pt-2 gap-3"
       )}>
-        {/* Mute toggle */}
         <Button
           onClick={handleToggleMute}
           variant="outline"
@@ -479,7 +442,6 @@ function CallUI({
           {isMuted ? <MicOff className={isCompact ? "w-4 h-4" : "w-5 h-5"} /> : <Mic className={isCompact ? "w-4 h-4" : "w-5 h-5"} />}
         </Button>
 
-        {/* Camera toggle */}
         <Button
           onClick={handleToggleCamera}
           variant="outline"
@@ -495,7 +457,6 @@ function CallUI({
           {isCameraOff ? <VideoOff className={isCompact ? "w-4 h-4" : "w-5 h-5"} /> : <Video className={isCompact ? "w-4 h-4" : "w-5 h-5"} />}
         </Button>
 
-        {/* End call */}
         <Button
           onClick={handleEndCall}
           size="icon"
