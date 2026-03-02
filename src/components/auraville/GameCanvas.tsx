@@ -14,6 +14,7 @@ import {
   INTERIOR_WIDTH,
   INTERIOR_HEIGHT,
 } from './gameTypes';
+import { PlacedFurniture } from './furnitureTypes';
 import { drawCharacter, roundRect, darkenColor, lightenColor } from './characterRenderer';
 import { drawInterior, getInteriorBounds } from './interiorRenderer';
 
@@ -27,6 +28,7 @@ interface GameCanvasProps {
   insideHouseId: string | null;
   onEnterHouse: (houseId: string) => void;
   onExitHouse: () => void;
+  furniture?: PlacedFurniture[];
 }
 
 // ─── World Drawing ──────────────────────────────────
@@ -317,35 +319,83 @@ function drawDecoration(ctx: CanvasRenderingContext2D, dec: WorldDecoration, cam
 
 function drawPaths(ctx: CanvasRenderingContext2D, houses: House[], camX: number, camY: number) {
   if (houses.length < 2) return;
-  const center = houses[0];
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  ctx.lineWidth = 28;
-  ctx.lineCap = 'round';
-  for (let i = 1; i < houses.length; i++) {
+  // Find grid structure: identify rows
+  const sorted = [...houses].sort((a, b) => a.y - b.y || a.x - b.x);
+  const rows: House[][] = [];
+  let currentRow: House[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (Math.abs(sorted[i].y - currentRow[0].y) < 100) {
+      currentRow.push(sorted[i]);
+    } else {
+      rows.push(currentRow);
+      currentRow = [sorted[i]];
+    }
+  }
+  rows.push(currentRow);
+
+  const ROAD_W = 36;
+  
+  // Draw horizontal roads between rows
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    if (row.length < 1) continue;
+    const minX = Math.min(...row.map(h => h.x)) - 80;
+    const maxX = Math.max(...row.map(h => h.x)) + 80;
+    const roadY = row[0].y + 50;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.fillRect(minX - camX, roadY - ROAD_W / 2 - camY + 2, maxX - minX, ROAD_W + 4);
+    // Road surface
+    ctx.fillStyle = '#9E8E7E';
+    ctx.fillRect(minX - camX, roadY - ROAD_W / 2 - camY, maxX - minX, ROAD_W);
+    // Center line (dashed)
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([12, 8]);
     ctx.beginPath();
-    ctx.moveTo(center.x - camX, center.y + 35 - camY);
-    ctx.lineTo(houses[i].x - camX, houses[i].y + 35 - camY);
+    ctx.moveTo(minX - camX, roadY - camY);
+    ctx.lineTo(maxX - camX, roadY - camY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Edge lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(minX - camX, roadY - ROAD_W / 2 - camY);
+    ctx.lineTo(maxX - camX, roadY - ROAD_W / 2 - camY);
+    ctx.moveTo(minX - camX, roadY + ROAD_W / 2 - camY);
+    ctx.lineTo(maxX - camX, roadY + ROAD_W / 2 - camY);
     ctx.stroke();
   }
 
-  ctx.strokeStyle = '#c9a05c';
-  ctx.lineWidth = 24;
-  for (let i = 1; i < houses.length; i++) {
-    ctx.beginPath();
-    ctx.moveTo(center.x - camX, center.y + 34 - camY);
-    ctx.lineTo(houses[i].x - camX, houses[i].y + 34 - camY);
-    ctx.stroke();
+  // Draw vertical connectors between row roads
+  if (rows.length >= 2) {
+    const midX = houses.reduce((s, h) => s + h.x, 0) / houses.length;
+    for (let r = 0; r < rows.length - 1; r++) {
+      const y1 = rows[r][0].y + 50 + ROAD_W / 2;
+      const y2 = rows[r + 1][0].y + 50 - ROAD_W / 2;
+      ctx.fillStyle = '#9E8E7E';
+      ctx.fillRect(midX - ROAD_W / 2 - camX, y1 - camY, ROAD_W, y2 - y1);
+      // Center line
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath();
+      ctx.moveTo(midX - camX, y1 - camY);
+      ctx.lineTo(midX - camX, y2 - camY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 8;
-  for (let i = 1; i < houses.length; i++) {
-    ctx.beginPath();
-    ctx.moveTo(center.x - camX, center.y + 33 - camY);
-    ctx.lineTo(houses[i].x - camX, houses[i].y + 33 - camY);
-    ctx.stroke();
-  }
+  // Driveways from houses to road
+  houses.forEach(house => {
+    const roadY = house.y + 50;
+    ctx.fillStyle = '#B5A595';
+    ctx.fillRect(house.x - 8 - camX, house.y + 35 - camY, 16, roadY - ROAD_W / 2 - house.y - 35);
+  });
 }
 
 function drawVoiceRange(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
@@ -415,10 +465,121 @@ function drawMinimap(
   ctx.fillText('MAP', mx + size / 2, my + size + 14);
 }
 
+// ─── Furniture Drawing ──────────────────────────────
+function drawFurnitureItem(ctx: CanvasRenderingContext2D, f: PlacedFurniture, ox: number, oy: number) {
+  const x = ox + f.x;
+  const y = oy + f.y;
+
+  ctx.save();
+  switch (f.furnitureType) {
+    case 'sofa':
+      ctx.fillStyle = '#5D3A1A'; roundRect(ctx, x, y, 80, 28, 4); ctx.fill();
+      ctx.fillStyle = '#B22222'; roundRect(ctx, x + 3, y + 3, 74, 22, 3); ctx.fill();
+      break;
+    case 'armchair':
+      ctx.fillStyle = '#5D3A1A'; roundRect(ctx, x, y, 28, 28, 4); ctx.fill();
+      ctx.fillStyle = '#336699'; roundRect(ctx, x + 3, y + 3, 22, 22, 3); ctx.fill();
+      break;
+    case 'coffee_table':
+      ctx.fillStyle = '#654321'; roundRect(ctx, x, y, 44, 18, 3); ctx.fill();
+      ctx.fillStyle = '#7B5B3A'; roundRect(ctx, x + 2, y + 2, 40, 14, 2); ctx.fill();
+      break;
+    case 'tv_stand':
+      ctx.fillStyle = '#333'; roundRect(ctx, x, y, 50, 10, 2); ctx.fill();
+      ctx.fillStyle = '#111'; roundRect(ctx, x + 10, y - 16, 30, 16, 2); ctx.fill();
+      ctx.fillStyle = '#1a1a3e'; roundRect(ctx, x + 12, y - 14, 26, 12, 1); ctx.fill();
+      break;
+    case 'bookshelf':
+      ctx.fillStyle = '#5D3A1A'; roundRect(ctx, x, y, 12, 50, 1); ctx.fill();
+      const bkColors = ['#B22222', '#4169E1', '#228B22', '#FFD700'];
+      for (let i = 0; i < 4; i++) { ctx.fillStyle = bkColors[i]; ctx.fillRect(x + 2, y + 3 + i * 12, 8, 9); }
+      break;
+    case 'floor_lamp':
+      ctx.fillStyle = '#444'; ctx.fillRect(x + 3, y + 5, 3, 28);
+      ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(x + 4.5, y + 3, 6, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'bed_single':
+      ctx.fillStyle = '#8B7355'; roundRect(ctx, x, y, 36, 50, 3); ctx.fill();
+      ctx.fillStyle = '#4169E1'; roundRect(ctx, x + 2, y + 2, 32, 38, 2); ctx.fill();
+      ctx.fillStyle = '#FFF'; roundRect(ctx, x + 5, y + 3, 16, 10, 3); ctx.fill();
+      break;
+    case 'bed_double':
+      ctx.fillStyle = '#8B7355'; roundRect(ctx, x, y, 56, 50, 3); ctx.fill();
+      ctx.fillStyle = '#4169E1'; roundRect(ctx, x + 2, y + 2, 52, 38, 2); ctx.fill();
+      ctx.fillStyle = '#FFF'; roundRect(ctx, x + 5, y + 3, 18, 10, 3); ctx.fill();
+      ctx.fillStyle = '#FFF'; roundRect(ctx, x + 30, y + 3, 18, 10, 3); ctx.fill();
+      break;
+    case 'nightstand':
+      ctx.fillStyle = '#5D3A1A'; roundRect(ctx, x, y, 16, 16, 2); ctx.fill();
+      ctx.fillStyle = '#D4A017'; ctx.beginPath(); ctx.arc(x + 8, y + 8, 1.5, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'dresser':
+      ctx.fillStyle = '#5D3A1A'; roundRect(ctx, x, y, 34, 22, 2); ctx.fill();
+      ctx.fillStyle = '#7B5B3A';
+      for (let d = 0; d < 3; d++) ctx.fillRect(x + 2 + d * 10, y + 3, 9, 7);
+      for (let d = 0; d < 3; d++) ctx.fillRect(x + 2 + d * 10, y + 12, 9, 7);
+      break;
+    case 'counter':
+      ctx.fillStyle = '#5D3A1A'; ctx.fillRect(x, y, 60, 18);
+      ctx.fillStyle = '#D2B48C'; ctx.fillRect(x + 1, y + 1, 58, 12);
+      break;
+    case 'stove':
+      ctx.fillStyle = '#333'; roundRect(ctx, x, y, 24, 12, 1); ctx.fill();
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x + 8, y + 6, 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 18, y + 6, 3, 0, Math.PI * 2); ctx.stroke();
+      break;
+    case 'fridge':
+      ctx.fillStyle = '#E8E8E8'; roundRect(ctx, x, y, 20, 36, 2); ctx.fill();
+      ctx.strokeStyle = '#CCC'; ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, 18, 15);
+      ctx.strokeRect(x + 1, y + 17, 18, 18);
+      break;
+    case 'dining_table':
+      ctx.fillStyle = '#654321'; roundRect(ctx, x, y, 40, 28, 3); ctx.fill();
+      ctx.fillStyle = '#7B5B3A'; roundRect(ctx, x + 2, y + 2, 36, 24, 2); ctx.fill();
+      break;
+    case 'toilet':
+      ctx.fillStyle = '#F0F0F0'; roundRect(ctx, x, y, 16, 22, 3); ctx.fill();
+      ctx.fillStyle = '#E8E8E8'; ctx.fillRect(x + 1, y, 14, 6);
+      break;
+    case 'bathtub':
+      ctx.fillStyle = '#E8E8E8'; roundRect(ctx, x, y, 48, 26, 4); ctx.fill();
+      ctx.fillStyle = 'rgba(135,206,250,0.3)'; roundRect(ctx, x + 3, y + 3, 42, 20, 3); ctx.fill();
+      break;
+    case 'plant_tall':
+      ctx.fillStyle = '#654321'; roundRect(ctx, x + 4, y + 8, 6, 6, 1); ctx.fill();
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath(); ctx.arc(x + 7, y + 4, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 4, y + 6, 4, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'plant_small':
+      ctx.fillStyle = '#654321'; roundRect(ctx, x + 2, y + 5, 6, 5, 1); ctx.fill();
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath(); ctx.arc(x + 5, y + 3, 4, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'rug_round':
+      ctx.fillStyle = 'rgba(139,0,0,0.2)';
+      ctx.beginPath(); ctx.ellipse(x + 30, y + 20, 30, 20, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'fireplace':
+      ctx.fillStyle = '#654321'; roundRect(ctx, x, y, 40, 20, 2); ctx.fill();
+      ctx.fillStyle = '#333'; roundRect(ctx, x + 5, y + 4, 30, 14, 2); ctx.fill();
+      ctx.fillStyle = '#FF6B35'; ctx.beginPath(); ctx.arc(x + 20, y + 12, 5, 0, Math.PI * 2); ctx.fill();
+      break;
+    default:
+      // Generic box for unrecognized types
+      ctx.fillStyle = 'rgba(100,100,100,0.3)';
+      roundRect(ctx, x, y, 20, 20, 2); ctx.fill();
+      break;
+  }
+  ctx.restore();
+}
+
 // ─── Main Component ─────────────────────────────────
 export const GameCanvas = ({
   position, profile, remotePlayers, houses, decorations,
-  updateMovement, insideHouseId, onEnterHouse, onExitHouse
+  updateMovement, insideHouseId, onEnterHouse, onExitHouse, furniture = []
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
@@ -436,6 +597,7 @@ export const GameCanvas = ({
   const onExitRef = useRef(onExitHouse);
   // Interior player position (separate from world position)
   const interiorPosRef = useRef({ x: 0, y: 0 });
+  const furnitureRef = useRef(furniture);
 
   posRef.current = position;
   profileRef.current = profile;
@@ -446,6 +608,7 @@ export const GameCanvas = ({
   insideRef.current = insideHouseId;
   onEnterRef.current = onEnterHouse;
   onExitRef.current = onExitHouse;
+  furnitureRef.current = furniture;
 
   // Handle enter key for house entry
   useEffect(() => {
@@ -597,6 +760,13 @@ export const GameCanvas = ({
         };
 
         drawInterior(ctx, interior, w, h, frameRef.current);
+
+        // Draw placed furniture
+        const fOx = (w - INTERIOR_WIDTH) / 2;
+        const fOy = (h - INTERIOR_HEIGHT) / 2;
+        furnitureRef.current.forEach(f => {
+          drawFurnitureItem(ctx, f, fOx, fOy);
+        });
 
         // Move interior player
         const bounds = getInteriorBounds(w, h);

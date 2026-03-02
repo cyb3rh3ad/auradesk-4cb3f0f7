@@ -1,13 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useAuraVille } from '@/hooks/useAuraVille';
 import { useProximityVoice } from '@/hooks/useProximityVoice';
+import { useFurniture } from '@/hooks/useFurniture';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { GameCanvas } from '@/components/auraville/GameCanvas';
 import { CharacterCustomizer } from '@/components/auraville/CharacterCustomizer';
 import { TouchControls } from '@/components/auraville/TouchControls';
+import { FurnitureEditor } from '@/components/auraville/FurnitureEditor';
 import { SpatialProfile } from '@/components/auraville/gameTypes';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, UserCog, Volume2, Loader2, Home } from 'lucide-react';
+import { Mic, MicOff, UserCog, Volume2, Loader2, Home, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +30,7 @@ const AuraVille = () => {
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [showFurnitureEditor, setShowFurnitureEditor] = useState(false);
   const [insideHouseId, setInsideHouseId] = useState<string | null>(null);
 
   const { micActive, nearbyCount, startMic, stopMic } = useProximityVoice(
@@ -36,6 +39,8 @@ const AuraVille = () => {
     remotePlayers,
     voiceEnabled
   );
+
+  const { furniture, isOwner, addFurniture, removeFurniture } = useFurniture(insideHouseId);
 
   const handleSaveProfile = useCallback(async (p: SpatialProfile) => {
     await saveProfile(p);
@@ -54,10 +59,12 @@ const AuraVille = () => {
 
   const handleEnterHouse = useCallback((houseId: string) => {
     setInsideHouseId(houseId);
+    setShowFurnitureEditor(false);
   }, []);
 
   const handleExitHouse = useCallback(() => {
     setInsideHouseId(null);
+    setShowFurnitureEditor(false);
   }, []);
 
   if (profileLoading) {
@@ -91,6 +98,7 @@ const AuraVille = () => {
         insideHouseId={insideHouseId}
         onEnterHouse={handleEnterHouse}
         onExitHouse={handleExitHouse}
+        furniture={furniture}
       />
 
       {/* HUD */}
@@ -139,6 +147,23 @@ const AuraVille = () => {
             </motion.div>
           )}
 
+          {/* Furniture editor toggle (only when inside own house) */}
+          {insideHouseId && isOwner && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowFurnitureEditor(!showFurnitureEditor)}
+              className={cn(
+                "h-9 w-9 rounded-xl shadow-lg border border-border/30",
+                showFurnitureEditor
+                  ? "bg-primary/90 hover:bg-primary text-primary-foreground"
+                  : "bg-card/80 backdrop-blur-md text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Package className="w-4 h-4" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -169,6 +194,19 @@ const AuraVille = () => {
       )}
 
       {isMobile && <TouchControls onMove={setJoystick} />}
+
+      {/* Furniture Editor Panel */}
+      <AnimatePresence>
+        {showFurnitureEditor && insideHouseId && isOwner && (
+          <FurnitureEditor
+            isOwner={isOwner}
+            furniture={furniture}
+            onAdd={addFurniture}
+            onRemove={removeFurniture}
+            onClose={() => setShowFurnitureEditor(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showCustomizer && (

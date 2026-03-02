@@ -466,6 +466,42 @@ export type Database = {
           },
         ]
       }
+      house_furniture: {
+        Row: {
+          created_at: string
+          furniture_type: string
+          id: string
+          room: string
+          rotation: number
+          user_id: string
+          variant: number
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          furniture_type: string
+          id?: string
+          room?: string
+          rotation?: number
+          user_id: string
+          variant?: number
+          x?: number
+          y?: number
+        }
+        Update: {
+          created_at?: string
+          furniture_type?: string
+          id?: string
+          room?: string
+          rotation?: number
+          user_id?: string
+          variant?: number
+          x?: number
+          y?: number
+        }
+        Relationships: []
+      }
       meeting_participants: {
         Row: {
           id: string
