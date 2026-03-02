@@ -23,6 +23,16 @@ function seededRandom(seed: number) {
   };
 }
 
+// ─── Interpolation target store for smooth remote movement ───
+interface InterpolatedPlayer {
+  current: PlayerPosition;
+  target: PlayerPosition;
+  displayName: string;
+  profile: SpatialProfile;
+  insideHouseId?: string | null;
+  lastUpdate: number;
+}
+
 export function useAuraVille() {
   const { user } = useAuth();
   const { friends } = useFriends();
@@ -36,6 +46,9 @@ export function useAuraVille() {
   const channelRef = useRef<any>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const joystickRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  
+  // Smooth interpolation store
+  const interpRef = useRef<Map<string, InterpolatedPlayer>>(new Map());
 
   // ─── Load / Create Profile ─────────────────────────
   useEffect(() => {
@@ -89,42 +102,76 @@ export function useAuraVille() {
     await supabase.from('spatial_profiles').upsert(row, { onConflict: 'user_id' });
   }, [user]);
 
-  // ─── Generate Village Layout ───────────────────────
+  // ─── Generate Grid Village Layout ─────────────────
   useEffect(() => {
     if (!user) return;
-    const cx = WORLD_WIDTH / 2;
-    const cy = WORLD_HEIGHT / 2;
 
-    // Build houses
-    const h: House[] = [];
-    const colors = HOUSE_COLORS[profile?.houseStyle ?? 0];
-    h.push({ x: cx, y: cy, ownerId: user.id, ownerName: 'You', style: profile?.houseStyle ?? 0, roofColor: colors.roof, wallColor: colors.wall });
+    const allPlayers = [
+      { id: user.id, name: 'You', style: profile?.houseStyle ?? 0 },
+      ...friends.map((f, i) => ({
+        id: f.id,
+        name: f.full_name || f.username || 'Friend',
+        style: i % 4,
+      })),
+    ];
 
-    const ring = 280;
-    friends.forEach((f, i) => {
-      const angle = (i / Math.max(friends.length, 1)) * Math.PI * 2 - Math.PI / 2;
-      const fx = cx + Math.cos(angle) * ring * (1 + Math.floor(i / 8) * 0.6);
-      const fy = cy + Math.sin(angle) * ring * (1 + Math.floor(i / 8) * 0.6);
-      const hc = HOUSE_COLORS[i % HOUSE_COLORS.length];
-      h.push({ x: fx, y: fy, ownerId: f.id, ownerName: f.full_name || f.username || 'Friend', style: i % 4, roofColor: hc.roof, wallColor: hc.wall });
+    // Grid neighborhood layout
+    const HOUSE_SPACING_X = 220;
+    const HOUSE_SPACING_Y = 200;
+    const ROAD_WIDTH = 60;
+    const COLS = Math.max(2, Math.ceil(Math.sqrt(allPlayers.length)));
+    
+    // Center the grid in the world
+    const gridW = COLS * HOUSE_SPACING_X;
+    const gridH = Math.ceil(allPlayers.length / COLS) * HOUSE_SPACING_Y;
+    const startX = (WORLD_WIDTH - gridW) / 2 + HOUSE_SPACING_X / 2;
+    const startY = (WORLD_HEIGHT - gridH) / 2 + HOUSE_SPACING_Y / 2;
+
+    const h: House[] = allPlayers.map((p, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      // Alternate sides of the street (even cols left, odd cols right of road)
+      const xOffset = col * HOUSE_SPACING_X;
+      const yOffset = row * HOUSE_SPACING_Y;
+      // Slight random offset for organic feel
+      const rng = seededRandom(p.id.charCodeAt(0) * 100 + p.id.charCodeAt(1));
+      const jitterX = (rng() - 0.5) * 30;
+      const jitterY = (rng() - 0.5) * 20;
+      
+      const hc = HOUSE_COLORS[p.style % HOUSE_COLORS.length];
+      return {
+        x: startX + xOffset + jitterX,
+        y: startY + yOffset + jitterY,
+        ownerId: p.id,
+        ownerName: p.name,
+        style: p.style,
+        roofColor: hc.roof,
+        wallColor: hc.wall,
+      };
     });
     setHouses(h);
 
-    // Decorations
+    // Set player spawn near their house
+    if (h.length > 0) {
+      const myHouse = h[0];
+      positionRef.current = { x: myHouse.x, y: myHouse.y + 80, direction: 'down', isMoving: false };
+      setPosition(positionRef.current);
+    }
+
+    // Decorations — fill empty areas
     const rng = seededRandom(42);
     const decs: WorldDecoration[] = [];
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 150; i++) {
       const dx = rng() * WORLD_WIDTH;
       const dy = rng() * WORLD_HEIGHT;
-      // Skip if too close to any house
-      if (h.some(house => Math.abs(house.x - dx) < 120 && Math.abs(house.y - dy) < 120)) continue;
+      if (h.some(house => Math.abs(house.x - dx) < 130 && Math.abs(house.y - dy) < 130)) continue;
       const types: WorldDecoration['type'][] = ['tree', 'flower', 'rock', 'bush', 'lamp'];
       decs.push({ x: dx, y: dy, type: types[Math.floor(rng() * 5)], variant: Math.floor(rng() * 3) });
     }
     setDecorations(decs);
   }, [user, friends, profile?.houseStyle]);
 
-  // ─── Realtime Presence ─────────────────────────────
+  // ─── Realtime Presence with Smooth Interpolation ───
   useEffect(() => {
     if (!user || !profile) return;
 
@@ -135,19 +182,40 @@ export function useAuraVille() {
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        const newPlayers = new Map<string, RemotePlayer>();
+        const now = Date.now();
+        const interp = interpRef.current;
+        
         Object.entries(state).forEach(([uid, presences]) => {
           if (uid === user.id) return;
           const p = (presences as any[])[0];
           if (!p) return;
-          newPlayers.set(uid, {
-            userId: uid,
-            displayName: p.displayName || 'Player',
-            position: p.position || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, direction: 'down', isMoving: false },
-            profile: p.profile || DEFAULT_PROFILE,
-          });
+          
+          const targetPos = p.position || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, direction: 'down', isMoving: false };
+          const existing = interp.get(uid);
+          
+          if (existing) {
+            // Update target, keep current for interpolation
+            existing.target = targetPos;
+            existing.displayName = p.displayName || 'Player';
+            existing.profile = p.profile || DEFAULT_PROFILE;
+            existing.lastUpdate = now;
+          } else {
+            // New player — snap to position
+            interp.set(uid, {
+              current: { ...targetPos },
+              target: targetPos,
+              displayName: p.displayName || 'Player',
+              profile: p.profile || DEFAULT_PROFILE,
+              lastUpdate: now,
+            });
+          }
         });
-        setRemotePlayers(newPlayers);
+        
+        // Remove players no longer present
+        const presentIds = new Set(Object.keys(state));
+        interp.forEach((_, uid) => {
+          if (uid !== user.id && !presentIds.has(uid)) interp.delete(uid);
+        });
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -176,9 +244,34 @@ export function useAuraVille() {
         profile,
         displayName: profile.displayName,
       });
-    }, 100); // 10 updates/sec
+    }, 80); // 12.5 updates/sec for smoother sync
     return () => clearInterval(iv);
   }, [profile]);
+
+  // ─── Interpolation tick (runs every frame via game loop) ───
+  const interpolateRemotePlayers = useCallback(() => {
+    const LERP_SPEED = 0.15; // Smooth but responsive
+    const interp = interpRef.current;
+    const newMap = new Map<string, RemotePlayer>();
+    
+    interp.forEach((player, uid) => {
+      // Lerp position
+      player.current.x += (player.target.x - player.current.x) * LERP_SPEED;
+      player.current.y += (player.target.y - player.current.y) * LERP_SPEED;
+      player.current.direction = player.target.direction;
+      player.current.isMoving = player.target.isMoving;
+      
+      newMap.set(uid, {
+        userId: uid,
+        displayName: player.displayName,
+        position: { ...player.current },
+        profile: player.profile,
+        insideHouseId: player.insideHouseId,
+      });
+    });
+    
+    setRemotePlayers(newMap);
+  }, []);
 
   // ─── Movement (game loop tick) ─────────────────────
   const updateMovement = useCallback(() => {
@@ -186,19 +279,16 @@ export function useAuraVille() {
     const joy = joystickRef.current;
     let dx = 0, dy = 0;
 
-    // Keyboard
     if (keys.has('ArrowUp') || keys.has('w') || keys.has('W')) dy -= 1;
     if (keys.has('ArrowDown') || keys.has('s') || keys.has('S')) dy += 1;
     if (keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) dx -= 1;
     if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) dx += 1;
 
-    // Joystick
     if (Math.abs(joy.dx) > 0.1 || Math.abs(joy.dy) > 0.1) {
       dx += joy.dx;
       dy += joy.dy;
     }
 
-    // Normalize diagonal
     const len = Math.sqrt(dx * dx + dy * dy);
     if (len > 0) {
       dx = (dx / len) * PLAYER_SPEED;
@@ -219,7 +309,10 @@ export function useAuraVille() {
 
     positionRef.current = { x: newX, y: newY, direction, isMoving };
     setPosition({ x: newX, y: newY, direction, isMoving });
-  }, []);
+    
+    // Interpolate remote players every frame
+    interpolateRemotePlayers();
+  }, [interpolateRemotePlayers]);
 
   // ─── Keyboard listeners ────────────────────────────
   useEffect(() => {
