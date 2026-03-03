@@ -16,7 +16,7 @@ async function createToken(
 ): Promise<string> {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
-  const exp = now + 3600; // 1 hour expiry
+  const exp = now + 3600;
 
   const payload = {
     iss: apiKey,
@@ -74,7 +74,7 @@ serve(async (req) => {
   }
 
   try {
-    // ── Auth: validate JWT via getClaims ──
+    // ── Auth: validate user with fallback chain ──
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -89,18 +89,36 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      console.error('Auth error:', claimsError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Try getUser first (most reliable across versions), fall back to getClaims
+    let userId: string;
+    let userEmail = '';
 
-    const userId = claimsData.claims.sub as string;
-    const userEmail = (claimsData.claims.email as string) || '';
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (!userError && userData?.user) {
+      userId = userData.user.id;
+      userEmail = userData.user.email || '';
+    } else {
+      // Fallback: try getClaims if available
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: claimsData, error: claimsError } = await (supabase.auth as any).getClaims(token);
+        if (claimsError || !claimsData?.claims?.sub) {
+          console.error('Auth error (both getUser and getClaims failed):', userError, claimsError);
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        userId = claimsData.claims.sub as string;
+        userEmail = (claimsData.claims.email as string) || '';
+      } catch {
+        console.error('Auth error (getUser failed, getClaims unavailable):', userError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     const { roomName, participantName } = await req.json();
 

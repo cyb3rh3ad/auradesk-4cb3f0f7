@@ -38,6 +38,7 @@ export function useAuraVille() {
   const { friends } = useFriends();
   const [profile, setProfile] = useState<SpatialProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  // remotePlayers state is throttled — only updated ~10x/sec for React consumers
   const [remotePlayers, setRemotePlayers] = useState<Map<string, RemotePlayer>>(new Map());
   const [houses, setHouses] = useState<House[]>([]);
   const [decorations, setDecorations] = useState<WorldDecoration[]>([]);
@@ -47,8 +48,11 @@ export function useAuraVille() {
   const keysRef = useRef<Set<string>>(new Set());
   const joystickRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   
-  // Smooth interpolation store
+  // Smooth interpolation store (updated every frame, never triggers React render)
   const interpRef = useRef<Map<string, InterpolatedPlayer>>(new Map());
+  // Snapshot for React consumers, updated at throttled rate
+  const lastStateUpdateRef = useRef(0);
+  const STATE_UPDATE_INTERVAL = 100; // ms — ~10 updates/sec for React state
 
   // ─── Load / Create Profile ─────────────────────────
   useEffect(() => {
@@ -118,7 +122,6 @@ export function useAuraVille() {
     // Grid neighborhood layout
     const HOUSE_SPACING_X = 220;
     const HOUSE_SPACING_Y = 200;
-    const ROAD_WIDTH = 60;
     const COLS = Math.max(2, Math.ceil(Math.sqrt(allPlayers.length)));
     
     // Center the grid in the world
@@ -130,7 +133,6 @@ export function useAuraVille() {
     const h: House[] = allPlayers.map((p, i) => {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
-      // Alternate sides of the street (even cols left, odd cols right of road)
       const xOffset = col * HOUSE_SPACING_X;
       const yOffset = row * HOUSE_SPACING_Y;
       // Slight random offset for organic feel
@@ -194,13 +196,11 @@ export function useAuraVille() {
           const existing = interp.get(uid);
           
           if (existing) {
-            // Update target, keep current for interpolation
             existing.target = targetPos;
             existing.displayName = p.displayName || 'Player';
             existing.profile = p.profile || DEFAULT_PROFILE;
             existing.lastUpdate = now;
           } else {
-            // New player — snap to position
             interp.set(uid, {
               current: { ...targetPos },
               target: targetPos,
@@ -249,19 +249,43 @@ export function useAuraVille() {
   }, [profile]);
 
   // ─── Interpolation tick (runs every frame via game loop) ───
+  // This updates the interp ref without triggering React renders.
+  // React state is only updated at a throttled rate for consumers like useProximityVoice.
   const interpolateRemotePlayers = useCallback(() => {
-    const LERP_SPEED = 0.15; // Smooth but responsive
+    const LERP_SPEED = 0.15;
     const interp = interpRef.current;
-    const newMap = new Map<string, RemotePlayer>();
     
-    interp.forEach((player, uid) => {
-      // Lerp position
+    interp.forEach((player) => {
       player.current.x += (player.target.x - player.current.x) * LERP_SPEED;
       player.current.y += (player.target.y - player.current.y) * LERP_SPEED;
       player.current.direction = player.target.direction;
       player.current.isMoving = player.target.isMoving;
-      
-      newMap.set(uid, {
+    });
+    
+    // Throttled React state update for non-canvas consumers
+    const now = Date.now();
+    if (now - lastStateUpdateRef.current >= STATE_UPDATE_INTERVAL) {
+      lastStateUpdateRef.current = now;
+      const newMap = new Map<string, RemotePlayer>();
+      interp.forEach((player, uid) => {
+        newMap.set(uid, {
+          userId: uid,
+          displayName: player.displayName,
+          position: { ...player.current },
+          profile: player.profile,
+          insideHouseId: player.insideHouseId,
+        });
+      });
+      setRemotePlayers(newMap);
+    }
+  }, []);
+
+  // ─── Build snapshot for canvas (ref-based, no React overhead) ───
+  const getRemotePlayersSnapshot = useCallback((): Map<string, RemotePlayer> => {
+    const interp = interpRef.current;
+    const snap = new Map<string, RemotePlayer>();
+    interp.forEach((player, uid) => {
+      snap.set(uid, {
         userId: uid,
         displayName: player.displayName,
         position: { ...player.current },
@@ -269,8 +293,7 @@ export function useAuraVille() {
         insideHouseId: player.insideHouseId,
       });
     });
-    
-    setRemotePlayers(newMap);
+    return snap;
   }, []);
 
   // ─── Movement (game loop tick) ─────────────────────
@@ -348,5 +371,6 @@ export function useAuraVille() {
     updateMovement,
     setJoystick,
     channelRef,
+    getRemotePlayersSnapshot,
   };
 }

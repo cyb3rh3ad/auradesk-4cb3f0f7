@@ -26,6 +26,7 @@ const AuraVille = () => {
     updateMovement,
     setJoystick,
     channelRef,
+    getRemotePlayersSnapshot,
   } = useAuraVille();
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -99,6 +100,7 @@ const AuraVille = () => {
         onEnterHouse={handleEnterHouse}
         onExitHouse={handleExitHouse}
         furniture={furniture}
+        getRemotePlayersSnapshot={getRemotePlayersSnapshot}
       />
 
       {/* HUD */}

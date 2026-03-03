@@ -24,6 +24,10 @@ export function useProximityVoice(
   enabledRef.current = enabled;
   const posRef = useRef(myPosition);
   posRef.current = myPosition;
+  const remotePlayersRef = useRef(remotePlayers);
+  remotePlayersRef.current = remotePlayers;
+  // Track whether signaling listener is attached
+  const signalingAttachedRef = useRef(false);
 
   const startMic = useCallback(async () => {
     if (localStreamRef.current) return;
@@ -42,7 +46,6 @@ export function useProximityVoice(
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
     setMicActive(false);
-    // Clean up all peers
     peersRef.current.forEach(peer => {
       peer.pc.close();
       peer.audioCtx.close();
@@ -117,8 +120,9 @@ export function useProximityVoice(
     const iv = setInterval(() => {
       let nearby = 0;
       const pos = posRef.current;
+      const players = remotePlayersRef.current;
       peersRef.current.forEach((peer, uid) => {
-        const remote = remotePlayers.get(uid);
+        const remote = players.get(uid);
         if (!remote) return;
         const dist = Math.sqrt((pos.x - remote.position.x) ** 2 + (pos.y - remote.position.y) ** 2);
         if (dist < HEARING_DISTANCE) {
@@ -132,13 +136,11 @@ export function useProximityVoice(
       setNearbyCount(nearby);
     }, 100);
     return () => clearInterval(iv);
-  }, [enabled, remotePlayers]);
+  }, [enabled]);
 
-  // WebRTC signaling via broadcast — use 'voice-signal' event
+  // WebRTC signaling via broadcast — poll for channel availability
   useEffect(() => {
-    if (!enabled || !user || !channelRef.current) return;
-
-    const channel = channelRef.current;
+    if (!enabled || !user) return;
 
     const handleSignal = (msg: any) => {
       const { type, senderId, targetId, data } = msg.payload || msg;
@@ -152,7 +154,7 @@ export function useProximityVoice(
             await pc.pc.setRemoteDescription(new RTCSessionDescription(data));
             const answer = await pc.pc.createAnswer();
             await pc.pc.setLocalDescription(answer);
-            channel.send({
+            channelRef.current?.send({
               type: 'broadcast',
               event: 'voice-signal',
               payload: { type: 'webrtc-answer', senderId: user.id, targetId: senderId, data: answer },
@@ -174,20 +176,40 @@ export function useProximityVoice(
       })();
     };
 
-    channel.on('broadcast', { event: 'voice-signal' }, handleSignal);
+    // Poll for channel availability since channelRef.current may not be set yet
+    let attached = false;
+    const tryAttach = () => {
+      const channel = channelRef.current;
+      if (channel && !attached) {
+        channel.on('broadcast', { event: 'voice-signal' }, handleSignal);
+        attached = true;
+        signalingAttachedRef.current = true;
+        console.log('[ProximityVoice] Signaling listener attached');
+      }
+    };
+
+    tryAttach();
+    const pollInterval = setInterval(tryAttach, 500);
 
     return () => {
-      // Channel cleanup handled by parent
+      clearInterval(pollInterval);
+      attached = false;
+      signalingAttachedRef.current = false;
+      // Note: channel cleanup is handled by useAuraVille parent
     };
-  }, [enabled, user, channelRef.current, createPeerConnection]);
+  }, [enabled, user, createPeerConnection, channelRef]);
 
   // Connect/disconnect peers based on distance
   useEffect(() => {
-    if (!enabled || !user || !channelRef.current || !localStreamRef.current) return;
+    if (!enabled || !user) return;
 
     const interval = setInterval(() => {
+      if (!channelRef.current || !localStreamRef.current) return;
+      
       const pos = posRef.current;
-      remotePlayers.forEach((remote, uid) => {
+      const players = remotePlayersRef.current;
+      
+      players.forEach((remote, uid) => {
         const dist = Math.sqrt((pos.x - remote.position.x) ** 2 + (pos.y - remote.position.y) ** 2);
         const hasPeer = peersRef.current.has(uid);
 
@@ -217,7 +239,7 @@ export function useProximityVoice(
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [enabled, user, remotePlayers, createPeerConnection]);
+  }, [enabled, user, createPeerConnection, channelRef]);
 
   // Cleanup on unmount
   useEffect(() => {
