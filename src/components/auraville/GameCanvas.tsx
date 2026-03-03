@@ -29,6 +29,7 @@ interface GameCanvasProps {
   onEnterHouse: (houseId: string) => void;
   onExitHouse: () => void;
   furniture?: PlacedFurniture[];
+  getRemotePlayersSnapshot?: () => Map<string, RemotePlayer>;
 }
 
 // ─── World Drawing ──────────────────────────────────
@@ -579,7 +580,8 @@ function drawFurnitureItem(ctx: CanvasRenderingContext2D, f: PlacedFurniture, ox
 // ─── Main Component ─────────────────────────────────
 export const GameCanvas = ({
   position, profile, remotePlayers, houses, decorations,
-  updateMovement, insideHouseId, onEnterHouse, onExitHouse, furniture = []
+  updateMovement, insideHouseId, onEnterHouse, onExitHouse, furniture = [],
+  getRemotePlayersSnapshot,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
@@ -598,6 +600,7 @@ export const GameCanvas = ({
   // Interior player position (separate from world position)
   const interiorPosRef = useRef({ x: 0, y: 0 });
   const furnitureRef = useRef(furniture);
+  const snapshotRef = useRef(getRemotePlayersSnapshot);
 
   posRef.current = position;
   profileRef.current = profile;
@@ -609,6 +612,7 @@ export const GameCanvas = ({
   onEnterRef.current = onEnterHouse;
   onExitRef.current = onExitHouse;
   furnitureRef.current = furniture;
+  snapshotRef.current = getRemotePlayersSnapshot;
 
   // Handle enter key for house entry
   useEffect(() => {
@@ -647,11 +651,18 @@ export const GameCanvas = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Handle canvas click for mobile house entry
+  // Handle canvas click/tap for house entry (unified handler prevents double-fire)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const handleClick = (e: MouseEvent | TouchEvent) => {
+    let lastInteractionTime = 0;
+    
+    const handleInteraction = (e: MouseEvent | TouchEvent) => {
+      // Debounce: ignore events within 300ms of each other (prevents click+touchend double-fire)
+      const now = Date.now();
+      if (now - lastInteractionTime < 300) return;
+      lastInteractionTime = now;
+
       const rect = canvas.getBoundingClientRect();
       const clientX = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.changedTouches[0].clientY : e.clientY;
@@ -693,11 +704,11 @@ export const GameCanvas = ({
         }
       }
     };
-    canvas.addEventListener('click', handleClick);
-    canvas.addEventListener('touchend', handleClick);
+    canvas.addEventListener('click', handleInteraction);
+    canvas.addEventListener('touchend', handleInteraction);
     return () => {
-      canvas.removeEventListener('click', handleClick);
-      canvas.removeEventListener('touchend', handleClick);
+      canvas.removeEventListener('click', handleInteraction);
+      canvas.removeEventListener('touchend', handleInteraction);
     };
   }, []);
 
@@ -740,7 +751,8 @@ export const GameCanvas = ({
 
       const pos = posRef.current;
       const prof = profileRef.current;
-      const remote = remoteRef.current;
+      // Use snapshot for frame-accurate interpolated positions (avoids throttled React state)
+      const remote = snapshotRef.current ? snapshotRef.current() : remoteRef.current;
       const houseList = housesRef.current;
       const decList = decsRef.current;
       const inside = insideRef.current;
