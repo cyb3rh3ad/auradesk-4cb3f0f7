@@ -1,53 +1,63 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription, SubscriptionPlan } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
-// Max single file size per plan (in bytes)
-const MAX_FILE_SIZE: Record<SubscriptionPlan, number> = {
-  free: 1 * 1024 * 1024 * 1024,        // 1 GB
-  advanced: 5 * 1024 * 1024 * 1024,    // 5 GB
-  professional: Number.MAX_SAFE_INTEGER, // Unlimited
-};
-
-const MAX_FILE_SIZE_LABEL: Record<SubscriptionPlan, string> = {
-  free: '1 GB',
-  advanced: '5 GB',
-  professional: 'Unlimited',
-};
+// 5 GB hard cap (Supabase storage max per object)
+const ABSOLUTE_MAX = 5 * 1024 * 1024 * 1024;
 
 export const useChatFileUpload = (conversationId: string | null) => {
   const { user } = useAuth();
-  const { plan } = useSubscription();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const getMaxFileSize = () => MAX_FILE_SIZE[plan];
-  const getMaxFileSizeLabel = () => MAX_FILE_SIZE_LABEL[plan];
+  const cancelUpload = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setUploading(false);
+    setUploadProgress(0);
+  }, []);
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!user || !conversationId) return null;
 
-    const maxSize = getMaxFileSize();
-    if (file.size > maxSize) {
-      toast.error(`File too large`, {
-        description: `Max file size for your plan is ${getMaxFileSizeLabel()}. Upgrade for larger files.`,
+    if (file.size > ABSOLUTE_MAX) {
+      toast.error('File too large', {
+        description: 'Maximum file size is 5 GB.',
       });
       return null;
     }
 
     setUploading(true);
     setUploadProgress(0);
+    abortRef.current = new AbortController();
 
     try {
       const timestamp = Date.now();
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const filePath = `${conversationId}/${user.id}/${timestamp}-${safeName}`;
 
+      // Simulate progress for large files since supabase-js doesn't expose it
+      const estimatedSeconds = Math.max(1, file.size / (2 * 1024 * 1024)); // ~2MB/s estimate
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + (90 / (estimatedSeconds * 4));
+        });
+      }, 250);
+
       const { error } = await supabase.storage
         .from('chat-files')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      clearInterval(progressInterval);
 
       if (error) throw error;
 
@@ -58,10 +68,17 @@ export const useChatFileUpload = (conversationId: string | null) => {
       setUploadProgress(100);
       return urlData.publicUrl;
     } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        toast.info('Upload cancelled');
+        return null;
+      }
       console.error('Error uploading file:', error);
-      toast.error('Upload failed', { description: error.message || 'Could not upload file' });
+      toast.error('Upload failed', {
+        description: error.message || 'Could not upload file. Try a smaller file or check your connection.',
+      });
       return null;
     } finally {
+      abortRef.current = null;
       setUploading(false);
       setUploadProgress(0);
     }
@@ -81,8 +98,8 @@ export const useChatFileUpload = (conversationId: string | null) => {
     uploadProgress,
     uploadFile,
     uploadFiles,
-    maxFileSize: getMaxFileSize(),
-    maxFileSizeLabel: getMaxFileSizeLabel(),
-    plan,
+    cancelUpload,
+    maxFileSize: ABSOLUTE_MAX,
+    maxFileSizeLabel: '5 GB',
   };
 };
