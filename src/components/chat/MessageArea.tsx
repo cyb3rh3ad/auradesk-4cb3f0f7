@@ -91,7 +91,7 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessageCountRef = useRef(0);
   const { typingUsers, sendTypingEvent, stopTyping } = useTypingIndicator(conversationId);
-  const { uploading, uploadFile, maxFileSizeLabel, plan } = useChatFileUpload(conversationId);
+  const { uploading, uploadFile, maxFileSizeLabel } = useChatFileUpload(conversationId);
   const { generateReply, isGenerating } = useAIAutoReply();
   const isKeyboardOpen = useKeyboardVisibility();
 
