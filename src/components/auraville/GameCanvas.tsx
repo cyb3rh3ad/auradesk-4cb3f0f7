@@ -780,18 +780,17 @@ export const GameCanvas = ({
           drawFurnitureItem(ctx, f, fOx, fOy);
         });
 
-        // Move interior player
+        // Move interior player using direction + isMoving from the game state
         const bounds = getInteriorBounds(w, h);
         const ip = interiorPosRef.current;
-        // Apply movement from the game's key state
         const speed = 2.5;
         let dx = 0, dy = 0;
-        // We read movement from the position delta
         if (pos.isMoving) {
-          if (pos.direction === 'up') dy = -speed;
-          if (pos.direction === 'down') dy = speed;
-          if (pos.direction === 'left') dx = -speed;
-          if (pos.direction === 'right') dx = speed;
+          const dir = pos.direction;
+          if (dir === 'up') dy = -speed;
+          else if (dir === 'down') dy = speed;
+          else if (dir === 'left') dx = -speed;
+          else if (dir === 'right') dx = speed;
         }
         interiorPosRef.current = {
           x: Math.max(bounds.minX, Math.min(bounds.maxX, ip.x + dx)),

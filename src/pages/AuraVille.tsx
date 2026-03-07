@@ -27,6 +27,7 @@ const AuraVille = () => {
     setJoystick,
     channelRef,
     getRemotePlayersSnapshot,
+    setInsideHouse,
   } = useAuraVille();
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -60,13 +61,15 @@ const AuraVille = () => {
 
   const handleEnterHouse = useCallback((houseId: string) => {
     setInsideHouseId(houseId);
+    setInsideHouse(houseId);
     setShowFurnitureEditor(false);
-  }, []);
+  }, [setInsideHouse]);
 
   const handleExitHouse = useCallback(() => {
     setInsideHouseId(null);
+    setInsideHouse(null);
     setShowFurnitureEditor(false);
-  }, []);
+  }, [setInsideHouse]);
 
   if (profileLoading) {
     return (

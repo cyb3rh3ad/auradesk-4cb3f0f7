@@ -296,6 +296,12 @@ export function useAuraVille() {
     return snap;
   }, []);
 
+  // Track whether player is inside a house (ref for game loop access)
+  const insideHouseRef = useRef<string | null>(null);
+  const setInsideHouse = useCallback((id: string | null) => {
+    insideHouseRef.current = id;
+  }, []);
+
   // ─── Movement (game loop tick) ─────────────────────
   const updateMovement = useCallback(() => {
     const keys = keysRef.current;
@@ -319,19 +325,26 @@ export function useAuraVille() {
     }
 
     const isMoving = len > 0;
-    const pos = positionRef.current;
-    const newX = Math.max(40, Math.min(WORLD_WIDTH - 40, pos.x + dx));
-    const newY = Math.max(40, Math.min(WORLD_HEIGHT - 40, pos.y + dy));
 
-    let direction = pos.direction;
+    let direction = positionRef.current.direction;
     if (Math.abs(dx) > Math.abs(dy)) {
       direction = dx > 0 ? 'right' : 'left';
     } else if (dy !== 0) {
       direction = dy > 0 ? 'down' : 'up';
     }
 
-    positionRef.current = { x: newX, y: newY, direction, isMoving };
-    setPosition({ x: newX, y: newY, direction, isMoving });
+    // When inside a house, freeze world position but still track direction/movement
+    // so the interior renderer can use it for indoor movement
+    if (insideHouseRef.current) {
+      positionRef.current = { ...positionRef.current, direction, isMoving };
+      setPosition({ ...positionRef.current });
+    } else {
+      const pos = positionRef.current;
+      const newX = Math.max(40, Math.min(WORLD_WIDTH - 40, pos.x + dx));
+      const newY = Math.max(40, Math.min(WORLD_HEIGHT - 40, pos.y + dy));
+      positionRef.current = { x: newX, y: newY, direction, isMoving };
+      setPosition({ x: newX, y: newY, direction, isMoving });
+    }
     
     // Interpolate remote players every frame
     interpolateRemotePlayers();
@@ -372,5 +385,6 @@ export function useAuraVille() {
     setJoystick,
     channelRef,
     getRemotePlayersSnapshot,
+    setInsideHouse,
   };
 }
