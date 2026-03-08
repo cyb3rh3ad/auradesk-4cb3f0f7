@@ -205,7 +205,18 @@ const Dashboard = () => {
           <CardContent className="pt-6">
             <div className="space-y-1">
               {contactsLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                <div className="space-y-1">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl animate-pulse">
+                      <div className="w-12 h-12 rounded-2xl bg-muted shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 bg-muted rounded w-28" />
+                        <div className="h-2.5 bg-muted/70 rounded w-20" />
+                      </div>
+                      <div className="h-6 bg-muted/50 rounded-full w-16" />
+                    </div>
+                  ))}
+                </div>
               ) : contacts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No recent contacts yet.</p>
