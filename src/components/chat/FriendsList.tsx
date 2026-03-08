@@ -10,6 +10,7 @@ import { triggerHaptic } from '@/utils/haptics';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { ChatSearchBar } from './ChatSearchBar';
+import { format, isToday, isYesterday } from 'date-fns';
 
 interface Friend {
   id: string;

@@ -9,7 +9,7 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   members?: any[];
-  last_message?: any;
+  last_message?: { content: string; created_at: string; sender_id: string } | null;
 }
 
 export const useConversations = () => {
@@ -61,6 +61,21 @@ export const useConversations = () => {
 
       const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
 
+      // Fetch the latest message per conversation (one query with ordering)
+      const lastMessagesMap = new Map<string, { content: string; created_at: string; sender_id: string }>();
+      for (const convoId of convoIds) {
+        const { data: lastMsg } = await supabase
+          .from('messages')
+          .select('content, created_at, sender_id')
+          .eq('conversation_id', convoId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastMsg) {
+          lastMessagesMap.set(convoId, lastMsg);
+        }
+      }
+
       const convosWithMembers = convos.map((convo: any) => {
         const members = (allMembers || [])
           .filter(m => m.conversation_id === convo.id)
@@ -68,7 +83,14 @@ export const useConversations = () => {
             user_id: m.user_id,
             profiles: profilesMap.get(m.user_id) || null,
           }));
-        return { ...convo, members };
+        return { ...convo, members, last_message: lastMessagesMap.get(convo.id) || null };
+      });
+
+      // Sort by last message timestamp, most recent first
+      convosWithMembers.sort((a: Conversation, b: Conversation) => {
+        const aTime = a.last_message?.created_at || a.updated_at;
+        const bTime = b.last_message?.created_at || b.updated_at;
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
 
       setConversations(convosWithMembers);
@@ -81,7 +103,7 @@ export const useConversations = () => {
 
     if (!user?.id) return;
 
-    // Subscribe to new conversation members
+    // Subscribe to new conversation members and new messages
     const channel = supabase
       .channel('conversation-changes')
       .on(
@@ -91,6 +113,17 @@ export const useConversations = () => {
           schema: 'public',
           table: 'conversation_members',
           filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
         },
         () => {
           fetchConversations();
