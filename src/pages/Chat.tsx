@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical, Palette } from 'lucide-react';
+import { GlobalMessageSearch } from '@/components/chat/GlobalMessageSearch';
+import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical, Palette, Search } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { getPresenceLabel } from '@/components/PresenceIndicator';
@@ -31,7 +32,7 @@ const Chat = () => {
   
   const initialConversation = searchParams.get('conversation');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
-  const { messages, sendMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
+  const { messages, sendMessage, editMessage, deleteMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
 
   // Handle URL param changes
   useEffect(() => {
@@ -170,6 +171,8 @@ const Chat = () => {
                 <MessageArea
                   messages={messages}
                   onSendMessage={sendMessage}
+                  onEditMessage={editMessage}
+                  onDeleteMessage={deleteMessage}
                   conversationName={getConversationName()}
                   isGroup={selectedConversation?.is_group || false}
                   conversationId={selectedConversationId}
@@ -193,7 +196,10 @@ const Chat = () => {
                   </div>
                   <h2 className="text-lg font-bold">Chats</h2>
                 </div>
-                <AddFriendDialog />
+                <div className="flex items-center gap-1">
+                  <GlobalMessageSearch onSelectResult={handleSelectConversation} />
+                  <AddFriendDialog />
+                </div>
               </div>
               <div className="flex-1 overflow-auto">
                 <FriendsList
@@ -220,7 +226,10 @@ const Chat = () => {
             <MessageSquare className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold">Messages</h2>
           </div>
-          <AddFriendDialog />
+          <div className="flex items-center gap-1">
+            <GlobalMessageSearch onSelectResult={handleSelectConversation} />
+            <AddFriendDialog />
+          </div>
         </div>
         <div className="flex-1 overflow-hidden">
           <FriendsList
@@ -238,6 +247,8 @@ const Chat = () => {
           <MessageArea
             messages={messages}
             onSendMessage={sendMessage}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
             conversationName={getConversationName()}
             isGroup={selectedConversation?.is_group || false}
             conversationId={selectedConversationId}

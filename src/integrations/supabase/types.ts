@@ -1436,6 +1436,19 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      search_messages: {
+        Args: { max_results?: number; search_query: string }
+        Returns: {
+          content: string
+          conversation_id: string
+          conversation_name: string
+          created_at: string
+          id: string
+          sender_avatar: string
+          sender_id: string
+          sender_name: string
+        }[]
+      }
       search_profiles: {
         Args: { search_query: string }
         Returns: {
