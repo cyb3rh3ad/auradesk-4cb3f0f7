@@ -61,20 +61,24 @@ export const useConversations = () => {
 
       const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
 
-      // Fetch the latest message per conversation (one query with ordering)
+      // Batch-fetch recent messages for all conversations in one query, then pick the latest per convo
+      const { data: recentMessages } = await supabase
+        .from('messages')
+        .select('conversation_id, content, created_at, sender_id')
+        .in('conversation_id', convoIds)
+        .order('created_at', { ascending: false })
+        .limit(convoIds.length * 2); // fetch enough to cover all convos
+
       const lastMessagesMap = new Map<string, { content: string; created_at: string; sender_id: string }>();
-      for (const convoId of convoIds) {
-        const { data: lastMsg } = await supabase
-          .from('messages')
-          .select('content, created_at, sender_id')
-          .eq('conversation_id', convoId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (lastMsg) {
-          lastMessagesMap.set(convoId, lastMsg);
+      (recentMessages || []).forEach(msg => {
+        if (!lastMessagesMap.has(msg.conversation_id)) {
+          lastMessagesMap.set(msg.conversation_id, {
+            content: msg.content,
+            created_at: msg.created_at,
+            sender_id: msg.sender_id,
+          });
         }
-      }
+      });
 
       const convosWithMembers = convos.map((convo: any) => {
         const members = (allMembers || [])
