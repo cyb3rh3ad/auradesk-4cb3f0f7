@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageArea } from '@/components/chat/MessageArea';
 import { AddFriendDialog } from '@/components/chat/AddFriendDialog';
 import { FriendsList } from '@/components/chat/FriendsList';
-import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical, Palette } from 'lucide-react';
+import { GlobalMessageSearch } from '@/components/chat/GlobalMessageSearch';
+import { MessageSquare, ArrowLeft, Users, Phone, Video, MoreVertical, Palette, Search } from 'lucide-react';
 import { usePresenceContext } from '@/contexts/PresenceContext';
 import { PresenceIndicator } from '@/components/PresenceIndicator';
 import { getPresenceLabel } from '@/components/PresenceIndicator';
@@ -31,7 +32,7 @@ const Chat = () => {
   
   const initialConversation = searchParams.get('conversation');
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversation);
-  const { messages, sendMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
+  const { messages, sendMessage, editMessage, deleteMessage, loading: messagesLoading, refetch: refetchMessages } = useMessages(selectedConversationId);
 
   // Handle URL param changes
   useEffect(() => {
