@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette, Pin, Sparkles } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
@@ -287,23 +288,47 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
     return format(date, 'MMM d, HH:mm');
   };
 
-  const groupedMessages = messages.reduce((acc: any[], message, index) => {
+  // Build grouped messages with date separators
+  const groupedMessages: Array<
+    | { type: 'date'; label: string }
+    | { type: 'messages'; sender: any; sender_id: string; messages: Message[] }
+  > = [];
+
+  let lastDateKey = '';
+  messages.forEach((message, index) => {
+    const msgDate = new Date(message.created_at);
+    const dateKey = msgDate.toDateString();
+
+    // Insert date separator when the day changes
+    if (dateKey !== lastDateKey) {
+      let label: string;
+      if (isToday(msgDate)) label = 'Today';
+      else if (isYesterday(msgDate)) label = 'Yesterday';
+      else label = format(msgDate, 'EEEE, MMM d, yyyy');
+      groupedMessages.push({ type: 'date', label });
+      lastDateKey = dateKey;
+    }
+
     const prevMessage = messages[index - 1];
     const isSameSender = prevMessage && prevMessage.sender_id === message.sender_id;
-    const isWithinTimeframe = prevMessage && 
-      (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) < 60000;
+    const isWithinTimeframe = prevMessage &&
+      (msgDate.getTime() - new Date(prevMessage.created_at).getTime()) < 60000;
+    const isSameDay = prevMessage && new Date(prevMessage.created_at).toDateString() === dateKey;
 
-    if (isSameSender && isWithinTimeframe) {
-      acc[acc.length - 1].messages.push(message);
+    if (isSameSender && isWithinTimeframe && isSameDay) {
+      const lastGroup = groupedMessages[groupedMessages.length - 1];
+      if (lastGroup && lastGroup.type === 'messages') {
+        lastGroup.messages.push(message);
+      }
     } else {
-      acc.push({
+      groupedMessages.push({
+        type: 'messages',
         sender: message.sender,
         sender_id: message.sender_id,
         messages: [message],
       });
     }
-    return acc;
-  }, []);
+  });
 
   const renderMessageContent = (message: Message, isOwn: boolean) => {
     const voiceInfo = parseVoiceMessage(message.content);
@@ -444,14 +469,39 @@ export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup
         <ScrollArea className="h-full" ref={scrollRef}>
           <div className="p-3 md:p-6 space-y-4 md:space-y-6">
             {groupedMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full min-h-[200px]">
-                <div className="text-center space-y-2">
-                  <p className="text-muted-foreground text-sm">No messages yet</p>
-                  <p className="text-muted-foreground/60 text-xs">Send a message to start the conversation</p>
-                </div>
+              <div className="flex items-center justify-center h-full min-h-[300px]">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-center space-y-4"
+                >
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                    <Send className="w-8 h-8 text-primary/40 -rotate-45" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-foreground/70 font-medium">Start the conversation</p>
+                    <p className="text-muted-foreground text-xs max-w-[200px] mx-auto">
+                      Say hello to {conversationName}! Messages are end-to-end private.
+                    </p>
+                  </div>
+                </motion.div>
               </div>
             ) : (
               groupedMessages.map((group, groupIndex) => {
+                // Render date separator
+                if (group.type === 'date') {
+                  return (
+                    <div key={`date-${groupIndex}`} className="flex items-center gap-3 py-2">
+                      <div className="flex-1 h-px bg-border/40" />
+                      <span className="text-[11px] font-medium text-muted-foreground/80 px-2 select-none">
+                        {group.label}
+                      </span>
+                      <div className="flex-1 h-px bg-border/40" />
+                    </div>
+                  );
+                }
+
                 const isOwn = group.sender_id === user?.id;
                 const senderName = group.sender?.full_name || group.sender?.email || 'Unknown';
                 const firstMessage = group.messages[0];
