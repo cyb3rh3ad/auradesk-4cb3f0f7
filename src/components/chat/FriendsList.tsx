@@ -197,6 +197,29 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
   const groupConversations = conversations.filter(c => c.is_group);
 
+  // Build a map from conversation_id to last_message for quick lookup
+  const lastMessageMap = useMemo(() => {
+    const map = new Map<string, { content: string; created_at: string; sender_id: string }>();
+    conversations.forEach(c => {
+      if (c.last_message) map.set(c.id, c.last_message);
+    });
+    return map;
+  }, [conversations]);
+
+  const formatLastMessageTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isToday(d)) return format(d, 'HH:mm');
+    if (isYesterday(d)) return 'Yesterday';
+    return format(d, 'MMM d');
+  };
+
+  const getPreviewText = (msg: { content: string; sender_id: string }) => {
+    if (msg.content.startsWith('[file:')) return '📎 Attachment';
+    if (msg.content.startsWith('[voice:')) return '🎤 Voice message';
+    const text = msg.content.replace(/^> .+?\n\n/, ''); // strip reply quote
+    return text.length > 40 ? text.slice(0, 40) + '…' : text;
+  };
+
   // Filter friends and groups by search query
   const query = searchQuery.toLowerCase().trim();
   const filteredFriends = useMemo(() => {
@@ -207,6 +230,17 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       f.email.toLowerCase().includes(query)
     );
   }, [friends, query]);
+
+  // Sort filtered friends by last message time (most recent first)
+  const sortedFriends = useMemo(() => {
+    return [...filteredFriends].sort((a, b) => {
+      const aMsg = a.conversation_id ? lastMessageMap.get(a.conversation_id) : null;
+      const bMsg = b.conversation_id ? lastMessageMap.get(b.conversation_id) : null;
+      const aTime = aMsg?.created_at ? new Date(aMsg.created_at).getTime() : 0;
+      const bTime = bMsg?.created_at ? new Date(bMsg.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [filteredFriends, lastMessageMap]);
 
   const filteredGroups = useMemo(() => {
     if (!query) return groupConversations;
