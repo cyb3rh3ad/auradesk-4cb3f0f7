@@ -151,7 +151,12 @@ const Subscription = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading subscription details...</p>
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center animate-pulse">
+            <Crown className="w-6 h-6 text-primary/50" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading subscription details…</p>
+        </div>
       </div>
     );
   }

@@ -388,8 +388,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <User className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Profile</span>
+              <span className="sm:hidden text-[10px] font-medium">Profile</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
@@ -397,8 +397,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <Palette className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Appearance</span>
+              <span className="sm:hidden text-[10px] font-medium">Theme</span>
             </TabsTrigger>
             <TabsTrigger value="security" className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
@@ -406,8 +406,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <Lock className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Security</span>
+              <span className="sm:hidden text-[10px] font-medium">Security</span>
             </TabsTrigger>
             <TabsTrigger value="audio-video" onClick={() => loadMediaDevices(true)} className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
@@ -415,8 +415,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <Mic className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Voice</span>
+              <span className="sm:hidden text-[10px] font-medium">Voice</span>
             </TabsTrigger>
             <TabsTrigger value="nicknames" className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
@@ -424,8 +424,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <Users className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">Nicknames</span>
+              <span className="sm:hidden text-[10px] font-medium">Names</span>
             </TabsTrigger>
             <TabsTrigger value="about" className={cn(
               "gap-2 py-2.5 px-4 transition-all rounded-none border-b-2 border-transparent",
@@ -433,8 +433,8 @@ const Settings = () => {
               "hover:text-foreground/80 text-muted-foreground",
               isMobile && "shrink-0 px-3"
             )}>
-              <Info className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">About</span>
+              <span className="sm:hidden text-[10px] font-medium">About</span>
             </TabsTrigger>
           </TabsList>
         </div>
