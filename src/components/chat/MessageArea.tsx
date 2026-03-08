@@ -554,7 +554,9 @@ export const MessageArea = ({ messages, onSendMessage, onEditMessage, onDeleteMe
                       </div>
                       {group.messages.map((message: Message) => {
                         const messageReactions = reactions[message.id] || [];
-                        const hasQuote = message.content.startsWith('> ');
+                        const isMessageDeleted = !!message.deleted_at;
+                        const isEditing = editingMessageId === message.id;
+                        const hasQuote = !isMessageDeleted && message.content.startsWith('> ');
                         const quoteMatch = hasQuote ? message.content.match(/^> (.+?): (.+?)\n\n([\s\S]*)$/) : null;
                         
                         return (
@@ -564,32 +566,63 @@ export const MessageArea = ({ messages, onSendMessage, onEditMessage, onDeleteMe
                             messageContent={message.content}
                             senderId={message.sender_id}
                             isOwn={isOwn}
+                            isDeleted={isMessageDeleted}
                             onReact={handleReact}
                             onReply={handleReply}
                             onCopy={handleCopy}
+                            onEdit={onEditMessage ? handleEditStart : undefined}
+                            onDelete={onDeleteMessage ? handleDeleteMessage : undefined}
                             senderName={senderName}
                           >
                             <div
                               className={cn(
                                 'px-3 py-2 md:px-4 md:py-2.5 rounded-2xl select-none',
-                                isOwn
-                                  ? cn(bubbleStyles.own, 'rounded-tr-md')
-                                  : cn(bubbleStyles.other, 'rounded-tl-md')
+                                isMessageDeleted
+                                  ? 'bg-muted/30 border border-border/20'
+                                  : isOwn
+                                    ? cn(bubbleStyles.own, 'rounded-tr-md')
+                                    : cn(bubbleStyles.other, 'rounded-tl-md')
                               )}
                             >
-                              {quoteMatch && (
-                                <div className={cn(
-                                  'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
-                                  'bg-black/15 border-white/30 opacity-80'
-                                )}>
-                                  <span className="font-semibold">{quoteMatch[1]}</span>
-                                  <p className="truncate">{quoteMatch[2]}</p>
+                              {isMessageDeleted ? (
+                                <p className="text-sm italic text-muted-foreground">This message was deleted</p>
+                              ) : isEditing ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <Input
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleEditSave();
+                                      if (e.key === 'Escape') handleEditCancel();
+                                    }}
+                                    className="text-sm h-8 bg-background/50"
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-1 justify-end">
+                                    <button onClick={handleEditCancel} className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5">Cancel</button>
+                                    <button onClick={handleEditSave} className="text-[11px] text-primary font-medium px-2 py-0.5">Save</button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  {quoteMatch && (
+                                    <div className={cn(
+                                      'mb-1.5 px-2 py-1 rounded-lg text-xs border-l-2',
+                                      'bg-black/15 border-white/30 opacity-80'
+                                    )}>
+                                      <span className="font-semibold">{quoteMatch[1]}</span>
+                                      <p className="truncate">{quoteMatch[2]}</p>
+                                    </div>
+                                  )}
+                                  {quoteMatch 
+                                    ? <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{renderFormattedMessage(quoteMatch[3])}</div>
+                                    : renderMessageContent(message, isOwn)
+                                  }
+                                  {message.edited_at && (
+                                    <p className="text-[10px] text-foreground/40 mt-0.5">(edited)</p>
+                                  )}
+                                </>
                               )}
-                              {quoteMatch 
-                                ? <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{renderFormattedMessage(quoteMatch[3])}</div>
-                                : renderMessageContent(message, isOwn)
-                              }
                             </div>
                             {messageReactions.length > 0 && (
                               <div className={cn('flex gap-0.5 mt-0.5', isOwn ? 'justify-end' : 'justify-start')}>
