@@ -782,7 +782,7 @@ const Settings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-center mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-blue-500 flex items-center justify-center shadow-lg shadow-primary/30">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-lg shadow-primary/30">
               <span className="text-3xl font-bold text-primary-foreground">A</span>
             </div>
           </div>
