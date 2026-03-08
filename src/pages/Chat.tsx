@@ -247,6 +247,8 @@ const Chat = () => {
           <MessageArea
             messages={messages}
             onSendMessage={sendMessage}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
             conversationName={getConversationName()}
             isGroup={selectedConversation?.is_group || false}
             conversationId={selectedConversationId}
