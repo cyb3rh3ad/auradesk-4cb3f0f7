@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Send, Users, Phone, Video, MoreVertical, Paperclip, X, FileIcon, Image as ImageIcon, Film, Music, FileText, Loader2, Reply as ReplyIcon, Palette, Pin, Sparkles } from 'lucide-react';
 import { useKeyboardVisibility } from '@/hooks/useKeyboardVisibility';
 import { Button } from '@/components/ui/button';
