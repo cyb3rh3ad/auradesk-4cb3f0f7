@@ -196,7 +196,10 @@ const Chat = () => {
                   </div>
                   <h2 className="text-lg font-bold">Chats</h2>
                 </div>
-                <AddFriendDialog />
+                <div className="flex items-center gap-1">
+                  <GlobalMessageSearch onSelectResult={handleSelectConversation} />
+                  <AddFriendDialog />
+                </div>
               </div>
               <div className="flex-1 overflow-auto">
                 <FriendsList
@@ -223,7 +226,10 @@ const Chat = () => {
             <MessageSquare className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold">Messages</h2>
           </div>
-          <AddFriendDialog />
+          <div className="flex items-center gap-1">
+            <GlobalMessageSearch onSelectResult={handleSelectConversation} />
+            <AddFriendDialog />
+          </div>
         </div>
         <div className="flex-1 overflow-hidden">
           <FriendsList
