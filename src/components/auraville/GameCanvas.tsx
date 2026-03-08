@@ -32,6 +32,65 @@ interface GameCanvasProps {
   getRemotePlayersSnapshot?: () => Map<string, RemotePlayer>;
 }
 
+// ─── Ambient Particle System ────────────────────────
+interface Particle {
+  x: number; y: number; vx: number; vy: number;
+  size: number; alpha: number; life: number; maxLife: number;
+  type: 'leaf' | 'butterfly' | 'firefly' | 'dust';
+  color: string; angle: number;
+}
+
+function createParticle(camX: number, camY: number, w: number, h: number, type: Particle['type']): Particle {
+  const colors: Record<string, string[]> = {
+    leaf: ['#4ade80', '#22c55e', '#f59e0b', '#ef4444'],
+    butterfly: ['#a855f7', '#ec4899', '#3b82f6', '#f59e0b'],
+    firefly: ['#fbbf24', '#fde68a'],
+    dust: ['#fff', '#fef3c7'],
+  };
+  const c = colors[type];
+  return {
+    x: camX + Math.random() * w,
+    y: camY + Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: type === 'leaf' ? Math.random() * 0.3 + 0.1 : (Math.random() - 0.5) * 0.2,
+    size: type === 'butterfly' ? 3 + Math.random() * 2 : type === 'firefly' ? 2 + Math.random() : 1 + Math.random(),
+    alpha: 0.3 + Math.random() * 0.5,
+    life: 0,
+    maxLife: 200 + Math.random() * 300,
+    type,
+    color: c[Math.floor(Math.random() * c.length)],
+    angle: Math.random() * Math.PI * 2,
+  };
+}
+
+// ─── Day/Night Cycle ────────────────────────────────
+function getDayNightOverlay(frame: number): { overlay: string; skyTint: string; isNight: boolean } {
+  // One full cycle = ~10 minutes (36000 frames at 60fps)
+  const cycleLen = 36000;
+  const t = (frame % cycleLen) / cycleLen; // 0-1
+  // 0-0.25 = dawn, 0.25-0.5 = day, 0.5-0.75 = dusk, 0.75-1 = night
+  let overlay: string;
+  let skyTint: string;
+  let isNight = false;
+  if (t < 0.2) { // dawn
+    const d = t / 0.2;
+    overlay = `rgba(20,10,40,${0.25 * (1 - d)})`;
+    skyTint = `rgba(255,180,100,${0.08 * (1 - d)})`;
+  } else if (t < 0.55) { // day
+    overlay = 'rgba(0,0,0,0)';
+    skyTint = 'rgba(0,0,0,0)';
+  } else if (t < 0.75) { // dusk
+    const d = (t - 0.55) / 0.2;
+    overlay = `rgba(40,20,60,${0.15 * d})`;
+    skyTint = `rgba(255,100,50,${0.06 * d})`;
+  } else { // night
+    isNight = true;
+    overlay = 'rgba(10,10,30,0.3)';
+    skyTint = 'rgba(20,20,60,0.1)';
+  }
+  return { overlay, skyTint, isNight };
+}
+
 // ─── World Drawing ──────────────────────────────────
 function drawGrass(ctx: CanvasRenderingContext2D, camX: number, camY: number, w: number, h: number) {
   const grad = ctx.createLinearGradient(0, 0, 0, h);
@@ -60,6 +119,12 @@ function drawGrass(ctx: CanvasRenderingContext2D, camX: number, camY: number, w:
         ctx.fillStyle = '#22c55e';
         ctx.fillRect(sx + 12, sy + 8, 2, 5);
         ctx.fillRect(sx + 20, sy + 14, 2, 4);
+      }
+      // Extra grass detail
+      if (seed > 85) {
+        ctx.fillStyle = 'rgba(34,197,94,0.4)';
+        ctx.fillRect(sx + 6, sy + 20, 1, 4);
+        ctx.fillRect(sx + 24, sy + 4, 1, 3);
       }
     }
   }
