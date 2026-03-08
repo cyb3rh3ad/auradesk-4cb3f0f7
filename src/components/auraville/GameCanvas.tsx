@@ -763,26 +763,19 @@ export const GameCanvas = ({
         const doorX = ox + INTERIOR_WIDTH / 2;
         const doorY = oy + INTERIOR_HEIGHT + 5;
         if (Math.abs(cx - doorX) < 25 && Math.abs(cy - doorY) < 20) {
-          onExitRef.current();
+          exitHouseWithTransition();
         }
       } else {
         // Check house click
         const pos = posRef.current;
-        const camX = pos.x - sizeRef.current.w / 2;
-        const camY = pos.y - sizeRef.current.h / 2;
+        const cam = camRef.current;
         for (const house of housesRef.current) {
-          const hx = house.x - camX;
-          const hy = house.y - camY;
+          const hx = house.x - cam.x;
+          const hy = house.y - cam.y;
           if (Math.abs(cx - hx) < 50 && Math.abs(cy - hy) < 45) {
             const dist = Math.sqrt((pos.x - house.x) ** 2 + (pos.y - house.y) ** 2);
             if (dist < HOUSE_ENTER_DISTANCE) {
-              onEnterRef.current(house.ownerId);
-              const w = sizeRef.current.w;
-              const h = sizeRef.current.h;
-              interiorPosRef.current = {
-                x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
-                y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
-              };
+              enterHouseWithTransition(house.ownerId);
               break;
             }
           }
