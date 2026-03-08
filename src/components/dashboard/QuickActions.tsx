@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Video, Upload, Sparkles, Zap } from 'lucide-react';
+import { MessageSquare, Video, Upload, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const actions = [
-  { icon: MessageSquare, label: 'New Chat', path: '/chat', gradient: 'from-blue-500 to-cyan-500' },
-  { icon: Video, label: 'Instant Meet', path: '/meetings', gradient: 'from-purple-500 to-pink-500' },
-  { icon: Upload, label: 'Upload File', path: '/files', gradient: 'from-orange-500 to-amber-500' },
-  { icon: Sparkles, label: 'Ask AI', path: '/ai', gradient: 'from-violet-500 to-fuchsia-500' },
+  { icon: MessageSquare, label: 'New Chat', path: '/chat', gradient: 'from-gradient-blue to-gradient-blue-end' },
+  { icon: Video, label: 'Instant Meet', path: '/meetings', gradient: 'from-gradient-purple to-gradient-purple-end' },
+  { icon: Upload, label: 'Upload File', path: '/files', gradient: 'from-gradient-orange to-gradient-orange-end' },
+  { icon: Sparkles, label: 'Ask AI', path: '/ai', gradient: 'from-gradient-indigo to-gradient-indigo-end' },
 ];
 
 export const QuickActions = () => {
@@ -26,7 +26,7 @@ export const QuickActions = () => {
           onClick={() => navigate(action.path)}
           className={cn(
             "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all",
-            "bg-gradient-to-r text-white shadow-lg shrink-0",
+            "bg-gradient-to-r text-primary-foreground shadow-lg shrink-0",
             action.gradient,
             "hover:shadow-xl"
           )}
