@@ -357,6 +357,18 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         )}
 
         {/* Empty State */}
+        {/* Search no results */}
+        {filteredFriends.length === 0 && filteredGroups.length === 0 && query && (
+          <div className="px-4 py-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted/30 flex items-center justify-center">
+              <Users className="w-8 h-8 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm font-medium text-foreground/70">No results for "{query}"</p>
+            <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>
+          </div>
+        )}
+
+        {/* Empty State */}
         {filteredFriends.length === 0 && filteredGroups.length === 0 && !query && (
           <div className="px-4 py-16 text-center">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
