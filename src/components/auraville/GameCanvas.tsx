@@ -667,6 +667,13 @@ export const GameCanvas = ({
   const furnitureRef = useRef(furniture);
   const snapshotRef = useRef(getRemotePlayersSnapshot);
 
+  // Smooth camera position (lerp-based follow)
+  const camRef = useRef({ x: 0, y: 0 });
+  // Particles
+  const particlesRef = useRef<Particle[]>([]);
+  // Transition state for house entry/exit
+  const transitionRef = useRef({ active: false, alpha: 0, direction: 'in' as 'in' | 'out', callback: null as (() => void) | null });
+
   posRef.current = position;
   profileRef.current = profile;
   remoteRef.current = remotePlayers;
@@ -679,33 +686,46 @@ export const GameCanvas = ({
   furnitureRef.current = furniture;
   snapshotRef.current = getRemotePlayersSnapshot;
 
+  // Wrapped enter/exit with fade transitions
+  const enterHouseWithTransition = useCallback((houseId: string) => {
+    transitionRef.current = { active: true, alpha: 0, direction: 'in', callback: () => {
+      onEnterRef.current(houseId);
+      const w = sizeRef.current.w;
+      const h = sizeRef.current.h;
+      interiorPosRef.current = {
+        x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
+        y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
+      };
+      // Fade back out
+      transitionRef.current = { active: true, alpha: 1, direction: 'out', callback: null };
+    }};
+  }, []);
+
+  const exitHouseWithTransition = useCallback(() => {
+    transitionRef.current = { active: true, alpha: 0, direction: 'in', callback: () => {
+      onExitRef.current();
+      transitionRef.current = { active: true, alpha: 1, direction: 'out', callback: null };
+    }};
+  }, []);
+
   // Handle enter key for house entry
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'e' || e.key === 'E') {
         if (insideRef.current) {
-          // Check if near exit door
           const w = sizeRef.current.w;
           const h = sizeRef.current.h;
           const bounds = getInteriorBounds(w, h);
           const ip = interiorPosRef.current;
           if (ip.y > bounds.maxY - 30) {
-            onExitRef.current();
+            exitHouseWithTransition();
           }
         } else {
-          // Check if near any house door
           const pos = posRef.current;
           for (const house of housesRef.current) {
             const dist = Math.sqrt((pos.x - house.x) ** 2 + (pos.y - house.y) ** 2);
             if (dist < HOUSE_ENTER_DISTANCE) {
-              onEnterRef.current(house.ownerId);
-              // Reset interior position to center
-              const w = sizeRef.current.w;
-              const h = sizeRef.current.h;
-              interiorPosRef.current = {
-                x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
-                y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
-              };
+              enterHouseWithTransition(house.ownerId);
               break;
             }
           }
@@ -714,7 +734,7 @@ export const GameCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [enterHouseWithTransition, exitHouseWithTransition]);
 
   // Handle canvas click/tap for house entry (unified handler prevents double-fire)
   useEffect(() => {
