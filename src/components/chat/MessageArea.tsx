@@ -32,6 +32,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 interface MessageAreaProps {
   messages: Message[];
   onSendMessage: (content: string) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   conversationName: string;
   isGroup?: boolean;
   conversationId: string | null;
@@ -76,8 +78,10 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
 
-export const MessageArea = ({ messages, onSendMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
+export const MessageArea = ({ messages, onSendMessage, onEditMessage, onDeleteMessage, conversationName, isGroup, conversationId, otherUserId }: MessageAreaProps) => {
   const { user } = useAuth();
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
   const { startCall: initiateCall } = useCall();
   const [input, setInput] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
