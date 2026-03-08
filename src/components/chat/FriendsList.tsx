@@ -273,13 +273,14 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
       <ChatSearchBar value={searchQuery} onChange={setSearchQuery} />
       <div className="py-2 px-2">
         {/* Friends Section */}
-        {filteredFriends.length > 0 && (
-          <div className="space-y-1">
-            {filteredFriends.map((friend) => {
+        {sortedFriends.length > 0 && (
+          <div className="space-y-0.5">
+            {sortedFriends.map((friend) => {
               const isSelected = friend.conversation_id === selectedConversationId;
               const unreadCount = friend.conversation_id && getUnreadCount 
                 ? getUnreadCount(friend.conversation_id) : 0;
               const presenceStatus = getStatus(friend.id);
+              const lastMsg = friend.conversation_id ? lastMessageMap.get(friend.conversation_id) : null;
               
               return (
                 <button
@@ -308,22 +309,40 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                     </span>
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <p className={cn(
-                      'text-base truncate transition-colors',
-                      isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
-                      unreadCount > 0 && 'font-semibold'
-                    )}>
-                      {friend.full_name || friend.username || friend.email}
-                    </p>
-                    {friend.username && friend.full_name && (
-                      <p className="text-sm text-muted-foreground truncate">@{friend.username}</p>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={cn(
+                        'text-sm truncate transition-colors',
+                        isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
+                        unreadCount > 0 && 'font-semibold'
+                      )}>
+                        {friend.full_name || friend.username || friend.email}
+                      </p>
+                      {lastMsg && (
+                        <span className={cn(
+                          'text-[11px] shrink-0',
+                          unreadCount > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'
+                        )}>
+                          {formatLastMessageTime(lastMsg.created_at)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className={cn(
+                        'text-xs truncate',
+                        unreadCount > 0 ? 'text-foreground/70 font-medium' : 'text-muted-foreground'
+                      )}>
+                        {lastMsg 
+                          ? (lastMsg.sender_id === user?.id ? `You: ${getPreviewText(lastMsg)}` : getPreviewText(lastMsg))
+                          : (friend.username && friend.full_name ? `@${friend.username}` : 'Tap to start chatting')
+                        }
+                      </p>
+                      {unreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shrink-0">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {unreadCount > 0 && (
-                    <span className="flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -336,10 +355,11 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
             <div className="px-3 pt-5 pb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Groups</span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {filteredGroups.map((group) => {
                 const isSelected = group.id === selectedConversationId;
                 const unreadCount = getUnreadCount ? getUnreadCount(group.id) : 0;
+                const lastMsg = lastMessageMap.get(group.id);
                 
                 return (
                   <button
@@ -368,22 +388,37 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
                       </div>
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <p className={cn(
-                        'text-base truncate transition-colors',
-                        isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
-                        unreadCount > 0 && 'font-semibold'
-                      )}>
-                        {group.name || 'Unnamed Group'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {group.members?.length || 0} members
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn(
+                          'text-sm truncate transition-colors',
+                          isSelected ? 'font-semibold text-primary' : 'font-medium text-foreground/90',
+                          unreadCount > 0 && 'font-semibold'
+                        )}>
+                          {group.name || 'Unnamed Group'}
+                        </p>
+                        {lastMsg && (
+                          <span className={cn(
+                            'text-[11px] shrink-0',
+                            unreadCount > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'
+                          )}>
+                            {formatLastMessageTime(lastMsg.created_at)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className={cn(
+                          'text-xs truncate',
+                          unreadCount > 0 ? 'text-foreground/70 font-medium' : 'text-muted-foreground'
+                        )}>
+                          {lastMsg ? getPreviewText(lastMsg) : `${group.members?.length || 0} members`}
+                        </p>
+                        {unreadCount > 0 && (
+                          <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shrink-0">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {unreadCount > 0 && (
-                      <span className="flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
                   </button>
                 );
               })}
