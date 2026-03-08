@@ -118,47 +118,74 @@ export const useMessages = (conversationId: string | null) => {
     }
   };
 
+  const editMessage = async (messageId: string, newContent: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newContent, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_id', user.id);
+    if (error) {
+      console.error('Error editing message:', error);
+      const { toast } = await import('@/hooks/use-toast').then(m => ({ toast: m.toast }));
+      toast({ title: 'Edit failed', description: 'Could not edit message.', variant: 'destructive' });
+    } else {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent, edited_at: new Date().toISOString() } : m));
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('messages')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_id', user.id);
+    if (error) {
+      console.error('Error deleting message:', error);
+    } else {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_at: new Date().toISOString(), content: '' } : m));
+    }
+  };
+
   useEffect(() => {
     fetchMessages();
 
     if (!conversationId) return;
 
-    // Subscribe to new messages
     const channel = supabase
       .channel(`messages-${conversationId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Message;
+            setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, content: updated.content, edited_at: updated.edited_at, deleted_at: updated.deleted_at } : m));
+            return;
+          }
+          
           const newMessage = payload.new as Message;
           
-          // Play notification sound if message is from someone else
           if (newMessage.sender_id !== user?.id) {
             playMessageNotification();
           }
           
-          // Fetch sender profile for the new message
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, email, full_name, avatar_url')
             .eq('id', newMessage.sender_id)
             .maybeSingle();
           
-          const messageWithSender = {
-            ...newMessage,
-            sender: profile
-          };
+          const messageWithSender = { ...newMessage, sender: profile };
           
           setMessages((prev) => {
-            // Avoid duplicates
-            if (prev.some(m => m.id === newMessage.id)) {
-              return prev;
-            }
+            if (prev.some(m => m.id === newMessage.id)) return prev;
             return [...prev, messageWithSender];
           });
         }
@@ -170,5 +197,5 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [conversationId]);
 
-  return { messages, loading, sendMessage, refetch: fetchMessages };
+  return { messages, loading, sendMessage, editMessage, deleteMessage, refetch: fetchMessages };
 };
