@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Reply, Copy } from 'lucide-react';
+import { Reply, Copy, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { triggerHaptic } from '@/utils/haptics';
 import { playReactSound } from '@/utils/chatSounds';
@@ -13,9 +13,12 @@ interface MessageReactionMenuProps {
   messageContent: string;
   senderId: string;
   isOwn: boolean;
+  isDeleted?: boolean;
   onReact: (messageId: string, emoji: string) => void;
   onReply: (messageId: string, content: string, senderName: string) => void;
   onCopy: (content: string) => void;
+  onEdit?: (messageId: string, currentContent: string) => void;
+  onDelete?: (messageId: string) => void;
   senderName: string;
   children: React.ReactNode;
 }
@@ -25,9 +28,12 @@ export const MessageReactionMenu = ({
   messageContent,
   senderId,
   isOwn,
+  isDeleted,
   onReact,
   onReply,
   onCopy,
+  onEdit,
+  onDelete,
   senderName,
   children,
 }: MessageReactionMenuProps) => {
@@ -38,29 +44,29 @@ export const MessageReactionMenu = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef(0);
 
-  // Double-tap to heart react
   const handleDoubleTap = useCallback(() => {
+    if (isDeleted) return;
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
     if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      // Double tap detected!
       triggerHaptic('medium');
       playReactSound();
       onReact(messageId, '❤️');
       setHeartBurst(prev => prev + 1);
-      lastTapRef.current = 0; // reset
+      lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
-  }, [messageId, onReact]);
+  }, [messageId, onReact, isDeleted]);
 
   const handleLongPressStart = useCallback((clientX: number, clientY: number) => {
+    if (isDeleted) return;
     touchStartPos.current = { x: clientX, y: clientY };
     longPressTimer.current = setTimeout(() => {
       triggerHaptic('medium');
       setIsOpen(true);
     }, 500);
-  }, []);
+  }, [isDeleted]);
 
   const handleLongPressEnd = useCallback(() => {
     if (longPressTimer.current) {
@@ -83,7 +89,6 @@ export const MessageReactionMenu = ({
     handleDoubleTap();
   }, [handleLongPressEnd, handleDoubleTap]);
 
-  // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: Event) => {
@@ -115,6 +120,16 @@ export const MessageReactionMenu = ({
     setIsOpen(false);
   };
 
+  const handleEdit = () => {
+    onEdit?.(messageId, messageContent);
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    onDelete?.(messageId);
+    setIsOpen(false);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -123,12 +138,14 @@ export const MessageReactionMenu = ({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
       onDoubleClick={() => {
+        if (isDeleted) return;
         triggerHaptic('medium');
         playReactSound();
         onReact(messageId, '❤️');
         setHeartBurst(prev => prev + 1);
       }}
       onContextMenu={(e) => {
+        if (isDeleted) return;
         e.preventDefault();
         triggerHaptic('medium');
         setIsOpen(true);
@@ -140,7 +157,6 @@ export const MessageReactionMenu = ({
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -150,7 +166,6 @@ export const MessageReactionMenu = ({
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Menu */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -192,6 +207,30 @@ export const MessageReactionMenu = ({
                   <Copy className="w-4 h-4 text-muted-foreground" />
                   <span>Copy</span>
                 </button>
+                {isOwn && onEdit && (
+                  <>
+                    <div className="h-px bg-border/30 mx-2" />
+                    <button
+                      onClick={handleEdit}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                      <span>Edit</span>
+                    </button>
+                  </>
+                )}
+                {isOwn && onDelete && (
+                  <>
+                    <div className="h-px bg-border/30 mx-2" />
+                    <button
+                      onClick={handleDelete}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 active:bg-destructive/20 transition-colors touch-manipulation"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </>
