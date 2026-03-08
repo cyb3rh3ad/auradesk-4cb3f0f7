@@ -32,6 +32,65 @@ interface GameCanvasProps {
   getRemotePlayersSnapshot?: () => Map<string, RemotePlayer>;
 }
 
+// ─── Ambient Particle System ────────────────────────
+interface Particle {
+  x: number; y: number; vx: number; vy: number;
+  size: number; alpha: number; life: number; maxLife: number;
+  type: 'leaf' | 'butterfly' | 'firefly' | 'dust';
+  color: string; angle: number;
+}
+
+function createParticle(camX: number, camY: number, w: number, h: number, type: Particle['type']): Particle {
+  const colors: Record<string, string[]> = {
+    leaf: ['#4ade80', '#22c55e', '#f59e0b', '#ef4444'],
+    butterfly: ['#a855f7', '#ec4899', '#3b82f6', '#f59e0b'],
+    firefly: ['#fbbf24', '#fde68a'],
+    dust: ['#fff', '#fef3c7'],
+  };
+  const c = colors[type];
+  return {
+    x: camX + Math.random() * w,
+    y: camY + Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: type === 'leaf' ? Math.random() * 0.3 + 0.1 : (Math.random() - 0.5) * 0.2,
+    size: type === 'butterfly' ? 3 + Math.random() * 2 : type === 'firefly' ? 2 + Math.random() : 1 + Math.random(),
+    alpha: 0.3 + Math.random() * 0.5,
+    life: 0,
+    maxLife: 200 + Math.random() * 300,
+    type,
+    color: c[Math.floor(Math.random() * c.length)],
+    angle: Math.random() * Math.PI * 2,
+  };
+}
+
+// ─── Day/Night Cycle ────────────────────────────────
+function getDayNightOverlay(frame: number): { overlay: string; skyTint: string; isNight: boolean } {
+  // One full cycle = ~10 minutes (36000 frames at 60fps)
+  const cycleLen = 36000;
+  const t = (frame % cycleLen) / cycleLen; // 0-1
+  // 0-0.25 = dawn, 0.25-0.5 = day, 0.5-0.75 = dusk, 0.75-1 = night
+  let overlay: string;
+  let skyTint: string;
+  let isNight = false;
+  if (t < 0.2) { // dawn
+    const d = t / 0.2;
+    overlay = `rgba(20,10,40,${0.25 * (1 - d)})`;
+    skyTint = `rgba(255,180,100,${0.08 * (1 - d)})`;
+  } else if (t < 0.55) { // day
+    overlay = 'rgba(0,0,0,0)';
+    skyTint = 'rgba(0,0,0,0)';
+  } else if (t < 0.75) { // dusk
+    const d = (t - 0.55) / 0.2;
+    overlay = `rgba(40,20,60,${0.15 * d})`;
+    skyTint = `rgba(255,100,50,${0.06 * d})`;
+  } else { // night
+    isNight = true;
+    overlay = 'rgba(10,10,30,0.3)';
+    skyTint = 'rgba(20,20,60,0.1)';
+  }
+  return { overlay, skyTint, isNight };
+}
+
 // ─── World Drawing ──────────────────────────────────
 function drawGrass(ctx: CanvasRenderingContext2D, camX: number, camY: number, w: number, h: number) {
   const grad = ctx.createLinearGradient(0, 0, 0, h);
@@ -60,6 +119,12 @@ function drawGrass(ctx: CanvasRenderingContext2D, camX: number, camY: number, w:
         ctx.fillStyle = '#22c55e';
         ctx.fillRect(sx + 12, sy + 8, 2, 5);
         ctx.fillRect(sx + 20, sy + 14, 2, 4);
+      }
+      // Extra grass detail
+      if (seed > 85) {
+        ctx.fillStyle = 'rgba(34,197,94,0.4)';
+        ctx.fillRect(sx + 6, sy + 20, 1, 4);
+        ctx.fillRect(sx + 24, sy + 4, 1, 3);
       }
     }
   }
@@ -602,6 +667,13 @@ export const GameCanvas = ({
   const furnitureRef = useRef(furniture);
   const snapshotRef = useRef(getRemotePlayersSnapshot);
 
+  // Smooth camera position (lerp-based follow)
+  const camRef = useRef({ x: 0, y: 0 });
+  // Particles
+  const particlesRef = useRef<Particle[]>([]);
+  // Transition state for house entry/exit
+  const transitionRef = useRef({ active: false, alpha: 0, direction: 'in' as 'in' | 'out', callback: null as (() => void) | null });
+
   posRef.current = position;
   profileRef.current = profile;
   remoteRef.current = remotePlayers;
@@ -614,33 +686,46 @@ export const GameCanvas = ({
   furnitureRef.current = furniture;
   snapshotRef.current = getRemotePlayersSnapshot;
 
+  // Wrapped enter/exit with fade transitions
+  const enterHouseWithTransition = useCallback((houseId: string) => {
+    transitionRef.current = { active: true, alpha: 0, direction: 'in', callback: () => {
+      onEnterRef.current(houseId);
+      const w = sizeRef.current.w;
+      const h = sizeRef.current.h;
+      interiorPosRef.current = {
+        x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
+        y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
+      };
+      // Fade back out
+      transitionRef.current = { active: true, alpha: 1, direction: 'out', callback: null };
+    }};
+  }, []);
+
+  const exitHouseWithTransition = useCallback(() => {
+    transitionRef.current = { active: true, alpha: 0, direction: 'in', callback: () => {
+      onExitRef.current();
+      transitionRef.current = { active: true, alpha: 1, direction: 'out', callback: null };
+    }};
+  }, []);
+
   // Handle enter key for house entry
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'e' || e.key === 'E') {
         if (insideRef.current) {
-          // Check if near exit door
           const w = sizeRef.current.w;
           const h = sizeRef.current.h;
           const bounds = getInteriorBounds(w, h);
           const ip = interiorPosRef.current;
           if (ip.y > bounds.maxY - 30) {
-            onExitRef.current();
+            exitHouseWithTransition();
           }
         } else {
-          // Check if near any house door
           const pos = posRef.current;
           for (const house of housesRef.current) {
             const dist = Math.sqrt((pos.x - house.x) ** 2 + (pos.y - house.y) ** 2);
             if (dist < HOUSE_ENTER_DISTANCE) {
-              onEnterRef.current(house.ownerId);
-              // Reset interior position to center
-              const w = sizeRef.current.w;
-              const h = sizeRef.current.h;
-              interiorPosRef.current = {
-                x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
-                y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
-              };
+              enterHouseWithTransition(house.ownerId);
               break;
             }
           }
@@ -649,7 +734,7 @@ export const GameCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [enterHouseWithTransition, exitHouseWithTransition]);
 
   // Handle canvas click/tap for house entry (unified handler prevents double-fire)
   useEffect(() => {
@@ -678,26 +763,19 @@ export const GameCanvas = ({
         const doorX = ox + INTERIOR_WIDTH / 2;
         const doorY = oy + INTERIOR_HEIGHT + 5;
         if (Math.abs(cx - doorX) < 25 && Math.abs(cy - doorY) < 20) {
-          onExitRef.current();
+          exitHouseWithTransition();
         }
       } else {
         // Check house click
         const pos = posRef.current;
-        const camX = pos.x - sizeRef.current.w / 2;
-        const camY = pos.y - sizeRef.current.h / 2;
+        const cam = camRef.current;
         for (const house of housesRef.current) {
-          const hx = house.x - camX;
-          const hy = house.y - camY;
+          const hx = house.x - cam.x;
+          const hy = house.y - cam.y;
           if (Math.abs(cx - hx) < 50 && Math.abs(cy - hy) < 45) {
             const dist = Math.sqrt((pos.x - house.x) ** 2 + (pos.y - house.y) ** 2);
             if (dist < HOUSE_ENTER_DISTANCE) {
-              onEnterRef.current(house.ownerId);
-              const w = sizeRef.current.w;
-              const h = sizeRef.current.h;
-              interiorPosRef.current = {
-                x: (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2,
-                y: (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 - 30
-              };
+              enterHouseWithTransition(house.ownerId);
               break;
             }
           }
@@ -751,11 +829,33 @@ export const GameCanvas = ({
 
       const pos = posRef.current;
       const prof = profileRef.current;
-      // Use snapshot for frame-accurate interpolated positions (avoids throttled React state)
       const remote = snapshotRef.current ? snapshotRef.current() : remoteRef.current;
       const houseList = housesRef.current;
       const decList = decsRef.current;
       const inside = insideRef.current;
+      const frame = frameRef.current;
+
+      // ─── Update transition ────────────────────────────
+      const tr = transitionRef.current;
+      if (tr.active) {
+        if (tr.direction === 'in') {
+          tr.alpha = Math.min(1, tr.alpha + 0.06);
+          if (tr.alpha >= 1 && tr.callback) {
+            tr.callback();
+            tr.callback = null;
+          }
+        } else {
+          tr.alpha = Math.max(0, tr.alpha - 0.04);
+          if (tr.alpha <= 0) tr.active = false;
+        }
+      }
+
+      // ─── Smooth camera follow ─────────────────────────
+      const CAM_LERP = 0.08;
+      const targetCamX = pos.x - w / 2;
+      const targetCamY = pos.y - h / 2;
+      camRef.current.x += (targetCamX - camRef.current.x) * CAM_LERP;
+      camRef.current.y += (targetCamY - camRef.current.y) * CAM_LERP;
 
       if (inside) {
         // ─── Interior Mode ────────────────────────────
@@ -771,7 +871,7 @@ export const GameCanvas = ({
           style: house?.style || 0,
         };
 
-        drawInterior(ctx, interior, w, h, frameRef.current);
+        drawInterior(ctx, interior, w, h, frame);
 
         // Draw placed furniture
         const fOx = (w - INTERIOR_WIDTH) / 2;
@@ -780,7 +880,7 @@ export const GameCanvas = ({
           drawFurnitureItem(ctx, f, fOx, fOy);
         });
 
-        // Move interior player using direction + isMoving from the game state
+        // Move interior player
         const bounds = getInteriorBounds(w, h);
         const ip = interiorPosRef.current;
         const speed = 2.5;
@@ -797,17 +897,14 @@ export const GameCanvas = ({
           y: Math.max(bounds.minY, Math.min(bounds.maxY, ip.y + dy)),
         };
 
-        // Draw character in interior
-        drawCharacter(ctx, interiorPosRef.current.x, interiorPosRef.current.y, prof, pos.direction, pos.isMoving, frameRef.current, 2.2);
+        drawCharacter(ctx, interiorPosRef.current.x, interiorPosRef.current.y, prof, pos.direction, pos.isMoving, frame, 2.2);
 
         // Draw other players inside same house
         remote.forEach(rp => {
           if (rp.insideHouseId === inside) {
-            // Place them at a relative position in the room
             const rpx = (w - INTERIOR_WIDTH) / 2 + INTERIOR_WIDTH / 2 + (Math.sin(rp.userId.charCodeAt(0)) * 60);
             const rpy = (h - INTERIOR_HEIGHT) / 2 + INTERIOR_HEIGHT / 2 + (Math.cos(rp.userId.charCodeAt(1)) * 30);
-            drawCharacter(ctx, rpx, rpy, rp.profile, rp.position.direction, rp.position.isMoving, frameRef.current, 2.2);
-            // Name
+            drawCharacter(ctx, rpx, rpy, rp.profile, rp.position.direction, rp.position.isMoving, frame, 2.2);
             ctx.font = 'bold 10px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             const tw = ctx.measureText(rp.displayName).width;
@@ -819,19 +916,20 @@ export const GameCanvas = ({
           }
         });
 
-        // Interior HUD
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        roundRect(ctx, 10, h - 35, 200, 25, 6);
+        // Interior HUD hint
+        const hintAlpha = 0.5 + Math.sin(frame * 0.04) * 0.15;
+        ctx.fillStyle = `rgba(0,0,0,${hintAlpha * 0.8})`;
+        roundRect(ctx, 10, h - 35, 210, 25, 8);
         ctx.fill();
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = `rgba(255,255,255,${hintAlpha + 0.3})`;
         ctx.font = '11px "Segoe UI", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('Press E or tap EXIT to leave', 20, h - 18);
+        ctx.fillText('🚪 Press E or tap EXIT to leave', 20, h - 18);
 
       } else {
         // ─── Outdoor Mode ─────────────────────────────
-        const camX = pos.x - w / 2;
-        const camY = pos.y - h / 2;
+        const camX = camRef.current.x;
+        const camY = camRef.current.y;
 
         ctx.fillStyle = '#1a3320';
         ctx.fillRect(0, 0, w, h);
@@ -849,7 +947,7 @@ export const GameCanvas = ({
         ctx.restore();
 
         drawPaths(ctx, houseList, camX, camY);
-        drawVoiceRange(ctx, pos.x - camX, pos.y - camY, frameRef.current);
+        drawVoiceRange(ctx, pos.x - camX, pos.y - camY, frame);
 
         type Drawable = { y: number; draw: () => void };
         const drawables: Drawable[] = [];
@@ -865,11 +963,11 @@ export const GameCanvas = ({
         });
 
         remote.forEach(rp => {
-          if (rp.insideHouseId) return; // Don't show players inside houses
+          if (rp.insideHouseId) return;
           drawables.push({
             y: rp.position.y,
             draw: () => {
-              drawCharacter(ctx, rp.position.x - camX, rp.position.y - camY, rp.profile, rp.position.direction, rp.position.isMoving, frameRef.current);
+              drawCharacter(ctx, rp.position.x - camX, rp.position.y - camY, rp.profile, rp.position.direction, rp.position.isMoving, frame);
               const labelX = rp.position.x - camX;
               const labelY = rp.position.y - camY - 32;
               ctx.font = 'bold 11px "Segoe UI", sans-serif';
@@ -901,12 +999,16 @@ export const GameCanvas = ({
         drawables.push({
           y: pos.y,
           draw: () => {
-            drawCharacter(ctx, pos.x - camX, pos.y - camY, prof, pos.direction, pos.isMoving, frameRef.current);
+            drawCharacter(ctx, pos.x - camX, pos.y - camY, prof, pos.direction, pos.isMoving, frame);
             ctx.font = 'bold 11px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             const labelY = pos.y - camY - 32;
             const tw = ctx.measureText(prof.displayName).width;
-            ctx.fillStyle = 'rgba(180,130,20,0.75)';
+            // Player name tag with gradient background
+            const tagGrad = ctx.createLinearGradient(pos.x - camX - tw / 2 - 7, labelY - 9, pos.x - camX + tw / 2 + 7, labelY + 9);
+            tagGrad.addColorStop(0, 'rgba(180,130,20,0.8)');
+            tagGrad.addColorStop(1, 'rgba(220,160,30,0.7)');
+            ctx.fillStyle = tagGrad;
             roundRect(ctx, pos.x - camX - tw / 2 - 7, labelY - 9, tw + 14, 18, 6);
             ctx.fill();
             ctx.strokeStyle = 'rgba(251,191,36,0.4)';
@@ -920,7 +1022,92 @@ export const GameCanvas = ({
         drawables.sort((a, b) => a.y - b.y);
         drawables.forEach(d => d.draw());
 
+        // ─── Ambient Particles ──────────────────────────
+        const dayNight = getDayNightOverlay(frame);
+        const particles = particlesRef.current;
+        
+        // Spawn particles
+        if (particles.length < 30) {
+          const type = dayNight.isNight ? 'firefly' : (Math.random() < 0.6 ? 'leaf' : 'butterfly');
+          particles.push(createParticle(camX, camY, w, h, type));
+        }
+        
+        // Update & draw particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx + Math.sin(p.life * 0.02) * 0.15;
+          p.y += p.vy;
+          p.angle += 0.02;
+          p.life++;
+          
+          // Fade in/out
+          const lifeRatio = p.life / p.maxLife;
+          const fadeAlpha = lifeRatio < 0.1 ? lifeRatio * 10 : lifeRatio > 0.8 ? (1 - lifeRatio) * 5 : 1;
+          
+          if (p.life >= p.maxLife) {
+            particles.splice(i, 1);
+            continue;
+          }
+          
+          const px = p.x - camX;
+          const py = p.y - camY;
+          if (px < -20 || px > w + 20 || py < -20 || py > h + 20) {
+            particles.splice(i, 1);
+            continue;
+          }
+          
+          ctx.save();
+          ctx.globalAlpha = p.alpha * fadeAlpha;
+          ctx.translate(px, py);
+          
+          if (p.type === 'leaf') {
+            ctx.rotate(p.angle);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.size * 1.5, p.size * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (p.type === 'butterfly') {
+            ctx.fillStyle = p.color;
+            const wingAngle = Math.sin(p.life * 0.15) * 0.5;
+            ctx.save(); ctx.rotate(wingAngle);
+            ctx.beginPath(); ctx.ellipse(-p.size * 0.6, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.save(); ctx.rotate(-wingAngle);
+            ctx.beginPath(); ctx.ellipse(p.size * 0.6, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-0.5, -p.size * 0.3, 1, p.size * 0.6);
+          } else if (p.type === 'firefly') {
+            const glowPulse = 0.5 + Math.sin(p.life * 0.1 + p.angle * 10) * 0.5;
+            const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 4);
+            glow.addColorStop(0, `rgba(251,191,36,${0.4 * glowPulse})`);
+            glow.addColorStop(1, 'rgba(251,191,36,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(0, 0, p.size * 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2); ctx.fill();
+          }
+          
+          ctx.restore();
+        }
+
+        // ─── Day/Night Overlay ──────────────────────────
+        if (dayNight.overlay !== 'rgba(0,0,0,0)') {
+          ctx.fillStyle = dayNight.overlay;
+          ctx.fillRect(0, 0, w, h);
+        }
+        if (dayNight.skyTint !== 'rgba(0,0,0,0)') {
+          ctx.fillStyle = dayNight.skyTint;
+          ctx.fillRect(0, 0, w, h);
+        }
+
         drawMinimap(ctx, w, h, pos.x, pos.y, houseList, remote);
+      }
+
+      // ─── Fade transition overlay ────────────────────
+      if (tr.active || tr.alpha > 0) {
+        ctx.fillStyle = `rgba(0,0,0,${tr.alpha})`;
+        ctx.fillRect(0, 0, w, h);
       }
 
       ctx.restore();
