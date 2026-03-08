@@ -428,7 +428,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
 
         {/* Empty State */}
         {/* Search no results */}
-        {filteredFriends.length === 0 && filteredGroups.length === 0 && query && (
+        {sortedFriends.length === 0 && filteredGroups.length === 0 && query && (
           <div className="px-4 py-12 text-center">
             <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted/30 flex items-center justify-center">
               <Users className="w-8 h-8 text-muted-foreground/30" />
@@ -439,7 +439,7 @@ export const FriendsList = ({ onSelectConversation, selectedConversationId, conv
         )}
 
         {/* Empty State */}
-        {filteredFriends.length === 0 && filteredGroups.length === 0 && !query && (
+        {sortedFriends.length === 0 && filteredGroups.length === 0 && !query && (
           <div className="px-4 py-16 text-center">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
               <Users className="w-10 h-10 text-muted-foreground/50" />
