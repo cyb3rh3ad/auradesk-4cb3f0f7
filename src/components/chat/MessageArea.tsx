@@ -251,6 +251,28 @@ export const MessageArea = ({ messages, onSendMessage, onEditMessage, onDeleteMe
     toast.success('Copied to clipboard');
   };
 
+  const handleEditStart = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId);
+    setEditContent(currentContent);
+  };
+
+  const handleEditSave = () => {
+    if (editingMessageId && editContent.trim() && onEditMessage) {
+      onEditMessage(editingMessageId, editContent.trim());
+    }
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    onDeleteMessage?.(messageId);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
