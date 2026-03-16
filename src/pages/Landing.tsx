@@ -55,15 +55,19 @@ const Landing = () => {
   
   const isMobile = useIsMobile();
 
-  // Force dark theme on landing page
+  // Force dark theme on landing page, restore previous on unmount
   useEffect(() => {
     const root = document.documentElement;
     const themes = ['dark', 'theme-discord-dark', 'theme-midnight', 'theme-forest', 'theme-sunset', 'theme-purple'];
-    const currentTheme = themes.find(t => root.classList.contains(t)) || 'light';
+    const previousTheme = themes.find(t => root.classList.contains(t)) || null;
     themes.forEach(t => root.classList.remove(t));
     root.classList.add('dark');
     return () => {
       themes.forEach(t => root.classList.remove(t));
+      // Restore the user's previous theme (ThemeInit will also handle this, but avoid flash)
+      const saved = localStorage.getItem('auradesk-theme');
+      const restore = saved && saved !== 'light' ? saved : previousTheme;
+      if (restore) root.classList.add(restore);
     };
   }, []);
 

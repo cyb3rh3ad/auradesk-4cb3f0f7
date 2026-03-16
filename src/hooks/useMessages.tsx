@@ -26,29 +26,26 @@ export const useMessages = (conversationId: string | null) => {
       return;
     }
 
-    // Fetch messages first
+    // Fetch messages (limit to last 500 to avoid silent truncation)
     const { data: messagesData } = await supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     if (messagesData && messagesData.length > 0) {
+      // Reverse to get chronological order after fetching latest first
+      messagesData.reverse();
+      
       // Get unique sender IDs
       const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
-      
-      console.log('Fetching profiles for senderIds:', senderIds);
       
       // Fetch sender profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, full_name, avatar_url')
         .in('id', senderIds);
-
-      console.log('Profiles fetched:', profiles);
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-      }
 
       // Map profiles to messages
       const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
